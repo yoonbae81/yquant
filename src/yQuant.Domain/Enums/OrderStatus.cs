@@ -2,7 +2,10 @@
 
 public enum OrderStatus
 {
-    Requested = 0,
-    Filled = 1,
-    Cancelled = -1
+    NotPlaced,
+    Placed,
+    PartiallyFilled,
+    Filled,
+    Cancelled,
+    Rejected
 }
