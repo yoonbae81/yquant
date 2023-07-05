@@ -10,4 +10,8 @@
     <Folder Include="Out\" />
   </ItemGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\yQuant\yQuant.csproj" />
+  </ItemGroup>
+
 </Project>
