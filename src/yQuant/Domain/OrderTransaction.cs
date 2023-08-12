@@ -1,4 +1,4 @@
-﻿namespace yQuant.Domain.Enums;
+﻿namespace yQuant.Domain;
 
 public enum OrderTransaction
 {

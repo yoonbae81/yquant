@@ -1,18 +1,14 @@
-﻿namespace yQuant.Domain.Entities;
+﻿namespace yQuant.Ports.Input;
+
+using yQuant.Domain;
 
 using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using yQuant.Domain.Enums;
 
-using static yQuant.Domain.Enums.OrderTransaction;
-using static yQuant.Domain.Enums.OrderType;
-using static yQuant.Domain.Enums.OrderStatus;
+using static yQuant.Domain.OrderTransaction;
+using static yQuant.Domain.OrderType;
+using static yQuant.Domain.OrderStatus;
 
-
-public class Order
+public record OrderCommand
 {
     public OrderTransaction Transaction { get; init; }
     public OrderType Type { get; init; } = Limit;
@@ -22,10 +18,12 @@ public class Order
     public decimal Price { get; set; }
     public DateTime CreatedAt { get; } = DateTime.Now;
 
-    public Order(OrderTransaction transaction, OrderType type, string symbol)
+    public OrderCommand(OrderTransaction transaction, OrderType type, string symbol)
     {
         Transaction = transaction;
         Type = type;
         Symbol = symbol;
+
+        // TODO: Add input validations
     }
 }

@@ -7,11 +7,9 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <Folder Include="Application\EventHandlers\" />
-    <Folder Include="Application\Queries\" />
-    <Folder Include="Domain\Events\" />
-    <Folder Include="Domain\Exceptions\" />
-    <Folder Include="Domain\ValueObjects\" />
+    <Compile Remove="Application\**" />
+    <EmbeddedResource Remove="Application\**" />
+    <None Remove="Application\**" />
   </ItemGroup>
 
 </Project>

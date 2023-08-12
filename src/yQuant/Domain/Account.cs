@@ -1,4 +1,4 @@
-﻿namespace yQuant.Domain.Entities;
+﻿namespace yQuant.Domain;
 
 public class Account
 {
