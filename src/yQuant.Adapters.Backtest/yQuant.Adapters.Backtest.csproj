@@ -6,9 +6,6 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
-  <ItemGroup>
-    <Folder Include="Out\" />
-  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\yQuant\yQuant.csproj" />
