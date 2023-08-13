@@ -1,16 +1,14 @@
-﻿namespace yQuant.Ports.Input;
+﻿using System;
 
 using yQuant.Domain;
-
-using System;
-
-using static yQuant.Domain.OrderTransaction;
 using static yQuant.Domain.OrderType;
 using static yQuant.Domain.OrderStatus;
 
+namespace yQuant.Ports.Output;
+
 public record OrderCommand
 {
-    public OrderTransaction Transaction { get; init; }
+    public OrderPosition Position { get; init; }
     public OrderType Type { get; init; } = Limit;
     public OrderStatus Status { get; set; } = NotPlaced;
     public string Symbol { get; init; }
@@ -18,9 +16,9 @@ public record OrderCommand
     public decimal Price { get; set; }
     public DateTime CreatedAt { get; } = DateTime.Now;
 
-    public OrderCommand(OrderTransaction transaction, OrderType type, string symbol)
+    public OrderCommand(OrderPosition position, OrderType type, string symbol)
     {
-        Transaction = transaction;
+        Position = position;
         Type = type;
         Symbol = symbol;
 

@@ -1,7 +1,7 @@
-﻿namespace yQuant.Ports.Output;
+﻿using yQuant.Domain;
 
-using yQuant.Domain;
+namespace yQuant.Ports.Output;
 
-internal interface LoadAccountPort {
+public interface LoadAccountPort {
     Account LoadAccount();
 }

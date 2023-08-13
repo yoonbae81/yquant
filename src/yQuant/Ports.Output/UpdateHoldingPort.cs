@@ -1,4 +1,4 @@
 namespace yQuant.Ports.Output;
 
-internal interface UpdateHoldingPort {
+public interface UpdateHoldingPort {
 }
