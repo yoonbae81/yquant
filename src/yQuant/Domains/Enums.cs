@@ -4,7 +4,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 
-namespace yQuant.Domain;
+namespace yQuant.Domains;
 
 public enum OrderType
 {

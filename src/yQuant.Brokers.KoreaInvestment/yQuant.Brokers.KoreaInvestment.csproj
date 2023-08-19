@@ -6,4 +6,8 @@
     <Nullable>enable</Nullable>
   </PropertyGroup>
 
+  <ItemGroup>
+    <ProjectReference Include="..\yQuant\yQuant.csproj" />
+  </ItemGroup>
+
 </Project>

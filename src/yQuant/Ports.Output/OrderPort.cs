@@ -5,5 +5,8 @@ using System.Text;
 using System.Threading.Tasks;
 
 namespace yQuant.Ports.Output;
-internal interface SubscribeTickPort {
+public interface OrderPort
+{
+    public bool PlaceOrder(OrderCommand command);
+    public decimal CalcEntryVolume(OrderCommand command);
 }
