@@ -1,4 +1,4 @@
-<Project Sdk="Microsoft.NET.Sdk">
+﻿<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net7.0</TargetFramework>
@@ -8,6 +8,10 @@
 
   <ItemGroup>
     <ProjectReference Include="..\yQuant\yQuant.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Folder Include="Output\" />
   </ItemGroup>
 
 </Project>

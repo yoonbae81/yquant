@@ -1,8 +1,6 @@
 ﻿using System;
-
-using yQuant.Domains;
-using static yQuant.Domains.OrderType;
-using static yQuant.Domains.OrderStatus;
+using static yQuant.OrderType;
+using static yQuant.OrderStatus;
 
 namespace yQuant.Ports.Output;
 

@@ -1,4 +1,4 @@
-﻿namespace yQuant.Domains;
+﻿namespace yQuant.Entities;
 
 public class Money
 {

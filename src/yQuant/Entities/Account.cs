@@ -1,4 +1,4 @@
-﻿namespace yQuant.Domains;
+﻿namespace yQuant.Entities;
 
 public class Account
 {
@@ -8,4 +8,4 @@ public class Account
     {
         this.baselineBalance = baselineBalance;
     }
-}
+} 
