@@ -4,11 +4,11 @@ This repository offers a modular Python framework for fully automated stock trad
 
 **Key Features**:
 
-- FastAPI-based webhook server for secure, real-time reception of TradingView alerts (with HMAC authentication)
+- FastAPI-based webhook server for secure, real-time reception of TradingView alerts
 
 - Seamless integration with TradingView’s webhook functionality for automated trade execution based on Pine Script strategies or indicators
 
-- Broker abstraction layer utilizing python-kis](https://github.com/Soju06/python-kis) for reliable, type-safe access to Korea Investment & Securities’ Open API
+- Broker abstraction layer utilizing [python-kis](https://github.com/Soju06/python-kis) for reliable, type-safe access to Korea Investment & Securities’ Open API
 
 - Flexible risk management module for dynamic position sizing based on account balance and stop-loss
 
