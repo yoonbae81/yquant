@@ -1,0 +1,6 @@
+fastapi==0.115.12
+uvicorn==0.34.2
+python-dotenv==1.0.1
+python-kis==2.1.3
+aiohttp
+tzdata

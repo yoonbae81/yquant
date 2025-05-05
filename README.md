@@ -1,4 +1,4 @@
-# yquant
+# yQuant
 
 This repository offers a modular Python framework for fully automated stock trading in the Korean market, triggered by TradingView webhook alerts. The system is designed to interface directly with Korea Investment & Securities (한국투자증권) via the robust [python-kis](https://github.com/Soju06/python-kis) library.
 
