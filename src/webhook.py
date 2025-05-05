@@ -5,6 +5,7 @@ import json
 import sys
 import uvicorn
 from contextlib import asynccontextmanager
+from dotenv import load_dotenv
 
 from fastapi import FastAPI, Depends, Request, HTTPException, BackgroundTasks
 from fastapi.responses import JSONResponse
@@ -14,6 +15,8 @@ from pykis import PyKis
 from telegram import TelegramHandler
 import buy
 import sell
+
+load_dotenv()
 
 # https://www.avast.com/random-password-generator
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
@@ -152,4 +155,4 @@ async def ip_filter_middleware(request: Request, call_next):
 
 
 if __name__ == "__main__":
-    uvicorn.run("main:app", host="0.0.0.0", port=8000, reload=True)
+    uvicorn.run("webhook:app", host="0.0.0.0", port=8000, reload=True)
