@@ -12,7 +12,7 @@ logger = logging.getLogger("sell")
 
 def close_all(broker: PyKis, ticker):
     quantity = broker.stock(ticker).orderable
-    price = broker.stock(ticker).quote().price
+    price = broker.stock(ticker).quote().price * 0.9
     price = math.floor(price * 100) / 100
     _request(broker, ticker, quantity, price)
 

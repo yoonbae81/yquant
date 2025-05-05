@@ -12,7 +12,7 @@ logger = logging.getLogger("buy")
 
 
 def allocation(broker, ticker, allocation):
-    price = broker.stock(ticker).quote().price
+    price = broker.stock(ticker).quote().price * 1.1
     price = math.floor(price * 100) / 100
     _request(broker, ticker, 1, price)
 
