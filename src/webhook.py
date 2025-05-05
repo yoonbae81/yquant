@@ -1,7 +1,9 @@
+#!/usr/bin/env python3
 import os
 import logging
 import json
 import sys
+import uvicorn
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Depends, Request, HTTPException, BackgroundTasks
