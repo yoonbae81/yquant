@@ -5,6 +5,7 @@ import logging
 import math
 import os
 import sys
+from decimal import Decimal
 from pykis import PyKis, KisAuth, KisAccount, KisStock
 
 logger = logging.getLogger("sell")
@@ -12,7 +13,8 @@ logger = logging.getLogger("sell")
 
 def close_all(broker: PyKis, ticker):
     quantity = broker.stock(ticker).orderable
-    price = broker.stock(ticker).quote().price * 0.9
+    logger.debug(f"Orderable quantity of {ticker}: {quantity}")
+    price = broker.stock(ticker).quote().price * Decimal(0.9)
     price = math.floor(price * 100) / 100
     _request(broker, ticker, quantity, price)
 

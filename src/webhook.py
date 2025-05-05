@@ -28,6 +28,7 @@ ALLOWED_IPS = {
     "54.218.53.128",
     "52.32.178.7",
     "127.0.0.1",
+    "192.168.1.1",
     "14.47.199.14",  # The EST
 }
 
@@ -46,6 +47,7 @@ def load_accounts_data() -> dict:
     data = {}
 
     for account_name in os.listdir(ACCOUNTS_DIR):
+        logger.debug(f"Loading account information: {account_name}")
         account_path = os.path.join(ACCOUNTS_DIR, account_name)
 
         # Skip if not a directory
@@ -148,7 +150,7 @@ async def handle_webhook(
 @app.middleware("http")
 async def ip_filter_middleware(request: Request, call_next):
     if request.client.host not in ALLOWED_IPS:
-        logger.warn(f"Not allowed IP address: {request.client.host}")
+        # logger.warn(f"Not allowed IP address: {request.client.host}")
         return JSONResponse(status_code=403, content=f"Not allowed IP address")
 
     return await call_next(request)
