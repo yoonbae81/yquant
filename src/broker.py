@@ -9,7 +9,8 @@ from decimal import Decimal
 from dotenv import load_dotenv
 
 # Adjust the import to match the actual available symbols in pykis
-from pykis import PyKis, KisBalance, KisAccount, KisStock
+from pykis import MARKET_TYPE, PyKis, KisBalance, KisAccount, KisStock
+from pykis.api.account.order import order, ensure_price
 
 logger = logging.getLogger("broker")
 
@@ -21,23 +22,29 @@ class Broker:
     def __init__(self, kis: PyKis):
         self._kis: PyKis = kis
 
-    def buy(self, ticker, quantity: int, price: Decimal):
-        stock: KisStock = self._kis.stock(ticker)
-
-        # price = price * 1.1  # market order
-        # price = math.floor(price * 100) / 100
-
+    def buy(self, exchange: MARKET_TYPE, ticker: str, quantity: int, price: Decimal):
         logger.debug(f"Buying {quantity} shares of {ticker} at {price:,.2f}")
-        return stock.buy(qty=quantity)
+        return order(
+            self._kis,
+            self._kis.account().account_number,
+            exchange,
+            ticker,
+            "buy",
+            price,
+            quantity,
+        )
 
-    def sell(self, ticker, quantity: int, price: Decimal):
-        stock: KisStock = self._kis.stock(ticker)
-
-        # price = price * 0.9  # market order
-        # price = math.floor(price * 100) / 100
-
+    def sell(self, exchange: MARKET_TYPE, ticker: str, quantity: int, price: Decimal):
         logger.debug(f"Selling {quantity} shares of {ticker} at {price:,.2f}")
-        return stock.sell(qty=quantity)
+        return order(
+            self._kis,
+            self._kis.account().account_number,
+            exchange,
+            ticker,
+            "sell",
+            price,
+            quantity,
+        )
 
 
 if __name__ == "__main__":

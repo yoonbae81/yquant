@@ -5,7 +5,7 @@ import logging
 import importlib.util
 import json
 import sys
-from pykis import PyKis
+from pykis import MARKET_TYPE, PyKis
 import uvicorn
 import threading
 import requests
@@ -51,7 +51,7 @@ class TelegramHandler(logging.Handler):
 
 class Message(BaseModel):
     action: str
-    exchange: str
+    exchange: MARKET_TYPE
     ticker: str
     price: Decimal
     strength: int
@@ -116,11 +116,11 @@ def execute_order(msg: Message, balance: Balance, broker: Broker):
 
         if msg.action == "sell":
             quantity = balance.sell_quantity(msg.ticker, msg.price, msg.strength)
-            order = broker.sell(msg.ticker, quantity, msg.price)
+            order = broker.sell(msg.exchange, msg.ticker, quantity, msg.price)
 
         if msg.action == "buy":
             quantity = balance.buy_quantity(msg.ticker, msg.price, msg.strength)
-            order = broker.buy(msg.ticker, quantity, msg.price)
+            order = broker.buy(msg.exchange, msg.ticker, quantity, msg.price)
 
     except Exception as e:
         logger.error(f"{e}")
@@ -136,20 +136,20 @@ app = FastAPI(lifespan=lifespan)
 
 @app.post("/webhook")
 async def handle_webhook(
-    alert: Message,
+    msg: Message,
     background_tasks: BackgroundTasks,
     accounts: dict = Depends(get_accounts),
 ):
-    logger.info(f"Alert: {alert}")
-    del alert.secret
+    logger.info(f"Message: {msg}")
+    del msg.secret
 
     try:
         for account in accounts.values():
-            if "*" not in account["tickers"] and alert.ticker not in account["tickers"]:
+            if "*" not in account["tickers"] and msg.ticker not in account["tickers"]:
                 continue
 
             background_tasks.add_task(
-                execute_order, alert, account["balance"], account["broker"]
+                execute_order, msg, account["balance"], account["broker"]
             )
 
         return 200
