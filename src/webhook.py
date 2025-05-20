@@ -51,9 +51,9 @@ class TelegramHandler(logging.Handler):
 
 class Message(BaseModel):
     action: str
-    exchange: str
+    exchange: MARKET_TYPE
     ticker: str
-    price: float
+    price: Decimal
     strength: int
     comment: str
     secret: str
