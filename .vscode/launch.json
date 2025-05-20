@@ -41,7 +41,7 @@
             "type": "debugpy",
             "request": "launch",
             "module": "uvicorn",
-            "cwd": "${workspaceFolder}/src",
+            "cwd": "${workspaceFolder}",
             "args": [
                 "webhook:app",
                 "--reload",

@@ -19,7 +19,7 @@ class Balance:
         self._stocks_cache: list[KisBalanceStock]
         self._cache_timestamp: float
 
-    def update_balance(self):
+    def update(self):
         logger.debug("Updating balance from KIS API")
         _balance = self._kis.account().balance()
 
@@ -29,7 +29,7 @@ class Balance:
 
     def _ensure_cache(self):
         if (time.time() - getattr(self, "_cache_timestamp", 0)) > BALANCE_CACHE_TIMEOUT:
-            self.update_balance()
+            self.update()
             logger.debug("Balance cache updated")
 
     @property
@@ -142,7 +142,8 @@ class Balance:
             f"Calculated quantity to buy for {ticker} at price {price}: {quantity}"
         )
 
-        return max(0, quantity)
+        # return max(0, quantity)
+        return 1
 
     def sell_quantity(self, ticker: str, price: Decimal, strength: int) -> int:
         if self.get_quantity(ticker) == 0:

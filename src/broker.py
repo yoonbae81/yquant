@@ -23,6 +23,7 @@ class Broker:
         self._kis: PyKis = kis
 
     def buy(self, exchange: MARKET_TYPE, ticker: str, quantity: int, price: Decimal):
+        price = ensure_price(price, 2)
         logger.debug(f"Buying {quantity} shares of {ticker} at {price:,.2f}")
         return order(
             self._kis,
@@ -35,6 +36,7 @@ class Broker:
         )
 
     def sell(self, exchange: MARKET_TYPE, ticker: str, quantity: int, price: Decimal):
+        price = ensure_price(price, 2)
         logger.debug(f"Selling {quantity} shares of {ticker} at {price:,.2f}")
         return order(
             self._kis,
