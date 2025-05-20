@@ -143,7 +143,8 @@ class Balance:
         )
 
         # return max(0, quantity)
-        return Decimal(quantity)
+        # return Decimal(quantity)
+        return Decimal(1)
 
     def sell_quantity(self, ticker: str, price: Decimal, strength: int) -> Decimal:
         if self.get_quantity(ticker) == 0:
