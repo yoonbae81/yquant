@@ -53,7 +53,7 @@ class Message(BaseModel):
     action: str
     exchange: MARKET_TYPE
     ticker: str
-    price: Decimal
+    price: float
     strength: int
     comment: str
     secret: str
