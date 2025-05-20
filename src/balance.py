@@ -95,7 +95,7 @@ class Balance:
                 return stock.quantity
         return Decimal(0)
 
-    def buy_quantity(self, ticker: str, price: Decimal, strength: int) -> int:
+    def buy_quantity(self, ticker: str, price: Decimal, strength: int) -> Decimal:
         """
         Calculate the quantity of a stock to buy based on allocation and strength.
 
@@ -143,17 +143,18 @@ class Balance:
         )
 
         # return max(0, quantity)
-        return 1
+        return Decimal(quantity)
 
-    def sell_quantity(self, ticker: str, price: Decimal, strength: int) -> int:
+    def sell_quantity(self, ticker: str, price: Decimal, strength: int) -> Decimal:
         if self.get_quantity(ticker) == 0:
-            return 0
+            return Decimal(0)
 
-        allocation_factor = Decimal(strength / 10)
-        allocated_cash = self.get_amount(ticker) * allocation_factor
+        # allocation_factor = Decimal(strength / 10)
+        # allocated_cash = self.get_amount(ticker) * allocation_factor
 
-        quantity = int(allocated_cash // price)
-        return min(1, quantity)
+        # quantity = int(allocated_cash // price)
+        # return min(1, quantity)
+        return self.get_quantity(ticker)
 
     def __repr__(self) -> str:
         deposits_str = ", ".join(
