@@ -22,7 +22,9 @@ class Broker:
     def __init__(self, kis: PyKis):
         self._kis: PyKis = kis
 
-    def buy(self, exchange: MARKET_TYPE, ticker: str, quantity: int, price: Decimal):
+    def buy(
+        self, exchange: MARKET_TYPE, ticker: str, quantity: Decimal, price: Decimal
+    ):
         price = ensure_price(price, 2)
         logger.debug(f"Buying {quantity} shares of {ticker} at {price:,.2f}")
         return order(
@@ -35,7 +37,9 @@ class Broker:
             quantity,
         )
 
-    def sell(self, exchange: MARKET_TYPE, ticker: str, quantity: int, price: Decimal):
+    def sell(
+        self, exchange: MARKET_TYPE, ticker: str, quantity: Decimal, price: Decimal
+    ):
         price = ensure_price(price, 2)
         logger.debug(f"Selling {quantity} shares of {ticker} at {price:,.2f}")
         return order(
