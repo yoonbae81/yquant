@@ -107,7 +107,7 @@ class Balance:
         Returns:
             int: Quantity to buy.
         """
-        MAX_ALLOCATION_RATIO = Decimal("0.1")
+        MAX_ALLOCATION_RATIO = Decimal("0.01")
         logger.debug(f"MAX_ALLOCATION_RATIO set to {MAX_ALLOCATION_RATIO}")
 
         currency = self.determine_currency(ticker)
