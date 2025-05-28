@@ -58,7 +58,7 @@ class Balance:
         elif ticker.endswith(".HK"):
             return "HKD"
         else:
-            raise ValueError(f"Unknown currency for ticker: {ticker}")
+            raise ValueError(f"Unknown currency for ticker: [{ticker}]")
 
     def get_cash(self, currency: CURRENCY_TYPE) -> Decimal:
         deposit = self.deposits.get(currency)
@@ -111,7 +111,7 @@ class Balance:
         logger.debug(f"MAX_ALLOCATION_RATIO set to {MAX_ALLOCATION_RATIO}")
 
         currency = self.determine_currency(ticker)
-        logger.debug(f"Determined currency for {ticker}: {currency}")
+        logger.debug(f"Determined currency for [{ticker}]: {currency}")
 
         cash = self.get_cash(currency)
         logger.debug(f"Available cash in {currency}: {cash}")
@@ -120,26 +120,26 @@ class Balance:
         logger.debug(f"Total assets in {currency}: {total_assets}")
 
         current_amount = self.get_amount(ticker)
-        logger.debug(f"Current amount for {ticker}: {current_amount}")
+        logger.debug(f"Current amount for [{ticker}]: {current_amount}")
 
         max_allocatable = total_assets * MAX_ALLOCATION_RATIO
-        logger.debug(f"Max allocatable for {ticker}: {max_allocatable}")
+        logger.debug(f"Max allocatable for [{ticker}]: {max_allocatable}")
 
         remaining_alloc = max(Decimal(0), max_allocatable - current_amount)
-        logger.debug(f"Remaining allocation for {ticker}: {remaining_alloc}")
+        logger.debug(f"Remaining allocation for [{ticker}]: {remaining_alloc}")
 
         usable_cash = min(cash, remaining_alloc)
-        logger.debug(f"Usable cash for {ticker}: {usable_cash}")
+        logger.debug(f"Usable cash for [{ticker}]: {usable_cash}")
 
         allocation_factor = Decimal(strength / 10)
         logger.debug(f"Allocation factor for strength {strength}: {allocation_factor}")
 
         allocated_cash = usable_cash * allocation_factor
-        logger.debug(f"Allocated cash for {ticker}: {allocated_cash}")
+        logger.debug(f"Allocated cash for [{ticker}]: {allocated_cash}")
 
         quantity = int(allocated_cash // price)
         logger.debug(
-            f"Calculated quantity to buy for {ticker} at price {price}: {quantity}"
+            f"Calculated quantity to buy for [{ticker}] at price {price}: {quantity}"
         )
 
         # return max(0, quantity)

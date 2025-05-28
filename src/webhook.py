@@ -53,6 +53,7 @@ class Message(BaseModel):
     action: str
     exchange: MARKET_TYPE
     ticker: str
+    currency: str
     price: Decimal
     strength: int
     comment: str
@@ -122,7 +123,7 @@ def execute_order(msg: Message, balance: Balance, broker: Broker):
             quantity = balance.buy_quantity(msg.ticker, msg.price, msg.strength)
             order = broker.buy(msg.exchange, msg.ticker, quantity, msg.price)
 
-        balance.update()
+        # balance.update()
 
     except Exception as e:
         logger.error(f"{e}")
