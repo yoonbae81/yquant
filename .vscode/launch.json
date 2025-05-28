@@ -2,14 +2,14 @@
     "version": "0.2.0",
     "configurations": [
         {
-            "name": "Python: Balance",
+            "name": "Python: Liqudate",
             "type": "debugpy",
             "request": "launch",
             "cwd": "${workspaceFolder}/src",
-            "program": "${workspaceFolder}/src/broker.py",
+            "program": "${workspaceFolder}/src/liquidate.py",
             "args": [
                 "trading",
-                "balance"
+                "AMEX"
             ],
             "console": "integratedTerminal",
             "env": {
