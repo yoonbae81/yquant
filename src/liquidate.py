@@ -62,9 +62,6 @@ def main():
 
             time.sleep(1)
 
-        else:
-            print(f"{exchange} 시장 {ticker} 보유 수량이 0입니다. 매도하지 않습니다.")
-
 
 if __name__ == "__main__":
 
