@@ -33,7 +33,7 @@ class Broker:
             exchange,
             ticker,
             "buy",
-            price,
+            None, # price,
             quantity,
         )
 
@@ -48,7 +48,7 @@ class Broker:
             exchange,
             ticker,
             "sell",
-            price,
+            None, # price,
             quantity,
         )
 

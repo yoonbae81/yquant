@@ -56,7 +56,7 @@ def main():
                 exchange,
                 ticker,
                 "sell",
-                ensure_price(price, 0 if exchange == "KRX" else 2),
+                None, # ensure_price(price, 0 if exchange == "KRX" else 2),
                 quantity,
             )
 
