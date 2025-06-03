@@ -10,8 +10,8 @@ import redis
 
 from dotenv import load_dotenv
 import redis.asyncio
-from pykis import MARKET_TYPE, PyKis
-from pykis.api.account.order import order, ensure_price
+from pykis import MARKET_TYPE, ORDER_TYPE, PyKis
+import pykis.api.account.order
 
 logger = logging.getLogger("agent")
 
@@ -32,11 +32,11 @@ class Signal(BaseModel):
 
 class Order(BaseModel):
     account: str
-    action: str
+    action: ORDER_TYPE
     exchange: MARKET_TYPE
     ticker: str
     currency: Optional[str] = None
-    price: Optional[float] = None
+    price: float
     quantity: int
     comment: Optional[str] = None
 
@@ -78,39 +78,55 @@ def format_price(price: float, exchange: str) -> str:
         return f"{price:,.2f}"
 
 
+def _ensure_price_to_tick(price):
+    # 호가 단위 결정
+    if price < 1000:
+        tick = 1
+    elif price < 5000:
+        tick = 5
+    elif price < 10000:
+        tick = 10
+    elif price < 50000:
+        tick = 50
+    elif price < 100000:
+        tick = 100
+    elif price < 500000:
+        tick = 500
+    else:
+        tick = 1000
+
+    adjusted_price = (price // tick) * tick
+    return adjusted_price
+
+
+def adjust_price(exchange: MARKET_TYPE, action: ORDER_TYPE, price: float) -> Decimal:
+    adjusted = price * (1.03 if action == "buy" else 0.97)
+
+    if exchange == "KRX":
+        adjusted = _ensure_price_to_tick(adjusted)
+
+    return pykis.api.account.order.ensure_price(adjusted, 0 if exchange == "KRX" else 2)
+
+
 async def execute_order(broker: Broker, order: Order) -> None:
-    # price = format_price(order.price, order.exchange)
     logger.info(
         f"Executing {order.action.upper()}: {order.exchange}:{order.ticker} x{order.quantity}"
     )
+    logger.info(f"Order details: {order}")
+    price = adjust_price(order.exchange, order.action, order.price)
+    logger.info(f"Adjusted price: {price}")
 
-
-def buy(self, exchange: MARKET_TYPE, ticker: str, quantity: Decimal, price: Decimal):
-    price = ensure_price(price, 2)
-    logger.debug(f"Buying {quantity} shares of {ticker} at {price:,.2f}")
-    return order(
-        self._kis,
-        self._kis.account().account_number,
-        exchange,
-        ticker,
-        "buy",
-        None,  # price,
-        quantity,
+    result = pykis.api.account.order.order(
+        broker,
+        broker.account().account_number,
+        order.exchange,
+        order.ticker,
+        order.action,
+        price,
+        order.quantity,
     )
 
-
-def sell(self, exchange: MARKET_TYPE, ticker: str, quantity: Decimal, price: Decimal):
-    price = ensure_price(price, 2)
-    logger.debug(f"Selling {quantity} shares of {ticker} at {price:,.2f}")
-    return order(
-        self._kis,
-        self._kis.account().account_number,
-        exchange,
-        ticker,
-        "sell",
-        None,  # price,
-        quantity,
-    )
+    logger.info(f"Order result: {result}")
 
 
 HANDLERS = {
@@ -129,14 +145,13 @@ async def main(broker: Broker, tickers: list[str]):
 
     logger.info(f"Subscribing channels: {', '.join(channels)}")
 
-    try:
+    async with pubsub:
         async for msg in pubsub.listen():
             if msg["type"] != "message":
                 continue
 
             try:
                 data = json.loads(msg["data"])
-
             except json.JSONDecodeError as e:
                 logger.error(f"JSON Decode Error: {e}")
                 continue
@@ -145,13 +160,15 @@ async def main(broker: Broker, tickers: list[str]):
                 continue
 
             handler = HANDLERS.get(msg["channel"])
-            if handler is not None:
-                await handler(broker, data)
-            else:
-                logger.error(f"No handler found for channel: {msg['channel']}")
 
-    finally:
-        await pubsub.aclose()
+            try:
+                if handler is not None:
+                    await handler(broker, data)
+                else:
+                    logger.error(f"No handler found for channel: {msg['channel']}")
+            except Exception as e:
+                logger.error(f"Error handling message: {e}")
+                continue
 
 
 def get_tickers(account) -> list[str]:
