@@ -13,7 +13,7 @@ import redis.asyncio
 from pykis import MARKET_TYPE, ORDER_TYPE, PyKis
 import pykis.api.account.order
 
-logger = logging.getLogger("agent")
+logger = logging.getLogger("yquant")
 
 load_dotenv()
 ACCOUNTS_DIR = os.getenv("ACCOUNTS_DIR", "accounts")
@@ -35,9 +35,9 @@ class Order(BaseModel):
     action: ORDER_TYPE
     exchange: MARKET_TYPE
     ticker: str
+    quantity: int
     currency: Optional[str] = None
     price: float
-    quantity: int
     comment: Optional[str] = None
 
 
@@ -122,8 +122,8 @@ async def execute_order(broker: Broker, order: Order) -> None:
         order.exchange,
         order.ticker,
         order.action,
-        order.quantity,
         price,
+        order.quantity,
     )
 
     logger.info(f"Order result: {result}")
@@ -200,7 +200,7 @@ def get_broker(account) -> Broker:
 if __name__ == "__main__":
 
     logging.basicConfig(
-        level=logging.INFO,
+        level=logging.DEBUG,
         format="%(asctime)s - %(levelname)s - %(message)s",
         handlers=[logging.StreamHandler()],
     )
