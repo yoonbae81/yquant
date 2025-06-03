@@ -1,29 +1,23 @@
 #!/usr/bin/env python3
-from decimal import Decimal
 import os
 import logging
-import importlib.util
-import json
 import sys
-from pykis import MARKET_TYPE, PyKis
 import uvicorn
 import threading
 import requests
 from contextlib import asynccontextmanager
 from dotenv import load_dotenv
 
-from fastapi import FastAPI, Depends, Request, HTTPException, BackgroundTasks
-from fastapi.responses import JSONResponse
+import redis.asyncio
+from fastapi import FastAPI, Depends, Request, HTTPException
 from pydantic import BaseModel, field_validator
 
-from broker import Broker
-from balance import Balance
-
 load_dotenv()
-ACCOUNTS_DIR = os.getenv("ACCOUNTS_DIR", "accounts")
 WEBHOOK_SECRET = os.getenv("WEBHOOK_SECRET")
+REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 TELEGRAM_TOKEN = os.getenv("TELEGRAM_TOKEN")
 TELEGRAM_CHAT_ID = os.getenv("TELEGRAM_CHAT_ID")
+
 
 logging.basicConfig(
     level=logging.DEBUG,
@@ -49,12 +43,12 @@ class TelegramHandler(logging.Handler):
             print(f"Failed to send log to Telegram: {e}")
 
 
-class Message(BaseModel):
+class Signal(BaseModel):
     action: str
-    exchange: MARKET_TYPE
+    exchange: str
     ticker: str
     currency: str
-    price: Decimal
+    price: float
     strength: int
     comment: str
     secret: str
@@ -62,72 +56,22 @@ class Message(BaseModel):
     @field_validator("secret")
     def secret_must_same(cls, v):
         if v != WEBHOOK_SECRET:
+            logger.warning(f"Invalid secret: {v}")
             raise ValueError(f"Invalid secret: {v}")
         return v
-
-
-def load_accounts_data() -> dict:
-    """Traverse account directories and load tickers and broker for each account."""
-    result = {}
-    for account_name in os.listdir(ACCOUNTS_DIR):
-        logger.debug(f"Loading account information: {account_name}")
-        account_path = os.path.join(ACCOUNTS_DIR, account_name)
-        if not os.path.isdir(account_path):
-            continue
-
-        tickers = []
-        tickers_path = os.path.join(account_path, "tickers.txt")
-        if os.path.exists(tickers_path):
-            with open(tickers_path, "r") as f:
-                tickers = [line.strip() for line in f if line.strip()]
-
-        auth_path = os.path.join(account_path, "auth.json")
-        if not os.path.exists(auth_path):
-            raise FileNotFoundError(f"{auth_path} not found")
-
-        kis = PyKis(auth_path, keep_token=True)
-        data = {
-            "tickers": tickers,
-            "balance": Balance(kis),
-            "broker": Broker(kis),
-        }
-        logger.debug(f"Loaded: {data}")
-        result[account_name] = data
-
-    return result
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Manage app lifecycle and load data at startup."""
-    app.state.accounts = load_accounts_data()
-    yield
-    # Cleanup logic can be added here if needed
+    app.state.redis = redis.asyncio.from_url(REDIS_URL, decode_responses=True)
+    yield  # Cleanup logic below
+    await app.state.redis.close()
 
 
-def get_accounts(request: Request) -> dict:
+def get_redis(request: Request) -> redis.asyncio.Redis:
     """Return account data from app state."""
-    return request.app.state.accounts
-
-
-def execute_order(msg: Message, balance: Balance, broker: Broker):
-    logger.info(f"Executing {msg.action.upper()}: {msg.ticker}, {msg.comment}")
-
-    try:
-
-        if msg.action == "sell":
-            quantity = balance.sell_quantity(msg.ticker, msg.price, msg.strength)
-            order = broker.sell(msg.exchange, msg.ticker, quantity, msg.price)
-
-        if msg.action == "buy":
-            quantity = balance.buy_quantity(msg.ticker, msg.price, msg.strength)
-            order = broker.buy(msg.exchange, msg.ticker, quantity, msg.price)
-
-        # balance.update()
-
-    except Exception as e:
-        logger.error(f"{e}")
-        # raise e
+    return request.app.state.redis
 
 
 logger = logging.getLogger("webhook")
@@ -138,24 +82,13 @@ app = FastAPI(lifespan=lifespan)
 
 
 @app.post("/webhook")
-async def handle_webhook(
-    msg: Message,
-    background_tasks: BackgroundTasks,
-    accounts: dict = Depends(get_accounts),
-):
-    logger.info(f"Message: {msg}")
-    del msg.secret
+async def handle_webhook(signal: Signal, redis=Depends(get_redis)):
+    logger.info(f"Signal: {signal}")
+    del signal.secret
 
     try:
-        for account in accounts.values():
-            if "*" not in account["tickers"] and msg.ticker not in account["tickers"]:
-                continue
-
-            background_tasks.add_task(
-                execute_order, msg, account["balance"], account["broker"]
-            )
-
-        return 200
+        await redis.publish("signal", signal.model_dump_json())
+        return {"status": "ok"}
 
     except Exception as e:
         logger.error(f"{e}")
