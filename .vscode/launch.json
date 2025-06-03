@@ -18,17 +18,30 @@
             "justMyCode": true
         },
         {
-            "name": "Python: Broker with Default Args",
+            "name": "Python: Buy",
             "type": "debugpy",
             "request": "launch",
-            "cwd": "${workspaceFolder}/src",
-            "program": "${workspaceFolder}/src/broker.py",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/src/buy.py",
             "args": [
                 "trading",
-                "sell",
-                "AAPL",
-                "100",
-                "150.5"
+                "SOXL",
+                "1"
+            ],
+            "console": "integratedTerminal",
+            "env": {
+                "PYTHONPATH": "${workspaceFolder}/src"
+            },
+            "justMyCode": true
+        },
+        {
+            "name": "Python: Agent",
+            "type": "debugpy",
+            "request": "launch",
+            "cwd": "${workspaceFolder}",
+            "program": "${workspaceFolder}/src/agent.py",
+            "args": [
+                "trading"
             ],
             "console": "integratedTerminal",
             "env": {

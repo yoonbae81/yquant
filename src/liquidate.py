@@ -9,7 +9,6 @@ from pykis.api.stock.market import CURRENCY_TYPE, MARKET_CURRENCY_MAP
 from pykis import PyKis, KisBalance, KisAccount, KisStock
 from pykis.api.account.order import order, ensure_price
 
-from broker import Broker
 from balance import Balance
 import time
 
@@ -56,7 +55,7 @@ def main():
                 exchange,
                 ticker,
                 "sell",
-                None, # ensure_price(price, 0 if exchange == "KRX" else 2),
+                None,  # ensure_price(price, 0 if exchange == "KRX" else 2),
                 quantity,
             )
 
