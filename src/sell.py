@@ -3,8 +3,8 @@ import argparse
 from buy import publish_order
 
 
-def main(account: str, ticker: str, quantity: int):
-    publish_order(account, "sell", ticker, quantity)
+def main(args):
+    publish_order(args.account, "sell", args.ticker, args.quantity, args.price)
 
 
 if __name__ == "__main__":
@@ -12,6 +12,7 @@ if __name__ == "__main__":
     parser.add_argument("account", type=str)
     parser.add_argument("ticker", type=str)
     parser.add_argument("quantity", type=int)
+    parser.add_argument("price", type=float)
     args = parser.parse_args()
 
-    main(args.account, args.ticker, args.quantity)
+    main(args)

@@ -15,13 +15,14 @@ def get_exchange(ticker: str) -> str:
     return "KRX" if re.fullmatch(r"\d{6}", ticker) else "AMEX"
 
 
-def publish_order(account: str, action: str, ticker: str, quantity: int):
+def publish_order(account: str, action: str, ticker: str, quantity: int, price: float):
     order_data = {
         "account": account,
         "action": action,
         "exchange": get_exchange(ticker),
         "ticker": ticker,
         "quantity": quantity,
+        "price": price,
     }
 
     r = redis.from_url(REDIS_URL, decode_responses=True)
@@ -29,8 +30,8 @@ def publish_order(account: str, action: str, ticker: str, quantity: int):
     print(f"Requested: {order_data}")
 
 
-def main(account: str, ticker: str, quantity: int):
-    publish_order(account, "buy", ticker, quantity)
+def main(args):
+    publish_order(args.account, "buy", args.ticker, args.quantity, args.price)
 
 
 if __name__ == "__main__":
@@ -38,6 +39,7 @@ if __name__ == "__main__":
     parser.add_argument("account", type=str)
     parser.add_argument("ticker", type=str)
     parser.add_argument("quantity", type=int)
+    parser.add_argument("price", type=float)
     args = parser.parse_args()
 
-    main(args.account, args.ticker, args.quantity)
+    main(args)

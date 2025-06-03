@@ -122,8 +122,8 @@ async def execute_order(broker: Broker, order: Order) -> None:
         order.exchange,
         order.ticker,
         order.action,
-        price,
         order.quantity,
+        price,
     )
 
     logger.info(f"Order result: {result}")
