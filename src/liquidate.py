@@ -7,9 +7,9 @@ from pykis import PyKis
 from pykis.api.account.balance import KisDeposit, KisBalanceStock
 from pykis.api.stock.market import CURRENCY_TYPE, MARKET_CURRENCY_MAP
 from pykis import PyKis, KisBalance, KisAccount, KisStock
-from pykis.api.account.order import order, ensure_price
 
 from balance import Balance
+from buy import publish_order
 import time
 
 load_dotenv()
@@ -31,7 +31,7 @@ def main():
     balance = Balance(kis)
 
     exchange = args.exchange.upper()
-    # Check if stock has 'market' property before filtering
+
     stocks_to_sell = [
         stock
         for stock in balance.stocks
@@ -39,29 +39,22 @@ def main():
     ]
 
     if not stocks_to_sell:
-        print(f"{exchange} 시장에 매도할 주식이 없습니다.")
+        print(f"Nothing to sell in {exchange}")
         return
 
     for stock in stocks_to_sell:
-        ticker = stock.symbol
-        price = stock.price
-        quantity = stock.quantity
+        if stock.quantity == 0:
+            continue
 
-        if quantity > 0:
-            print(f"{exchange} 시장 {ticker} {quantity}주를 {price}에 매도합니다.")
-            order(
-                kis,
-                kis.account().account_number,
-                exchange,
-                ticker,
-                "sell",
-                None,  # ensure_price(price, 0 if exchange == "KRX" else 2),
-                quantity,
-            )
-
-            time.sleep(1)
+        print(f"Selling: {exchange}:{stock.symbol} {stock.quantity} @{stock.price:.2f}")
+        publish_order(
+            args.account,
+            "sell",
+            stock.symbol,
+            int(stock.quantity),
+            float(stock.price),
+        )
 
 
 if __name__ == "__main__":
-
     main()
