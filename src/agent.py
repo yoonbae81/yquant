@@ -31,7 +31,6 @@ class Signal(BaseModel):
 
 
 class Order(BaseModel):
-    account: str
     action: ORDER_TYPE
     exchange: MARKET_TYPE
     ticker: str
@@ -56,15 +55,12 @@ async def handle_signal(broker: Broker, data: dict):
     signal = Signal(**data)
 
     quantity = get_quantity(signal.ticker, signal.price, signal.strength)
-    order = Order(**data, account=broker.account_alias, quantity=quantity)
+    order = Order(**data, quantity=quantity)
 
     await execute_order(broker, order)
 
 
 async def handle_order(broker: Broker, data: dict):
-    if data["account"] != broker.account_alias:
-        return
-
     logger.debug("Received order:\n%s", json.dumps(data, indent=2, ensure_ascii=False))
     order = Order(**data)
 
@@ -136,11 +132,10 @@ HANDLERS = {
 
 
 async def main(broker: Broker, tickers: list[str]):
-
     r = await redis.asyncio.from_url(REDIS_URL, decode_responses=True)
     pubsub = r.pubsub()
 
-    channels = ["signal", f"order"]
+    channels = ["signal", f"order:{broker.account_alias}"]
     await pubsub.subscribe(*channels)
 
     logger.info(f"Subscribing channels: {', '.join(channels)}")
@@ -159,10 +154,10 @@ async def main(broker: Broker, tickers: list[str]):
             if "*" not in tickers and data["ticker"] not in tickers:
                 continue
 
-            handler = HANDLERS.get(msg["channel"])
+            handler = HANDLERS.get(msg["channel"].split(":")[0])
 
             try:
-                if handler is not None:
+                if handler:
                     await handler(broker, data)
                 else:
                     logger.error(f"No handler found for channel: {msg['channel']}")

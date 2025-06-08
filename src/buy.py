@@ -17,7 +17,6 @@ def get_exchange(ticker: str) -> str:
 
 def publish_order(account: str, action: str, ticker: str, quantity: int, price: float):
     order_data = {
-        "account": account,
         "action": action,
         "exchange": get_exchange(ticker),
         "ticker": ticker,
@@ -26,7 +25,7 @@ def publish_order(account: str, action: str, ticker: str, quantity: int, price: 
     }
 
     r = redis.from_url(REDIS_URL, decode_responses=True)
-    r.publish("order", json.dumps(order_data))
+    r.publish(f"order:{account}", json.dumps(order_data))
     print(f"Requested: {order_data}")
 
 
