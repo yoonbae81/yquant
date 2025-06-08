@@ -1,17 +1,17 @@
 import argparse
 import asyncio
-from decimal import Decimal
 import json
 import logging
 import os
-from typing import Optional
-from pydantic import BaseModel
-import redis
+from decimal import Decimal
+from typing import Literal, Optional
 
 from dotenv import load_dotenv
-import redis.asyncio
-from pykis import MARKET_TYPE, ORDER_TYPE, PyKis
+from pydantic import BaseModel
 import pykis.api.account.order
+from pykis import PyKis
+import redis
+import redis.asyncio
 
 logger = logging.getLogger("yquant")
 
@@ -19,12 +19,16 @@ load_dotenv()
 ACCOUNTS_DIR = os.getenv("ACCOUNTS_DIR", "accounts")
 REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 
+ORDER_TYPE = Literal["buy", "sell"]
+ORDER_METHOD = Literal["MARKET", "LIMIT"]
+MARKET_TYPE = Literal["KRX", "NASDAQ", "NYSE", "AMEX"]
+CURRENCY_TYPE = Literal["KRW", "USD"]
 
 class Signal(BaseModel):
-    action: str
+    action: ORDER_TYPE
     exchange: MARKET_TYPE
     ticker: str
-    currency: str
+    currency: CURRENCY_TYPE
     price: float
     strength: int
     comment: str
@@ -35,8 +39,9 @@ class Order(BaseModel):
     exchange: MARKET_TYPE
     ticker: str
     quantity: int
-    currency: Optional[str] = None
+    currency: Optional[CURRENCY_TYPE] = None
     price: float
+    method: ORDER_METHOD = "LIMIT"
     comment: Optional[str] = None
 
 
@@ -55,7 +60,7 @@ async def handle_signal(broker: Broker, data: dict):
     signal = Signal(**data)
 
     quantity = get_quantity(signal.ticker, signal.price, signal.strength)
-    order = Order(**data, quantity=quantity)
+    order = Order(**data, quantity=quantity, method="LIMIT")
 
     await execute_order(broker, order)
 
@@ -74,32 +79,33 @@ def format_price(price: float, exchange: str) -> str:
         return f"{price:,.2f}"
 
 
-def _ensure_price_to_tick(price):
-    # 호가 단위 결정
+def _get_tick(price: float) -> int:
     if price < 1000:
-        tick = 1
+        return 1
     elif price < 5000:
-        tick = 5
+        return 5
     elif price < 10000:
-        tick = 10
+        return 10
     elif price < 50000:
-        tick = 50
+        return 50
     elif price < 100000:
-        tick = 100
+        return 100
     elif price < 500000:
-        tick = 500
+        return 500
     else:
-        tick = 1000
-
-    adjusted_price = (price // tick) * tick
-    return adjusted_price
+        return 1000
 
 
-def adjust_price(exchange: MARKET_TYPE, action: ORDER_TYPE, price: float) -> Decimal:
-    adjusted = price * (1.03 if action == "buy" else 0.97)
-
-    if exchange == "KRX":
-        adjusted = _ensure_price_to_tick(adjusted)
+def adjust_price(exchange: MARKET_TYPE, action: ORDER_TYPE, price: float, method: ORDER_METHOD) -> Decimal:
+    if method == "MARKET":
+        adjusted = price * (1.01 if action == "buy" else 0.99)
+        if exchange == "KRX":
+            tick = _get_tick(price)
+            adjusted = (adjusted // tick) * tick
+            
+    elif method == "LIMIT":
+        tick = _get_tick(price) if exchange == "KRX" else 0.01
+        adjusted = price + tick if action == "buy" else price - tick
 
     return pykis.api.account.order.ensure_price(adjusted, 0 if exchange == "KRX" else 2)
 
@@ -109,7 +115,7 @@ async def execute_order(broker: Broker, order: Order) -> None:
         f"Executing {order.action.upper()}: {order.exchange}:{order.ticker} x{order.quantity}"
     )
     logger.info(f"Order details: {order}")
-    price = adjust_price(order.exchange, order.action, order.price)
+    price = adjust_price(order.exchange, order.action, order.price, order.method)
     logger.info(f"Adjusted price: {price}")
 
     result = pykis.api.account.order.order(
@@ -123,6 +129,33 @@ async def execute_order(broker: Broker, order: Order) -> None:
     )
 
     logger.info(f"Order result: {result}")
+
+
+
+def get_tickers(account) -> list[str]:
+    account_path = os.path.join(ACCOUNTS_DIR, account)
+    if not os.path.isdir(account_path):
+        raise FileNotFoundError(f"Account directory {account_path} does not exist")
+
+    tickers = []
+    tickers_path = os.path.join(account_path, "tickers.txt")
+    if os.path.exists(tickers_path):
+        with open(tickers_path, "r") as f:
+            tickers = [line.strip() for line in f if line.strip()]
+
+    return tickers
+
+
+def get_broker(account) -> Broker:
+    account_path = os.path.join(ACCOUNTS_DIR, account)
+    if not os.path.isdir(account_path):
+        raise FileNotFoundError(f"Account directory {account_path} does not exist")
+
+    auth_path = os.path.join(account_path, "auth.json")
+    if not os.path.exists(auth_path):
+        raise FileNotFoundError(f"{auth_path} not found")
+
+    return Broker(auth_path, account_alias=account, keep_token=True)
 
 
 HANDLERS = {
@@ -164,32 +197,6 @@ async def main(broker: Broker, tickers: list[str]):
             except Exception as e:
                 logger.error(f"Error handling message: {e}")
                 continue
-
-
-def get_tickers(account) -> list[str]:
-    account_path = os.path.join(ACCOUNTS_DIR, account)
-    if not os.path.isdir(account_path):
-        raise FileNotFoundError(f"Account directory {account_path} does not exist")
-
-    tickers = []
-    tickers_path = os.path.join(account_path, "tickers.txt")
-    if os.path.exists(tickers_path):
-        with open(tickers_path, "r") as f:
-            tickers = [line.strip() for line in f if line.strip()]
-
-    return tickers
-
-
-def get_broker(account) -> Broker:
-    account_path = os.path.join(ACCOUNTS_DIR, account)
-    if not os.path.isdir(account_path):
-        raise FileNotFoundError(f"Account directory {account_path} does not exist")
-
-    auth_path = os.path.join(account_path, "auth.json")
-    if not os.path.exists(auth_path):
-        raise FileNotFoundError(f"{auth_path} not found")
-
-    return Broker(auth_path, account_alias=account, keep_token=True)
 
 
 if __name__ == "__main__":

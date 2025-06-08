@@ -15,13 +15,17 @@ def get_exchange(ticker: str) -> str:
     return "KRX" if re.fullmatch(r"\d{6}", ticker) else "AMEX"
 
 
-def publish_order(account: str, action: str, ticker: str, quantity: int, price: float):
+def publish_order(account: str, action: str, ticker: str, quantity: int, price: float, method: str = "LIMIT"):
+    exchange = get_exchange(ticker)
+    
     order_data = {
         "action": action,
-        "exchange": get_exchange(ticker),
+        "exchange": exchange,
         "ticker": ticker,
         "quantity": quantity,
         "price": price,
+        "currency": "KRW" if exchange == "KRX" else "USD",
+        "method": method,
     }
 
     r = redis.from_url(REDIS_URL, decode_responses=True)
