@@ -53,6 +53,7 @@ def main():
             stock.symbol,
             int(stock.quantity),
             float(stock.price),
+            method="MARKET",
         )
 
 
