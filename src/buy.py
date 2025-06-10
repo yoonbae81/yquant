@@ -11,12 +11,12 @@ REDIS_URL = os.getenv("REDIS_URL", "redis://localhost:6379/0")
 ACCOUNTS_DIR = os.getenv("ACCOUNTS_DIR", "accounts")
 
 
-def get_exchange(ticker: str) -> str:
-    return "KRX" if re.fullmatch(r"\d{6}", ticker) else "AMEX"
+def infer_exchange(ticker: str) -> str:
+    return "KRX" if re.fullmatch(r"\d{2}[A-Z\d]{4}", ticker) else "AMEX"
 
 
 def publish_order(account: str, action: str, ticker: str, quantity: int, price: float, method: str = "LIMIT"):
-    exchange = get_exchange(ticker)
+    exchange = infer_exchange(ticker)
     
     order_data = {
         "action": action,
