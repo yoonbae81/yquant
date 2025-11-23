@@ -13,8 +13,9 @@
 
 ### **2.1. 트레이딩 자동화 (Trading Automation)**
 
-* **신호 수신**: TradingView Webhook을 통한 실시간 매매 신호 수신 및 표준 객체 변환  
-* **포지션 사이징**: 계좌 잔고 및 리스크 관리 규칙(Rule Plugin)에 기반한 최적 주문 수량 자동 산출  
+* **신호 수신**: TradingView Webhook을 통한 실시간 매매 신호 수신 및 **거래소 정보(Exchange)** 표준 객체 변환  
+* **멀티 마켓 지원**: 한국(KRX) 및 미국(NYSE/AMEX/NASDAQ) 시장의 개장 시간, 통화, 거래 규칙을 동시에 로드하여 24시간 자동 대응  
+* **포지션 사이징**: 계좌 잔고 및 자금 관리 규칙(Policy Plugin)에 기반한 최적 주문 수량 자동 산출 (Sizing)  
 * **초저지연 집행**: Redis Pub/Sub 기반의 비동기 메시징을 통한 고속 주문 집행
 
 ### **2.2. 매매 제어 및 운영 (Control & Operation)**
@@ -25,7 +26,7 @@
 
 ### **2.3. 모니터링 및 시각화 (Monitoring)**
 
-* **자산 현황**: 실시간 예수금, 총 매입 금액, 추정 자산 조회  
+* **자산 현황**: 실시간 예수금, 총 매입 금액, 추정 자산 조회 (KRW/USD 통합 가치 환산)  
 * **포트폴리오 관리**: Redis에 캐싱된 보유 종목 데이터 기반의 평가손익(PnL), 수익률(ROI) 실시간 출력  
 * **성과 분석 데이터**: QuantStats 등 외부 분석 도구 호환을 위한 일간 수익률 및 자산 변동 로그(CSV) 자동 생성  
 * **실시간 알림**: 매매 체결 및 시스템 중요 이벤트 발생 시 텔레그램(Telegram)을 통한 즉각적인 모바일 통지  
@@ -43,7 +44,7 @@
 
 * **Core Layer (Domain)**: 시스템의 불변 법칙(Invariants), 데이터 표준(Model), 포트(Port) 정의  
 * **Infrastructure Layer (Adapter)**: Core 포트의 기술적 구현체(Redis 통신, 증권사 API 래핑, 알림 서비스 등)  
-* **Policy Layer (Plugin)**: 가변적인 매매 정책 및 자금 관리 로직(Risk Management) 구현체. 플러그인 방식 교체  
+* **Policy Layer (Plugin)**: 가변적인 자금 관리(Sizing), 시장 규칙(Market) 등 정책 구현체. **복수의 시장 정책 동시 로드 및 N:1 맵핑 지원**  
 * **Application Layer (Host)**: 위 계층들을 조립(Composition)하여 실제 메모리 상에서 구동되는 실행 프로세스
 
 ### **3.2. 기술 스택**
@@ -64,7 +65,9 @@ yQuant.Solution
 │       ├── 📂 Models (Domain Entities, VOs)  
 │       ├── 📂 Ports  
 │       │   ├── 📂 Input (Primary Ports: Use Cases)  
-│       │   └── 📂 Output (Secondary Ports: Infra Interfaces)  
+│       │   └── 📂 Output (Secondary Ports)  
+│       │       ├── 📂 Infrastructure (Infra Interfaces)  
+│       │       └── 📂 Policies (Policy Interfaces)  
 │       └── 📂 Services (Input Port Implementations)  
 │  
 ├── 📂 02.Infrastructure (Solution Folder)  
@@ -75,13 +78,15 @@ yQuant.Solution
 │  
 ├── 📂 03.Applications (Solution Folder)  
 │   ├── 📄 yQuant.App.BrokerGateway.csproj (Worker Service)  
-│   ├── 📄 yQuant.App.PositionManager.csproj (Worker Service)  
+│   ├── 📄 yQuant.App.OrderComposer.csproj (Worker Service)  
 │   ├── 📄 yQuant.App.TradingViewWebhook.csproj (ASP.NET Core Minimal API)  
 │   ├── 📄 yQuant.App.Console.csproj (Console App)  
 │   └── 📄 yQuant.App.Web.csproj (Blazor Server App)  
 │  
 └── 📂 04.Policies (Solution Folder)  
-    └── 📄 yQuant.Policies.Sizing.Basic.csproj (Class Library)
+    ├── 📄 yQuant.Policies.Sizing.Basic.csproj (Class Library)  
+    ├── 📄 yQuant.Policies.Market.Korea.csproj (Class Library)  
+    └── 📄 yQuant.Policies.Market.UnitedStates.csproj (Class Library)
 
 ### **4.2. 프로젝트별 상세 역할**
 
@@ -90,98 +95,89 @@ yQuant.Solution
 * **yQuant.Core**  
   * **역할**: 시스템의 골격 및 공용 언어(Ubiquitous Language) 정의  
   * **주요 내용**:  
-    * **Models**: Order, Signal, AccountInfo, PerformanceLog, Position 등 표준 데이터 모델  
+    * **Models**:  
+      * **Signal**: Symbol, **Exchange (e.g., KRX, NASDAQ)**, EntryPrice, Action 등  
+      * **Order**: Signal 정보 기반으로 생성된 최종 주문 객체  
     * **Ports**: 외부와의 소통을 위한 인터페이스 집합 (Input/Output)  
     * **Services**: Input Port(UseCase) 인터페이스를 구현한 순수 비즈니스 로직 클래스 집합  
   * **1\. Input Ports (Primary Ports \- Use Cases)**  
     * **역할**: 외부(UI, App)에서 도메인 로직을 실행하기 위해 호출하는 인터페이스  
-    * **IAssetEvaluationUseCase**: 자산 가치 및 주문 수량 계산  
-    * **IOrderProcessingUseCase**: 외부 신호 기반 주문 처리 흐름 제어  
+    * **IOrderCompositionUseCase**: 외부 신호 기반 주문 조립 흐름 제어  
+    * **IPositionLiquidationUseCase**: 긴급 청산 및 일괄 매도 처리  
+    * **IAssetEvaluationUseCase**: 자산 가치 평가  
     * **IManualTradingUseCase**: 사용자 수동 주문 처리  
-    * **IPortfolioManagementUseCase**: 포트폴리오 일괄 청산 등 관리 기능  
-  * **2\. Output Ports (Secondary Ports \- Infrastructure Interfaces)**  
-    * **역할**: 도메인 로직이 외부 기술(DB, API 등)을 사용하기 위해 정의한 인터페이스  
-    * **IBrokerConnector**: 증권사 통신 규약 (접속, 주문, 잔고 조회)  
-    * **IRiskManager**: 리스크 관리 정책 규약 (수량 계산, 검증)  
-    * **INotificationService**: 알림 발송 규약  
-    * **IPerformanceExporter**: 성과 리포팅 규약  
+  * **2\. Output Ports (Secondary Ports)**  
+    * **역할**: 도메인 로직이 외부 기술(Infra)이나 로직(Policy)을 사용하기 위해 정의한 인터페이스  
+    * **Infrastructure**:  
+      * **IBrokerConnector**: 증권사 통신 규약 (접속, 주문, 잔고 조회)  
+      * **INotificationService**: 알림 발송 규약  
+      * **IPerformanceExporter**: 성과 리포팅 규약  
+    * **Policies**:  
+      * **IPositionSizer**: 자금 관리 정책 규약 (수량 계산)  
+      * **IMarketRule**: 시장별 운영 규칙 규약. **CanHandle(string exchange)** 메서드를 통해 N개의 거래소에 대한 지원 여부를 판단 (N:1 Mapping)  
   * **3\. Services (Input Port Implementations)**  
     * **역할**: Input Port 인터페이스를 구현하여 실제 비즈니스 흐름을 제어하는 어플리케이션 서비스 (Application Service)  
+    * **OrderCompositionService** (IOrderCompositionUseCase 구현):  
+      * **다중 시장 지원**: 주입된 **여러 IMarketRule 중 Signal.Exchange를 처리 가능한(CanHandle \== true) Rule을 선택**하여 적용  
+      * **주문 조립 파이프라인**: Signal 수신 \-\> **SelectedMarketRule로 개장 여부 확인** \-\> IPositionSizer로 수량(Size) 계산 \-\> Order 객체 생성 \-\> 유효성 검증 \-\> IBrokerConnector로 전송 요청  
+    * **PositionLiquidationService** (IPositionLiquidationUseCase 구현):  
+      * **일괄 청산**: 보유 전 종목 조회 \-\> 종목별 해당 MarketRule 적용 \-\> 매도 주문 일괄 조립 \-\> 병렬 전송  
     * **AssetEvaluationService** (IAssetEvaluationUseCase 구현):  
-      * **자산 가치 평가**: IBrokerConnector를 통해 잔고 조회 후 통화 변환 및 총액 합산  
-      * **수량 산출**: 지정 금액을 현재가로 나누어 매수 가능 수량 계산 (호가 단위 고려)  
-    * **OrderProcessingService** (IOrderProcessingUseCase 구현):  
-      * **신호 처리 파이프라인**: Signal 수신 \-\> IRiskManager로 수량 계산 \-\> Order 객체 생성 \-\> 유효성 검증 \-\> IBrokerConnector로 주문 전송  
+      * **자산 가치 평가**: 모든 MarketRule을 순회하며 통화별(KRW/USD) 자산 평가 후 기준 통화로 합산  
     * **ManualTradingService** (IManualTradingUseCase 구현):  
-      * **수동 주문 집행**: 사용자 입력값 검증 \-\> IRiskManager 검증(옵션) \-\> IBrokerConnector로 즉시 전송  
-    * **PortfolioManagementService** (IPortfolioManagementUseCase 구현):  
-      * **긴급 청산**: 보유 전 종목 조회(GetPositionsAsync) \-\> 종목별 시장가 매도 주문 일괄 생성 \-\> 병렬 전송 처리  
-  * **특징**: 비즈니스 로직 중 '변하지 않는 규칙(Invariants)'만 포함하며 시스템 표준 변경 최소화 원칙을 준수함
+      * **수동 주문 집행**: 사용자 입력값 검증 \-\> (옵션) IPositionSizer 검증 \-\> 즉시 전송
 
 #### **B. 📂 02.Infrastructure (The Tools)**
 
 * **yQuant.Infra.Middleware.Redis**: Redis Pub/Sub 메시징 및 상태 캐싱 구현  
-* **yQuant.Infra.Broker.KIS**: 한국투자증권 REST API에 직접 접속하여 인증(토큰), 주문 요청 로직을 수행하는 구현체 (IBrokerConnector 구현)  
-* **yQuant.Infra.Notification.Telegram**: Telegram Bot API를 활용하여 INotificationService 구현. 메시지 포맷팅 및 발송 로직 담당  
-* **yQuant.Infra.Reporting.QuantStats**: IPerformanceExporter 구현체. 일간 자산 및 수익률 데이터를 QuantStats 호환 CSV 포맷(Date, Equity, Return)으로 변환하여 저장
+* **yQuant.Infra.Broker.KIS**: 한국투자증권 REST API 구현체 (IBrokerConnector 구현) \- 한국/미국 주식 API 엔드포인트 통합 처리  
+* **yQuant.Infra.Notification.Telegram**: Telegram Bot API 구현체 (INotificationService 구현)  
+* **yQuant.Infra.Reporting.QuantStats**: CSV 파일 리포팅 구현체 (IPerformanceExporter 구현)
 
 #### **C. 📂 03.Applications (The Runners)**
 
 * **yQuant.App.BrokerGateway** (Gateway)  
-  * **역할**: 증권사 통신 통합 게이트웨이, 알림 및 리포팅 트리거  
+  * **역할**: 증권사 통신 통합 게이트웨이 (물리적 연결 담당)  
   * **동작**:  
     * **Outbound**: Redis Order 수신 \-\> 어댑터(KIS)로 주문 실행  
-    * **Inbound**: 체결 통보 수신 및 주기적 잔고/보유종목 조회(Polling) \-\> Redis 캐시 동기화  
-    * **Reporting**: 일 마감(EOD) 시점 자산 스냅샷 생성 및 **성과 로그(CSV) 저장 요청**  
-    * **Notification**: 체결 및 주요 이벤트 발생 시 **텔레그램 알림 발송 요청**  
-  * **주요 설정 (appsettings.json)**:  
-    * ActiveBroker: 활성화할 증권사 어댑터 식별자 (예: "KIS")  
-    * Authentication: 증권사 접속 인증 정보  
-    * TelegramSettings: Bot Token 및 Target Chat ID  
-    * Reporting: CSV 저장 경로 및 활성화 여부  
-  * **특징**: 증권사 연결 수명주기(Lifecycle) 관리, 인증 로직 은닉(추상 메서드 호출)  
-* **yQuant.App.PositionManager** (Manager)  
-  * **역할**: 포지션 관리 및 매매 정책 실행 호스트  
-  * **동작**: Redis Signal 수신 \-\> 정책 플러그인에 잔고 기반 수량 계산(Sizing) 요청 \-\> Order 생성 및 Redis 발행  
-  * **주요 설정 (appsettings.json)**:  
-    * ActivePolicy: 로드할 정책 플러그인 DLL 경로 및 클래스명  
-    * RiskParameters: 정책 알고리즘에 전달할 리스크 변수 (예: 1회 거래당 최대 손실 허용률, 기본 레버리지 비율)  
-  * **핵심 가치**: 신호(Intent)를 실제 주문 가능한 수량(Quantity)으로 구체화  
+    * **Inbound**: 체결 통보 수신 및 주기적 데이터 Polling \-\> Redis 캐시 동기화  
+  * **특징**: 증권사 연결 수명주기 관리, 인증 로직 은닉  
+* **yQuant.App.OrderComposer** (Composer)  
+  * **역할**: 신호(Signal)를 받아 실행 가능한 주문(Order)으로 조립하는 작성기  
+  * **동작**: Redis Signal 수신 \-\> **OrderCompositionService** 호출 \-\> (내부적으로 **CanHandle로 매칭된 MarketRule** 및 PositionSizer 사용) \-\> 완성된 Order를 Redis 발행  
+  * **설정**: appsettings.json에서 **로드할 Market Policy 플러그인 목록(Array)** 지정  
 * **yQuant.App.TradingViewWebhook** (Webhook)  
-  * **역할**: TradingView Webhook 수신 전용 엔드포인트  
-  * **동작**: HTTP Request 수신 \-\> Payload 검증 \-\> Signal 변환 \-\> Redis 발행  
-  * **특징**: Minimal API 적용, 로직 최소화  
+  * **역할**: TradingView Webhook 수신 및 Signal 변환  
+  * **특징**: 페이로드의 exchange 값을 **Signal.Exchange 필드에 그대로 매핑** (로직 없음)  
 * **yQuant.App.Console** (Manual Tool)  
   * **역할**: 수동 주문 실행 및 테스트 도구  
-  * **동작**: 사용자 입력 파싱 \-\> 유효성 검증 \-\> Redis Order 채널 직접 발행  
 * **yQuant.App.Dashboard** (Integrated UI)  
-  * **역할**: 시스템 모니터링, 수동 개입, 예약 주문 관리  
-  * **동작**:  
-    * Redis 캐시(Account, Position) 기반 보유종목 및 자산 현황 출력  
-    * 예약 주문 스케줄러: 설정된 시간에 시장가 주문 발행 (금액 입력 기반 수량 자동 계산)  
-    * **자산 조회**: IAssetEvaluationUseCase를 통해 계산된 자산 가치 시각화
+  * **역할**: 모니터링 및 제어
 
 #### **D. 📂 04.Policies (The Logic)**
 
 * **yQuant.Policies.Sizing.Basic**  
-  * **역할**: IRiskManager (Output Port) 구현체  
-  * **내용**: Signal과 Account 정보를 입력받아 구체적인 매수 수량을 계산하는 알고리즘(가변 정책)  
-  * **특징**: Core 포트에 의존하며, 변경 시 해당 DLL만 교체 배포 가능
+  * **역할**: **IPositionSizer** (Output Port) 구현체  
+  * **내용**: Signal과 Account 정보를 입력받아 구체적인 매수 수량을 계산하는 알고리즘  
+* **yQuant.Policies.Market.Korea**  
+  * **역할**: **IMarketRule** (Output Port) 구현체 \- 한국 시장용  
+  * **처리 대상(Mapping)**: **KRX, KOSPI, KOSDAQ**  
+  * **내용**: 통화(KRW), 개장 시간(09:00\~15:30) 로직  
+* **yQuant.Policies.Market.UnitedStates**  
+  * **역할**: **IMarketRule** (Output Port) 구현체 \- 미국 시장용  
+  * **처리 대상(Mapping)**: **NASDAQ, NYSE, AMEX**  
+  * **내용**: 통화(USD), 개장 시간(23:30\~06:00, 썸머타임 적용), 프리마켓 허용 여부
 
 ## **5\. 런타임 프로세스 및 데이터 흐름**
 
-### **5.1. 상시 실행 프로세스 (3 Daemons \+ 1 Web App)**
+### **5.1. 상시 실행 프로세스**
 
-시스템 가동을 위해 반드시 실행되어야 하는 독립 프로세스
-
-1. **TradingViewWebhook**: \[외부\] \-\> (HTTP) \-\> \[Redis Signal\]  
-2. **PositionManager**: \[Redis Signal\] \-\> (Policy Logic) \-\> \[Redis Order\]  
-3. **BrokerGateway**: \[Redis Order\] \-\> (Adapter) \-\> \[증권사 API\] \-\> \[Telegram/CSV\]  
-4. **Dashboard**: \[User/Schedule\] \-\> (UI/BG) \-\> \[Redis Order\]
+1. **TradingViewWebhook**: \[외부\] \-\> (HTTP) \-\> \[Redis Signal (Exchange="NASDAQ")\]  
+2. **OrderComposer**: \[Redis Signal\] \-\> (Select US Policy via CanHandle("NASDAQ")) \-\> \[Redis Order\]  
+3. **BrokerGateway**: \[Redis Order\] \-\> (API Adapter) \-\> \[증권사 API\]  
+4. **Dashboard**: \[User\] \-\> (UI) \-\> \[Redis Order\]
 
 ### **5.2. 데이터 파이프라인**
 
-* **Signal Flow**: TradingView \-\> TradingViewWebhook \-\> **Redis (Signal Ch)** \-\> PositionManager (with Plugin) \-\> **Redis (Order Ch)** \-\> BrokerGateway \-\> Broker  
-* **Manual/Scheduled Flow**: User / Scheduler \-\> Console / Dashboard \-\> **Redis (Order Ch)** \-\> BrokerGateway \-\> Broker  
-* **Account Flow**: Broker \-\> BrokerGateway \-\> **Redis (Cache)** \<- PositionManager / Dashboard (Read)  
-* **Notification & Reporting Flow**: Broker (체결/마감) \-\> BrokerGateway \-\> Telegram API (알림) / File System (CSV 리포트)
+* **Signal Flow**: TradingView \-\> Webhook \-\> **Redis (Signal)** \-\> OrderComposer (Routes to KR/US Policy) \-\> **Redis (Order)** \-\> BrokerGateway \-\> Broker  
+* **Manual Flow**: User \-\> Console/Dashboard \-\> **Redis (Order)** \-\> BrokerGateway \-\> Broker
