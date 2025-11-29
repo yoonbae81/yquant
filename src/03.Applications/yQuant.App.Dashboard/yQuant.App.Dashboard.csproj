@@ -1,0 +1,23 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
+    <UserSecretsId>yquant-dashboard-secrets</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="MudBlazor" Version="8.15.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.10.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Reporting.Performance\yQuant.Infra.Reporting.Performance.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Broker.KIS\yQuant.Infra.Broker.KIS.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Middleware.Redis\yQuant.Infra.Middleware.Redis.csproj" />
+  </ItemGroup>
+
+</Project>

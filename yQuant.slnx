@@ -1,0 +1,50 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/01.Core/">
+    <Project Path="src/01.Core/yQuant.Core/yQuant.Core.csproj" />
+  </Folder>
+  <Folder Name="/src/02.Infrastructure/">
+
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Broker.KIS/yQuant.Infra.Broker.KIS.csproj" />
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Master.KIS/yQuant.Infra.Master.KIS.csproj" />
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Middleware.Redis/yQuant.Infra.Middleware.Redis.csproj" />
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Notification.Common/yQuant.Infra.Notification.Common.csproj" />
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Notification.Telegram/yQuant.Infra.Notification.Telegram.csproj" />
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Reporting.Performance/yQuant.Infra.Reporting.Performance.csproj" />
+  </Folder>
+  <Folder Name="/src/03.Applications/">
+    <Project Path="src/03.Applications/yQuant.App.BrokerGateway/yQuant.App.BrokerGateway.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.Dashboard/yQuant.App.Dashboard.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.OrderComposer/yQuant.App.OrderComposer.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.StockMaster/yQuant.App.StockMaster.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.Webhook/yQuant.App.Webhook.csproj" />
+  </Folder>
+  <Folder Name="/src/04.Policies/">
+    <Project Path="src/04.Policies/yQuant.Policies.Market.China/yQuant.Policies.Market.China.csproj" />
+    <Project Path="src/04.Policies/yQuant.Policies.Market.HongKong/yQuant.Policies.Market.HongKong.csproj" />
+    <Project Path="src/04.Policies/yQuant.Policies.Market.Japan/yQuant.Policies.Market.Japan.csproj" />
+    <Project Path="src/04.Policies/yQuant.Policies.Market.Korea/yQuant.Policies.Market.Korea.csproj" />
+    <Project Path="src/04.Policies/yQuant.Policies.Market.UnitedStates/yQuant.Policies.Market.UnitedStates.csproj" />
+    <Project Path="src/04.Policies/yQuant.Policies.Market.Vietnam/yQuant.Policies.Market.Vietnam.csproj" />
+    <Project Path="src/04.Policies/yQuant.Policies.Sizing.Basic/yQuant.Policies.Sizing.Basic.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Notification.Discord/yQuant.Infra.Notification.Discord.csproj" />
+    <Project Path="tests/yQuant.App.BrokerGateway.Tests/yQuant.App.BrokerGateway.Tests.csproj" />
+    <Project Path="tests/yQuant.App.Dashboard.Tests/yQuant.App.Dashboard.Tests.csproj" />
+    <Project Path="tests/yQuant.App.OrderComposer.Tests/yQuant.App.OrderComposer.Tests.csproj" />
+    <Project Path="tests/yQuant.App.Webhook.Tests/yQuant.App.Webhook.Tests.csproj" />
+    <Project Path="tests/yQuant.Core.Tests/yQuant.Core.Tests.csproj" />
+    <Project Path="tests/yQuant.Infra.Broker.KIS.Tests/yQuant.Infra.Broker.KIS.Tests.csproj" />
+    <Project Path="tests/yQuant.Infra.Master.KIS.Tests/yQuant.Infra.Master.KIS.Tests.csproj" />
+    <Project Path="tests/yQuant.Infra.Notification.Discord.Tests/yQuant.Infra.Notification.Discord.Tests.csproj" />
+    <Project Path="tests/yQuant.Infra.Notification.Telegram.Tests/yQuant.Infra.Notification.Telegram.Tests.csproj" />
+    <Project Path="tests/yQuant.Infra.Reporting.Performance.Tests/yQuant.Infra.Reporting.Performance.Tests.csproj" />
+    <Project Path="tests/yQuant.Policies.Market.Tests/yQuant.Policies.Market.Tests.csproj" />
+    <Project Path="tests/yQuant.Policies.Sizing.Basic.Tests/yQuant.Policies.Sizing.Basic.Tests.csproj" />
+  </Folder>
+  <Folder Name="/tools/">
+    <Project Path="tools/RedisBrowser/RedisBrowser.csproj" />
+  </Folder>
+</Solution>

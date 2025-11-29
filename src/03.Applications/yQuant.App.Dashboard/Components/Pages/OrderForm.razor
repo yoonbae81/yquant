@@ -1,0 +1,94 @@
+@page "/orderform"
+@page "/orderform/{Ticker?}"
+@using yQuant.App.Dashboard.Services
+@using yQuant.Core.Models
+@inject OrderPublisher OrderPublisher
+@inject RedisService RedisService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+
+<PageTitle>Manual Order</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Manual Order</MudText>
+
+<MudForm Model="@OrderModel" @ref="@Form" ValidationDelay="0">
+    <MudGrid>
+        <MudItem xs="12" sm="6">
+            <MudSelect @bind-Value="OrderModel.AccountAlias" Label="Account" Required="true" RequiredError="Account is required!" Variant="Variant.Outlined">
+                @foreach (var account in AvailableAccounts)
+                {
+                    <MudSelectItem Value="@account.Id">@account.Id (@account.Broker)</MudSelectItem>
+                }
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudTextField @bind-Value="OrderModel.Ticker" Label="Ticker" Required="true" RequiredError="Ticker is required!" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudSelect @bind-Value="OrderModel.Action" Label="Action" Required="true" RequiredError="Action is required!" Variant="Variant.Outlined">
+                <MudSelectItem Value="OrderAction.Buy">Buy</MudSelectItem>
+                <MudSelectItem Value="OrderAction.Sell">Sell</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudNumericField @bind-Value="OrderModel.Qty" Label="Quantity" Required="true" RequiredError="Quantity must be greater than 0" Min="1" Variant="Variant.Outlined" />
+        </MudItem>
+        <MudItem xs="12">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto" OnClick="SubmitOrder" Disabled="@(!Form?.IsValid ?? true)">Place Order</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudForm>
+
+@code {
+    [Parameter]
+    public string? Ticker { get; set; } // From URL parameter
+    [Parameter]
+    public OrderAction? Action { get; set; } // From URL parameter
+    [Parameter]
+    public string? AccountAlias { get; set; } // From URL parameter
+
+    private MudForm? Form;
+    private Order OrderModel = new() { AccountAlias = "", Ticker = "", Action = OrderAction.Buy, Type = OrderType.Market, Qty = 0 };
+    private IEnumerable<Account> AvailableAccounts = new List<Account>();
+
+    protected override void OnInitialized()
+    {
+        AvailableAccounts = RedisService.GetAccounts();
+
+        if (Ticker != null) OrderModel.Ticker = Ticker;
+        if (Action != null) OrderModel.Action = Action.Value;
+        if (AccountAlias != null) OrderModel.AccountAlias = AccountAlias;
+
+        // Set default AccountAlias if only one account exists
+        if (AvailableAccounts.Count() == 1 && OrderModel.AccountAlias == null)
+        {
+            OrderModel.AccountAlias = AvailableAccounts.First().Id;
+        }
+
+        // Default to Buy if not specified
+        if (OrderModel.Action == 0) OrderModel.Action = OrderAction.Buy;
+    }
+
+    private async Task SubmitOrder()
+    {
+        await Form!.Validate();
+        if (Form.IsValid)
+        {
+            try
+            {
+                // Ensure price and type are set for market order
+                OrderModel.Type = OrderType.Market;
+                OrderModel.Price = 0; // Market orders don't need a specific price on creation
+
+                await OrderPublisher.PublishOrderAsync(OrderModel);
+                Snackbar.Add("Order placed successfully!", Severity.Success);
+                NavigationManager.NavigateTo("/dashboard"); // Go back to dashboard after placing order
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Error placing order: {ex.Message}", Severity.Error);
+                _ = Task.Delay(5000).ContinueWith(_ => InvokeAsync(StateHasChanged));
+            }
+        }
+    }
+}

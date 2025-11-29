@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-yQuant.App.OrderComposer-b2eb4615-80a8-414c-8274-a82a20ef52ee</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.0" />
+    <PackageReference Include="StackExchange.Redis" Version="2.10.1" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
+    <ProjectReference Include="..\..\04.Policies\yQuant.Policies.Sizing.Basic\yQuant.Policies.Sizing.Basic.csproj" />
+    <ProjectReference Include="..\..\04.Policies\yQuant.Policies.Market.Korea\yQuant.Policies.Market.Korea.csproj" />
+    <ProjectReference Include="..\..\04.Policies\yQuant.Policies.Market.UnitedStates\yQuant.Policies.Market.UnitedStates.csproj" />
+  </ItemGroup>
+</Project>

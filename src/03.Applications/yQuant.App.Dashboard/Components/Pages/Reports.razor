@@ -1,0 +1,85 @@
+@page "/reports"
+@using yQuant.Core.Models
+@using yQuant.Core.Ports.Output.Infrastructure
+@using yQuant.Infra.Reporting.Performance.Interfaces
+@using System.Text
+@inject IPerformanceRepository PerformanceRepository
+@inject IQuantStatsService QuantStatsService
+@inject IJSRuntime JS
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    <MudText Typo="Typo.h4" GutterBottom="true">Performance Reports</MudText>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h6">Generate Report</MudText>
+                <MudTextField @bind-Value="_accountAlias" Label="Account Alias" Variant="Variant.Outlined" Class="mt-3" />
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="GenerateReport" Class="mt-3" Disabled="@_loading">
+                    @if (_loading)
+                    {
+                        <MudProgressCircular Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                        <MudText Class="ms-2">Generating...</MudText>
+                    }
+                    else
+                    {
+                        <MudText>Generate CSV</MudText>
+                    }
+                </MudButton>
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+
+    @if (!string.IsNullOrEmpty(_errorMessage))
+    {
+        <MudAlert Severity="Severity.Error" Class="mt-4">@_errorMessage</MudAlert>
+    }
+</MudContainer>
+
+@code {
+    private string _accountAlias = "";
+    private bool _loading = false;
+    private string _errorMessage = "";
+
+    private async Task GenerateReport()
+    {
+        if (string.IsNullOrWhiteSpace(_accountAlias))
+        {
+            _errorMessage = "Please enter an account alias.";
+            return;
+        }
+
+        _loading = true;
+        _errorMessage = "";
+
+        try
+        {
+            var logs = await PerformanceRepository.GetLogsAsync(_accountAlias);
+            if (!logs.Any())
+            {
+                _errorMessage = $"No performance logs found for account: {_accountAlias}";
+                return;
+            }
+
+            var csv = QuantStatsService.GenerateCsvReport(logs);
+            var filename = $"quantstats_{_accountAlias}_{DateTime.Now:yyyyMMdd}.csv";
+            
+            await DownloadFile(filename, csv);
+        }
+        catch (Exception ex)
+        {
+            _errorMessage = $"Error generating report: {ex.Message}";
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private async Task DownloadFile(string filename, string content)
+    {
+        var bytes = Encoding.UTF8.GetBytes(content);
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFile", filename, base64);
+    }
+}

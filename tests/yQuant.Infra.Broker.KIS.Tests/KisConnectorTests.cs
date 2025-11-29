@@ -1,0 +1,237 @@
+using System.Net;
+using System.Text.Json;
+using Microsoft.Extensions.Logging;
+using Moq;
+using Moq.Protected;
+using yQuant.Infra.Broker.KIS;
+using yQuant.Infra.Trading.KIS.Models;
+using yQuant.Infra.Middleware.Redis.Interfaces;
+using Xunit;
+
+namespace yQuant.Infra.Broker.KIS.Tests;
+
+public class KisConnectorTests
+{
+    private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
+    private readonly Mock<ILogger<KisConnector>> _mockLogger;
+    private readonly Mock<IRedisService> _mockRedisService;
+    private readonly KisConnector _client;
+    private readonly KISApiConfig _apiConfig;
+    private readonly string _userId;
+    private readonly string _accountAlias;
+
+    public KisConnectorTests()
+    {
+        _userId = Guid.NewGuid().ToString();
+        _accountAlias = $"test_alias_{Guid.NewGuid()}";
+        _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
+        var httpClient = new HttpClient(_mockHttpMessageHandler.Object)
+        {
+            BaseAddress = new Uri("https://test.api.com")
+        };
+
+        _mockLogger = new Mock<ILogger<KisConnector>>();
+        _mockRedisService = new Mock<IRedisService>();
+
+        _apiConfig = new KISApiConfig
+        {
+            { "Token", new EndpointConfig { Path = "/oauth2/tokenP", Method = "POST" } },
+            { "Hashkey", new EndpointConfig { Path = "/uapi/hashkey", Method = "POST" } },
+            { "Order", new EndpointConfig { Path = "/uapi/domestic-stock/v1/trading/order-cash", Method = "POST", TrId = "TTTC0802U" } }
+        };
+
+        _client = new KisConnector(
+            httpClient,
+            _mockLogger.Object,
+            _mockRedisService.Object,
+            _userId,
+            _accountAlias,
+            "test_app_key",
+            "test_app_secret",
+            "https://test.api.com",
+            _apiConfig
+        );
+    }
+
+    private void SetupMockResponse(Func<HttpRequestMessage, HttpResponseMessage?> responseProvider)
+    {
+        _mockHttpMessageHandler
+            .Protected()
+            .Setup<Task<HttpResponseMessage>>(
+                "SendAsync",
+                ItExpr.IsAny<HttpRequestMessage>(),
+                ItExpr.IsAny<CancellationToken>()
+            )
+            .Returns(async (HttpRequestMessage req, CancellationToken token) =>
+            {
+                var response = responseProvider(req);
+                if (response != null)
+                {
+                    return response;
+                }
+                return new HttpResponseMessage(HttpStatusCode.NotFound) { RequestMessage = req };
+            });
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldGetToken_WhenNoTokenExists()
+    {
+        // Arrange
+        SetupMockResponse(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/oauth2/tokenP"))
+            {
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(JsonSerializer.Serialize(new KisTokenResponse
+                    {
+                        AccessToken = "new_access_token",
+                        ExpiresIn = 3600,
+                        TokenType = "Bearer"
+                    }))
+                };
+            }
+            if (req.RequestUri!.AbsolutePath.Contains("/uapi/domestic-stock/v1/trading/order-cash"))
+            {
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(JsonSerializer.Serialize(new { RT_CD = "0", MSG1 = "Success" }))
+                };
+            }
+            if (req.RequestUri!.AbsolutePath.Contains("/uapi/hashkey"))
+            {
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(JsonSerializer.Serialize(new KisHashkeyResponse { HASH = "test_hash" }))
+                };
+            }
+            return null;
+        });
+
+        // Act
+        await _client.ExecuteAsync<object>("Order", new { test = "body" });
+
+        // Assert
+        // Verify Token Request was made
+        _mockHttpMessageHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req => req.RequestUri!.AbsolutePath.Contains("/oauth2/tokenP")),
+            ItExpr.IsAny<CancellationToken>()
+        );
+
+        // Verify Order Request has Authorization header
+        _mockHttpMessageHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req => 
+                req.RequestUri!.AbsolutePath.Contains("/uapi/domestic-stock/v1/trading/order-cash") &&
+                req.Headers.Authorization!.Parameter == "new_access_token"),
+            ItExpr.IsAny<CancellationToken>()
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldUseCachedToken_WhenTokenExists()
+    {
+        // Arrange
+        _mockRedisService.Setup(r => r.GetAsync<string>($"KIS:Token:{_accountAlias}")).ReturnsAsync("cached_token");
+
+        SetupMockResponse(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/uapi/domestic-stock/v1/trading/order-cash"))
+            {
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(JsonSerializer.Serialize(new { RT_CD = "0", MSG1 = "Success" }))
+                };
+            }
+            if (req.RequestUri!.AbsolutePath.Contains("/uapi/hashkey"))
+            {
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(JsonSerializer.Serialize(new KisHashkeyResponse { HASH = "test_hash" }))
+                };
+            }
+            return null;
+        });
+
+        // Act
+        await _client.ExecuteAsync<object>("Order", new { test = "body" });
+
+        // Assert
+        // Verify Token Request was NOT made
+        _mockHttpMessageHandler.Protected().Verify(
+            "SendAsync",
+            Times.Never(),
+            ItExpr.Is<HttpRequestMessage>(req => req.RequestUri!.AbsolutePath.Contains("/oauth2/tokenP")),
+            ItExpr.IsAny<CancellationToken>()
+        );
+
+        // Verify Order Request has Cached Authorization header
+        _mockHttpMessageHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req => 
+                req.RequestUri!.AbsolutePath.Contains("/uapi/domestic-stock/v1/trading/order-cash") &&
+                req.Headers.Authorization!.Parameter == "cached_token"),
+            ItExpr.IsAny<CancellationToken>()
+        );
+    }
+
+    [Fact]
+    public async Task ExecuteAsync_ShouldGenerateHashkey_ForPostRequests()
+    {
+        // Arrange
+        _mockRedisService.Setup(r => r.GetAsync<string>($"KIS:Token:{_accountAlias}")).ReturnsAsync("cached_token");
+
+        SetupMockResponse(req =>
+        {
+            if (req.RequestUri!.AbsolutePath.Contains("/uapi/hashkey"))
+            {
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(JsonSerializer.Serialize(new KisHashkeyResponse { HASH = "generated_hash_key" }))
+                };
+            }
+            if (req.RequestUri!.AbsolutePath.Contains("/uapi/domestic-stock/v1/trading/order-cash"))
+            {
+                return new HttpResponseMessage
+                {
+                    StatusCode = HttpStatusCode.OK,
+                    Content = new StringContent(JsonSerializer.Serialize(new { RT_CD = "0", MSG1 = "Success" }))
+                };
+            }
+            return null;
+        });
+
+        // Act
+        await _client.ExecuteAsync<object>("Order", new { test = "body" });
+
+        // Assert
+        // Verify Hashkey Request was made
+        _mockHttpMessageHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req => req.RequestUri!.AbsolutePath.Contains("/uapi/hashkey")),
+            ItExpr.IsAny<CancellationToken>()
+        );
+
+        // Verify Order Request has Hashkey header
+        _mockHttpMessageHandler.Protected().Verify(
+            "SendAsync",
+            Times.Once(),
+            ItExpr.Is<HttpRequestMessage>(req => 
+                req.RequestUri!.AbsolutePath.Contains("/uapi/domestic-stock/v1/trading/order-cash") &&
+                req.Headers.Contains("hashkey") &&
+                req.Headers.GetValues("hashkey").First() == "generated_hash_key"),
+            ItExpr.IsAny<CancellationToken>()
+        );
+    }
+}

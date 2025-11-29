@@ -1,0 +1,70 @@
+{
+    "Signal": {
+        "title": "Signal: {Source}",
+        "color": 3447003,
+        "footer": {
+            "text": "Timeframe: {Timeframe}"
+        },
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            },
+            {
+                "name": "Action",
+                "value": "{Action}",
+                "inline": true
+            },
+            {
+                "name": "Price",
+                "value": "{Price}",
+                "inline": true
+            },
+            {
+                "name": "Strength",
+                "value": "{Strength}",
+                "inline": true
+            }
+        ]
+    },
+    "Execution_Buy": {
+        "title": "Order Executed: Buy",
+        "color": 5763719,
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            }
+        ]
+    },
+    "Execution_Sell": {
+        "title": "Order Executed: Sell",
+        "color": 15548997,
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            }
+        ]
+    },
+    "Execution_Failure": {
+        "title": "Order Rejected",
+        "color": 15548997,
+        "description": "**Reason**: {Reason}",
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            }
+        ]
+    },
+    "Error": {
+        "title": "{Title}",
+        "description": "**Context:** {Context}\n**Message:** {Message}",
+        "color": 15105570
+    }
+}

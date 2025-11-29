@@ -1,0 +1,106 @@
+@page "/assets"
+@using yQuant.Core.Models
+@using yQuant.Core.Services
+@inject AssetService AssetService
+@inject IConfiguration Configuration
+
+<MudText Typo="Typo.h4" GutterBottom="true">Asset Summary</MudText>
+
+@if (account == null)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else
+{
+    <MudGrid>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Total Equity (KRW)</MudText>
+                    <MudText Typo="Typo.h4">@account.GetTotalEquity(CurrencyType.KRW).ToString("N0") KRW</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Total Equity (USD)</MudText>
+                    <MudText Typo="Typo.h4">@account.GetTotalEquity(CurrencyType.USD).ToString("N2") USD</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+        <MudItem xs="12" sm="6" md="4">
+            <MudCard>
+                <MudCardContent>
+                    <MudText Typo="Typo.h6">Account Info</MudText>
+                    <MudText><b>Alias:</b> @account.Alias</MudText>
+                    <MudText><b>Number:</b> @account.AccountNumber</MudText>
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudText Typo="Typo.h5" GutterBottom="true" Class="mt-4">Deposits</MudText>
+            <MudTable Items="@account.Deposits" Hover="true" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Currency</MudTh>
+                    <MudTh>Amount</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Currency">@context.Key</MudTd>
+                    <MudTd DataLabel="Amount">@context.Value.ToString("N2")</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+
+        <MudItem xs="12">
+            <MudText Typo="Typo.h5" GutterBottom="true" Class="mt-4">Positions</MudText>
+            <MudTable Items="@account.Positions" Hover="true" Breakpoint="Breakpoint.Sm">
+                <HeaderContent>
+                    <MudTh>Ticker</MudTh>
+                    <MudTh>Currency</MudTh>
+                    <MudTh>Qty</MudTh>
+                    <MudTh>Avg Price</MudTh>
+                    <MudTh>Cur Price</MudTh>
+                    <MudTh>PnL</MudTh>
+                    <MudTh>Return %</MudTh>
+                </HeaderContent>
+                <RowTemplate>
+                    <MudTd DataLabel="Ticker">@context.Ticker</MudTd>
+                    <MudTd DataLabel="Currency">@context.Currency</MudTd>
+                    <MudTd DataLabel="Qty">@context.Qty</MudTd>
+                    <MudTd DataLabel="Avg Price">@context.AvgPrice.ToString("N2")</MudTd>
+                    <MudTd DataLabel="Cur Price">@context.CurrentPrice.ToString("N2")</MudTd>
+                    <MudTd DataLabel="PnL" Style="@GetColorStyle(context.UnrealizedPnL)">@context.UnrealizedPnL.ToString("N2")</MudTd>
+                    <MudTd DataLabel="Return %" Style="@GetColorStyle(context.UnrealizedPnL)">@GetReturnRate(context).ToString("F2")%</MudTd>
+                </RowTemplate>
+            </MudTable>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private Account? account;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var accountNo = Configuration["KIS:AccountNumber"];
+        if (!string.IsNullOrEmpty(accountNo))
+        {
+            account = await AssetService.GetAccountOverviewAsync(accountNo);
+        }
+    }
+
+    private string GetColorStyle(decimal value)
+    {
+        if (value > 0) return "color: red;";
+        if (value < 0) return "color: blue;";
+        return "";
+    }
+
+    private decimal GetReturnRate(yQuant.Core.Models.Position pos)
+    {
+        if (pos.AvgPrice == 0) return 0;
+        return (pos.CurrentPrice - pos.AvgPrice) / pos.AvgPrice * 100;
+    }
+}

@@ -1,0 +1,44 @@
+@using yQuant.Core.Models
+@inject NavigationManager NavigationManager
+
+<MudTable Items="Positions" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true" Elevation="0">
+    <HeaderContent>
+        <MudTh>Ticker</MudTh>
+        <MudTh>Qty</MudTh>
+        <MudTh>Avg Price</MudTh>
+        <MudTh>Current Price</MudTh>
+        <MudTh>Change %</MudTh>
+        <MudTh>Unrealized PnL</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Ticker">@context.Ticker</MudTd>
+        <MudTd DataLabel="Qty">@context.Qty.ToString("N0")</MudTd>
+        <MudTd DataLabel="Avg Price">@context.AvgPrice.ToString("N2")</MudTd>
+        <MudTd DataLabel="Current Price">@context.CurrentPrice.ToString("N2")</MudTd>
+        <MudTd DataLabel="Change %" Style="@(context.ChangeRate >= 0 ? "color: red;" : "color: blue;")">
+            @context.ChangeRate.ToString("N2")%
+        </MudTd>
+        <MudTd DataLabel="Unrealized PnL" Style="@(context.UnrealizedPnL >= 0 ? "color: green;" : "color: red;")">
+            @context.UnrealizedPnL.ToString("N2")
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small" OnClick="@(() => OnOrderAction.InvokeAsync((context.Ticker, OrderAction.Buy, AccountAlias)))">Buy</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Secondary" Size="Size.Small" OnClick="@(() => OnOrderAction.InvokeAsync((context.Ticker, OrderAction.Sell, AccountAlias)))">Sell</MudButton>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No positions found for this account.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+@code {
+    [Parameter]
+    public IEnumerable<yQuant.Core.Models.Position> Positions { get; set; } = new List<yQuant.Core.Models.Position>();
+
+    [Parameter]
+    public required string AccountAlias { get; set; }
+
+    [Parameter]
+    public EventCallback<(string ticker, OrderAction action, string accountAlias)> OnOrderAction { get; set; }
+}

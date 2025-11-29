@@ -1,0 +1,60 @@
+@page "/dashboard"
+@using yQuant.App.Dashboard.Services
+@using yQuant.Core.Models
+@inject RedisService RedisService
+@inject NavigationManager NavigationManager
+
+<PageTitle>Dashboard</PageTitle>
+
+<MudText Typo="Typo.h4" Class="mb-4">Dashboard</MudText>
+
+@if (_accounts == null || !_accounts.Any())
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    <MudText Class="mt-2">Loading data...</MudText>
+}
+else
+{
+    <MudGrid>
+        @foreach (var account in _accounts)
+        {
+            <MudItem xs="12" md="6" lg="4">
+                <AssetSummaryCard Account="@account" />
+            </MudItem>
+        }
+    </MudGrid>
+
+    <MudText Typo="Typo.h5" Class="mt-6 mb-4">Positions</MudText>
+    @foreach (var account in _accounts)
+    {
+        <MudText Typo="Typo.h6" Class="mt-4 mb-2">Account: @account.Id (@account.Broker)</MudText>
+        <PositionTable Positions="RedisService.GetPositions(account.Alias ?? account.Id)" AccountAlias="@(account.Alias ?? account.Id)" OnOrderAction="HandleOrderAction" />
+    }
+}
+
+@code {
+    private IEnumerable<Account>? _accounts;
+
+    protected override void OnInitialized()
+    {
+        RedisService.OnChange += StateHasChanged;
+        LoadData();
+    }
+
+    private void LoadData()
+    {
+        _accounts = RedisService.GetAccounts();
+        StateHasChanged();
+    }
+
+    private void HandleOrderAction((string ticker, OrderAction action, string accountAlias) args)
+    {
+        // Navigate to the order form with pre-filled details
+        NavigationManager.NavigateTo($"/orderform?ticker={args.ticker}&action={args.action}&accountAlias={args.accountAlias}");
+    }
+
+    public void Dispose()
+    {
+        RedisService.OnChange -= StateHasChanged;
+    }
+}

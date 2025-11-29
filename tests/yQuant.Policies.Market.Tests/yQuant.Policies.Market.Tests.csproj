@@ -1,0 +1,27 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+    <IsPackable>false</IsPackable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.NET.Test.Sdk" Version="17.11.1" />
+    <PackageReference Include="Moq" Version="4.20.72" />
+    <PackageReference Include="MSTest.TestAdapter" Version="3.6.1" />
+    <PackageReference Include="MSTest.TestFramework" Version="3.6.1" />
+    <PackageReference Include="coverlet.collector" Version="6.0.2" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.China\yQuant.Policies.Market.China.csproj" />
+    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.HongKong\yQuant.Policies.Market.HongKong.csproj" />
+    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.Japan\yQuant.Policies.Market.Japan.csproj" />
+    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.Korea\yQuant.Policies.Market.Korea.csproj" />
+    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.UnitedStates\yQuant.Policies.Market.UnitedStates.csproj" />
+    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.Vietnam\yQuant.Policies.Market.Vietnam.csproj" />
+  </ItemGroup>
+
+</Project>

@@ -1,0 +1,22 @@
+﻿<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>Exe</OutputType>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Broker.KIS\yQuant.Infra.Broker.KIS.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Middleware.Redis\yQuant.Infra.Middleware.Redis.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Reporting.Performance\yQuant.Infra.Reporting.Performance.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Logging.Console" Version="9.0.0" />
+    <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="9.0.0" />
+  </ItemGroup>
+</Project>
