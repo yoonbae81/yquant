@@ -55,7 +55,7 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = GetAccountWebhookUrl(order.AccountAlias, c => c.Order);
+                string webhookUrl = GetAccountWebhookUrl(order.AccountAlias);
                 var payload = _messageBuilder.BuildExecutionMessage(order);
                 await SendAsync(webhookUrl, payload);
             }
@@ -71,7 +71,7 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = GetAccountWebhookUrl(order.AccountAlias, c => c.Order); // Use execution channel for failures too? Or Error? Let's use Execution for now as it's order related.
+                string webhookUrl = GetAccountWebhookUrl(order.AccountAlias); // Use execution channel for failures too? Or Error? Let's use Execution for now as it's order related.
                 var payload = _messageBuilder.BuildOrderFailureMessage(order, reason);
                 await SendAsync(webhookUrl, payload);
             }
@@ -87,7 +87,7 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = GetAccountWebhookUrl(accountAlias, c => c.Error);
+                string webhookUrl = GetAccountWebhookUrl(accountAlias);
                 var payload = _messageBuilder.BuildErrorMessage($"Account Error: {accountAlias}", ex, context);
                 await SendAsync(webhookUrl, payload);
             }
@@ -103,7 +103,7 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = GetAccountWebhookUrl(accountAlias, c => c.Report);
+                string webhookUrl = GetAccountWebhookUrl(accountAlias);
                 var payload = _messageBuilder.BuildSummaryMessage(accountAlias, summary);
                 await SendAsync(webhookUrl, payload);
             }
@@ -171,13 +171,13 @@ namespace yQuant.Infra.Notification.Discord
         private string GetSignalWebhookUrl(Signal signal)
         {
             // 1. Check Strategy mapping
-            if (_config.Signal?.Mappings != null && _config.Signal.Mappings.TryGetValue(signal.Source, out var strategyUrl))
+            if (_config.Signal != null && _config.Signal.TryGetValue(signal.Source, out var strategyUrl))
             {
                 return strategyUrl;
             }
 
             // 3. General Signal
-            if (_config.Signal?.Mappings != null && _config.Signal.Mappings.TryGetValue("General", out var generalUrl))
+            if (_config.Signal != null && _config.Signal.TryGetValue("General", out var generalUrl))
             {
                 return generalUrl;
             }
@@ -185,11 +185,10 @@ namespace yQuant.Infra.Notification.Discord
             return _config.DefaultWebhookUrl;
         }
 
-        private string GetAccountWebhookUrl(string accountAlias, Func<DiscordAccountChannels, string> selector)
+        private string GetAccountWebhookUrl(string accountAlias)
         {
-            if (_config.Accounts != null && _config.Accounts.TryGetValue(accountAlias, out var accountConfig))
+            if (_config.Accounts != null && _config.Accounts.TryGetValue(accountAlias, out var url))
             {
-                var url = selector(accountConfig.Channels);
                 if (!string.IsNullOrEmpty(url)) return url;
             }
 
