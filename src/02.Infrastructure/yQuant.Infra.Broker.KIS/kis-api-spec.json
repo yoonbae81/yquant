@@ -132,6 +132,14 @@
         "Path": "/uapi/overseas-stock/v1/trading/order",
         "Method": "POST",
         "TrId": "TTTT1002U",
+        "TrIdMap": {
+            "US": "TTTT1002U",
+            "HK": "TTTS1002U",
+            "SH": "TTTS0202U",
+            "SZ": "TTTS0305U",
+            "JP": "TTTS0308U",
+            "VN": "TTTS0311U"
+        },
         "Parameters": {
             "CANO": {
                 "Description": "Account Number",
@@ -187,6 +195,14 @@
         "Path": "/uapi/overseas-stock/v1/trading/order",
         "Method": "POST",
         "TrId": "JTTT1006U",
+        "TrIdMap": {
+            "US": "TTTT1006U",
+            "HK": "TTTS1001U",
+            "SH": "TTTS1005U",
+            "SZ": "TTTS0304U",
+            "JP": "TTTS0307U",
+            "VN": "TTTS0310U"
+        },
         "Parameters": {
             "CANO": {
                 "Description": "Account Number",
@@ -236,156 +252,6 @@
                 "Type": "string",
                 "Length": 2
             }
-        }
-    },
-    "OverseasBuyOrder_HK": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS1002U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
-        }
-    },
-    "OverseasSellOrder_HK": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS1001U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
-        }
-    },
-    "OverseasBuyOrder_SH": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS0202U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
-        }
-    },
-    "OverseasSellOrder_SH": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS0201U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
-        }
-    },
-    "OverseasBuyOrder_SZ": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS0305U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
-        }
-    },
-    "OverseasSellOrder_SZ": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS0304U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
-        }
-    },
-    "OverseasBuyOrder_JP": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS0308U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
-        }
-    },
-    "OverseasSellOrder_JP": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS0307U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
-        }
-    },
-    "OverseasBuyOrder_VN": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS0311U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
-        }
-    },
-    "OverseasSellOrder_VN": {
-        "Path": "/uapi/overseas-stock/v1/trading/order",
-        "Method": "POST",
-        "TrId": "TTTS0310U",
-        "Parameters": {
-            "CANO": {},
-            "ACNT_PRDT_CD": {},
-            "OVRS_EXCG_CD": {},
-            "PDNO": {},
-            "ORD_QTY": {},
-            "OVRS_ORD_UNPR": {},
-            "ORD_SVR_DVSN_CD": {},
-            "ORD_DVSN": {}
         }
     },
     "OverseasPositions": {

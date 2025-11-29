@@ -12,6 +12,7 @@ public class EndpointConfig
     public string Path { get; set; } = string.Empty;
     public string Method { get; set; } = "GET";
     public string? TrId { get; set; }
+    public Dictionary<string, string>? TrIdMap { get; set; }
     public Dictionary<string, ParameterConfig> Parameters { get; set; } = new();
 }
 

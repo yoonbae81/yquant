@@ -109,7 +109,7 @@ public class KisBrokerAdapter : IBrokerAdapter
         var (cano, acntPrdtCd) = ParseAccountNumber(accountNumber);
         
         string kisExchangeCode = GetKisExchangeCode(order.Exchange);
-        string endpointSuffix = GetEndpointSuffix(order.Exchange);
+        string countryCode = GetCountryCode(order.Exchange);
         
         var requestBody = new
         {
@@ -148,8 +148,8 @@ public class KisBrokerAdapter : IBrokerAdapter
 
         try
         {
-            string endpoint = order.Action == OrderAction.Buy ? $"OverseasBuyOrder{endpointSuffix}" : $"OverseasSellOrder{endpointSuffix}";
-            var response = await _client.ExecuteAsync<KisOverseasOrderResponse>(endpoint, requestBody);
+            string endpoint = order.Action == OrderAction.Buy ? "OverseasBuyOrder" : "OverseasSellOrder";
+            var response = await _client.ExecuteAsync<KisOverseasOrderResponse>(endpoint, requestBody, trIdVariant: countryCode);
             _logger.LogInformation("KIS Overseas order response: {Response}", response);
             
             if (response == null) return OrderResult.Failure("No response from KIS");
@@ -189,22 +189,22 @@ public class KisBrokerAdapter : IBrokerAdapter
         };
     }
 
-    private string GetEndpointSuffix(string exchange)
+    private string GetCountryCode(string exchange)
     {
-        if (string.IsNullOrEmpty(exchange)) return ""; // Default US
+        if (string.IsNullOrEmpty(exchange)) return "US"; // Default US
 
         return exchange.ToUpper() switch
         {
-            "NASDAQ" => "",
-            "NYSE" => "",
-            "AMEX" => "",
-            "HKEX" => "_HK",
-            "SSE" => "_SH",
-            "SZSE" => "_SZ",
-            "TSE" => "_JP",
-            "HNX" => "_VN",
-            "HOSE" => "_VN",
-            _ => ""
+            "NASDAQ" => "US",
+            "NYSE" => "US",
+            "AMEX" => "US",
+            "HKEX" => "HK",
+            "SSE" => "SH",
+            "SZSE" => "SZ",
+            "TSE" => "JP",
+            "HNX" => "VN",
+            "HOSE" => "VN",
+            _ => "US"
         };
     }
 

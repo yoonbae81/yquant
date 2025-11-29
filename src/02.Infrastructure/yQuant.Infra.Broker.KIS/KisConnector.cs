@@ -274,7 +274,7 @@ public class KisConnector : IKisConnector
         return hashResponse?.HASH ?? throw new InvalidOperationException("Failed to retrieve Hashkey.");
     }
 
-    public async Task<TResponse?> ExecuteAsync<TResponse>(string endpointName, object? body = null, Dictionary<string, string>? queryParams = null, Dictionary<string, string>? headers = null)
+    public async Task<TResponse?> ExecuteAsync<TResponse>(string endpointName, object? body = null, Dictionary<string, string>? queryParams = null, Dictionary<string, string>? headers = null, string? trIdVariant = null)
     {
         await EnsureConnectedAsync();
 
@@ -291,9 +291,15 @@ public class KisConnector : IKisConnector
 
         var requestMessage = new HttpRequestMessage(new HttpMethod(endpoint.Method), BuildUrl(endpoint.Path, queryParams));
 
-        if (endpoint.TrId != null)
+        string? trId = endpoint.TrId;
+        if (!string.IsNullOrEmpty(trIdVariant) && endpoint.TrIdMap != null && endpoint.TrIdMap.TryGetValue(trIdVariant, out var mappedTrId))
         {
-            requestMessage.Headers.Add("tr_id", endpoint.TrId);
+            trId = mappedTrId;
+        }
+
+        if (trId != null)
+        {
+            requestMessage.Headers.Add("tr_id", trId);
         }
         requestMessage.Headers.Add("appkey", _appKey);
         requestMessage.Headers.Add("appsecret", _appSecret);
