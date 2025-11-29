@@ -194,7 +194,7 @@
     "OverseasSellOrder": {
         "Path": "/uapi/overseas-stock/v1/trading/order",
         "Method": "POST",
-        "TrId": "JTTT1006U",
+        "TrId": "TTTT1006U",
         "TrIdMap": {
             "US": "TTTT1006U",
             "HK": "TTTS1001U",
@@ -255,9 +255,9 @@
         }
     },
     "OverseasPositions": {
-        "Path": "/uapi/overseas-stock/v1/trading/inquire-overseas-stock-balance",
+        "Path": "/uapi/overseas-stock/v1/trading/inquire-balance",
         "Method": "GET",
-        "TrId": "JTTT3012R",
+        "TrId": "TTTS3012R",
         "Parameters": {
             "CANO": {
                 "Description": "Account Number",
