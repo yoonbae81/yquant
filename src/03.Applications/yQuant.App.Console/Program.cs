@@ -55,16 +55,14 @@ class Program
                     return; 
                 }
 
-                var userId = targetAccount["UserId"];
-                var accountNo = targetAccount["AccountNumber"];
-                var credentialsSection = targetAccount.GetSection("Credentials");
-                var appKey = credentialsSection["AppKey"];
-                var appSecret = credentialsSection["AppSecret"];
-                var baseUrl = credentialsSection["BaseUrl"] ?? "https://openapi.koreainvestment.com:9443";
+                var accountNo = targetAccount["Number"];
+                var appKey = targetAccount["AppKey"];
+                var appSecret = targetAccount["AppSecret"];
+                var baseUrl = targetAccount["BaseUrl"] ?? "https://openapi.koreainvestment.com:9443";
 
-                if (string.IsNullOrEmpty(userId) || string.IsNullOrEmpty(appKey) || string.IsNullOrEmpty(appSecret))
+                if (string.IsNullOrEmpty(appKey) || string.IsNullOrEmpty(appSecret))
                 {
-                    System.Console.WriteLine($"CRITICAL: Account '{targetAlias}' is missing credentials (UserId, AppKey, AppSecret).");
+                    System.Console.WriteLine($"CRITICAL: Account '{targetAlias}' is missing credentials (AppKey, AppSecret).");
                     return;
                 }
 
@@ -80,7 +78,9 @@ class Program
                     var logger = sp.GetRequiredService<ILogger<KisConnector>>();
                     var redis = sp.GetService<IRedisService>();
                     
-                    return new KisConnector(httpClient, logger, redis, userId!, targetAlias, appKey!, appSecret!, baseUrl);
+                    var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "kis-api-spec.json"));
+                    apiConfig.BaseUrl = baseUrl;
+                    return new KisConnector(httpClient, logger, redis, targetAlias, appKey!, appSecret!, apiConfig);
                 });
 
                 services.AddSingleton<KisBrokerAdapter>(sp =>
@@ -88,7 +88,7 @@ class Program
                     var logger = sp.GetRequiredService<ILogger<KisBrokerAdapter>>();
                     var client = sp.GetRequiredService<IKisConnector>();
                     var prefix = accountNo?.Length >= 8 ? accountNo.Substring(0, 8) : "00000000";
-                    return new KisBrokerAdapter(logger, client, prefix, userId!, targetAlias);
+                    return new KisBrokerAdapter(logger, client, prefix, targetAlias);
                 });
 
                 services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
@@ -111,7 +111,7 @@ class Program
             return;
         }
 
-        var accountNo = targetAccount["AccountNumber"];
+        var accountNo = targetAccount["Number"];
         if (string.IsNullOrEmpty(accountNo))
         {
             logger.LogError($"Account Number is missing for account '{targetAlias}'.");
@@ -135,7 +135,7 @@ class Program
                 var account = await assetService.GetAccountOverviewAsync(accountNo);
                 
                 System.Console.WriteLine("========================================");
-                System.Console.WriteLine($"Account Summary: {account.Alias} ({account.AccountNumber})");
+                System.Console.WriteLine($"Account Summary: {account.Alias} ({account.Number})");
                 System.Console.WriteLine("========================================");
                 
                 System.Console.WriteLine("\n[Deposits]");

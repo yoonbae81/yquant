@@ -52,9 +52,8 @@ public class OrderCompositionServiceTests
         var accountAlias = "ACC-001";
         var account = new Account 
         { 
-            Id = "USER-001",
             Alias = accountAlias, 
-            AccountNumber = "12345", 
+            Number = "12345", 
             Broker = "Test Broker",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal>()

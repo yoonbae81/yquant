@@ -24,8 +24,8 @@ public class AssetServiceTests
         var accountNumber = "12345678-01";
         var expectedAccount = new Account
         {
-            Id = "user1",
-            AccountNumber = accountNumber,
+            Alias = "user1",
+            Number = accountNumber,
             Broker = "TestBroker",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal>
@@ -70,7 +70,7 @@ public class AssetServiceTests
 
         // Assert
         Assert.NotNull(result);
-        Assert.Equal(accountNumber, result.AccountNumber);
+        Assert.Equal(accountNumber, result.Number);
         Assert.Equal(2, result.Deposits.Count);
         Assert.Equal(1000000, result.Deposits[CurrencyType.KRW]);
         Assert.Equal(1000, result.Deposits[CurrencyType.USD]);

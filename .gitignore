@@ -424,3 +424,4 @@ FodyWeavers.xsd
 *.msp
 
 *build*.txt
+output.txt

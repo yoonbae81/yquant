@@ -23,7 +23,7 @@
                     <MudSelect T="string" @bind-Value="CurrentSchedule.AccountAlias" Label="Account" Required="true" RequiredError="Account is required!" Variant="Variant.Outlined">
                         @foreach (var account in AvailableAccounts)
                         {
-                            <MudSelectItem T="string" Value="@account.Id">@account.Id (@account.Broker)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@account.Alias">@account.Alias (@account.Broker)</MudSelectItem>
                         }
                     </MudSelect>
                     <MudTextField T="string" @bind-Value="CurrentSchedule.Ticker" Label="Ticker" Required="true" RequiredError="Ticker is required!" Class="mt-3" />
@@ -128,7 +128,7 @@
 
         if (AvailableAccounts.Any() && string.IsNullOrEmpty(CurrentSchedule.AccountAlias))
         {
-            CurrentSchedule.AccountAlias = AvailableAccounts.First().Id;
+            CurrentSchedule.AccountAlias = AvailableAccounts.First().Alias;
         }
 
         StateHasChanged(); // Refresh UI after data load
@@ -142,10 +142,10 @@
 
     private void ClearForm()
     {
-        CurrentSchedule = new() { AccountAlias = AvailableAccounts.FirstOrDefault()?.Id ?? "", Ticker = "", Action = OrderAction.Buy };
+        CurrentSchedule = new() { AccountAlias = AvailableAccounts.FirstOrDefault()?.Alias ?? "", Ticker = "", Action = OrderAction.Buy };
         ScheduleDate = null;
         ScheduleTime = null;
-        if (AvailableAccounts.Any()) CurrentSchedule.AccountAlias = AvailableAccounts.First().Id;
+        if (AvailableAccounts.Any()) CurrentSchedule.AccountAlias = AvailableAccounts.First().Alias;
         ScheduleForm?.ResetValidation();
         Snackbar.Add("Form cleared.", Severity.Info);
         StateHasChanged();

@@ -48,8 +48,8 @@ public class BasicPositionSizerTests
         };
         var account = new Account
         {
-            Id = "TestAccount",
-            AccountNumber = "123",
+            Alias = "TestAccount",
+            Number = "123",
             Broker = "Test",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal> { { CurrencyType.USD, 1_000_000m } },
@@ -90,8 +90,8 @@ public class BasicPositionSizerTests
         };
         var account = new Account
         {
-            Id = "TestAccount",
-            AccountNumber = "123",
+            Alias = "TestAccount",
+            Number = "123",
             Broker = "Test",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal> { { CurrencyType.USD, 100m } }, // Not enough cash

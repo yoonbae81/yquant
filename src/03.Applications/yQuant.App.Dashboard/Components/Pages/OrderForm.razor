@@ -17,7 +17,7 @@
             <MudSelect @bind-Value="OrderModel.AccountAlias" Label="Account" Required="true" RequiredError="Account is required!" Variant="Variant.Outlined">
                 @foreach (var account in AvailableAccounts)
                 {
-                    <MudSelectItem Value="@account.Id">@account.Id (@account.Broker)</MudSelectItem>
+                    <MudSelectItem Value="@account.Alias">@account.Alias (@account.Broker)</MudSelectItem>
                 }
             </MudSelect>
         </MudItem>
@@ -62,7 +62,7 @@
         // Set default AccountAlias if only one account exists
         if (AvailableAccounts.Count() == 1 && OrderModel.AccountAlias == null)
         {
-            OrderModel.AccountAlias = AvailableAccounts.First().Id;
+            OrderModel.AccountAlias = AvailableAccounts.First().Alias;
         }
 
         // Default to Buy if not specified

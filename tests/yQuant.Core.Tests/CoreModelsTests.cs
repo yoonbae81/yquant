@@ -12,8 +12,8 @@ public class CoreModelsTests
         // Arrange
         var account = new Account
         {
-            Id = "TestAccount",
-            AccountNumber = "12345",
+            Alias = "TestAccount",
+            Number = "12345",
             Broker = "TestBroker",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal>

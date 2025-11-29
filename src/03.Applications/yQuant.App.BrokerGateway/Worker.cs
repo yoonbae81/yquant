@@ -65,11 +65,11 @@ namespace yQuant.App.BrokerGateway
 
             foreach (var account in accounts)
             {
-                if (account.BrokerType.Equals("KIS", StringComparison.OrdinalIgnoreCase))
+                if (account.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
                 {
-                    if (account.Credentials == null)
+                    if (string.IsNullOrEmpty(account.AppKey) || string.IsNullOrEmpty(account.AppSecret))
                     {
-                        _logger.LogWarning("Account {Alias} has no credentials. Skipping.", account.Alias);
+                        _logger.LogWarning("Account {Alias} has missing credentials. Skipping.", account.Alias);
                         continue;
                     }
 
@@ -77,13 +77,12 @@ namespace yQuant.App.BrokerGateway
                     {
                         _kisAccountManager.RegisterAccount(
                             account.Alias,
-                            account.UserId,
-                            account.Credentials.AppKey,
-                            account.Credentials.AppSecret,
-                            account.Credentials.BaseUrl,
-                            account.AccountNumber
+                            account.AppKey,
+                            account.AppSecret,
+                            account.BaseUrl,
+                            account.Number
                         );
-                        _logger.LogInformation("Loaded KIS account: {Alias} (User: {UserId})", account.Alias, account.UserId);
+                        _logger.LogInformation("Loaded KIS account: {Alias}", account.Alias);
                     }
                     catch (Exception ex)
                     {
@@ -159,7 +158,7 @@ namespace yQuant.App.BrokerGateway
             }
 
             IBrokerAdapter? brokerAdapter = null;
-            if (accountConfig.BrokerType.Equals("KIS", StringComparison.OrdinalIgnoreCase))
+            if (accountConfig.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
             {
                 brokerAdapter = _kisAccountManager?.GetAdapter(order.AccountAlias);
             }
@@ -177,8 +176,8 @@ namespace yQuant.App.BrokerGateway
                 // Ensure connection is established before sending order
                 await brokerAdapter.EnsureConnectedAsync();
 
-                var orderResult = await brokerAdapter.PlaceOrderAsync(order, accountConfig.AccountNumber);
-                _logger.LogInformation("Order {OrderId} placed via {BrokerType}. Result: {IsSuccess} - {Message}", order.Id, accountConfig.BrokerType, orderResult.IsSuccess, orderResult.Message);
+                var orderResult = await brokerAdapter.PlaceOrderAsync(order, accountConfig.Number);
+                _logger.LogInformation("Order {OrderId} placed via {Broker}. Result: {IsSuccess} - {Message}", order.Id, accountConfig.Broker, orderResult.IsSuccess, orderResult.Message);
 
                 // Publish execution result to Redis
                 var db = _redis.GetDatabase();
@@ -216,7 +215,7 @@ namespace yQuant.App.BrokerGateway
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to place order {OrderId} via {BrokerType}.");
+                _logger.LogError(ex, "Failed to place order {OrderId} via {Broker}.");
                 
                 // Exception: Telegram AND Discord
                 
@@ -237,7 +236,7 @@ namespace yQuant.App.BrokerGateway
             foreach (var accountConfig in _accountsToSync)
             {
                 IBrokerAdapter? brokerAdapter = null;
-                if (accountConfig.BrokerType.Equals("KIS", StringComparison.OrdinalIgnoreCase))
+                if (accountConfig.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
                 {
                     brokerAdapter = _kisAccountManager?.GetAdapter(accountConfig.Alias);
                 }
@@ -254,15 +253,15 @@ namespace yQuant.App.BrokerGateway
                     await brokerAdapter.EnsureConnectedAsync();
 
                     // Sync Account State
-                    var accountState = await brokerAdapter.GetAccountStateAsync(accountConfig.AccountNumber);
+                    var accountState = await brokerAdapter.GetAccountStateAsync(accountConfig.Number);
                     if (accountState != null)
                     {
                         // Map AccountState to yQuant.Core.Models.Account
                         var coreAccount = new Account
                         {
-                            Id = accountConfig.Alias,
-                            AccountNumber = accountConfig.AccountNumber,
-                            Broker = accountConfig.BrokerType,
+                            Alias = accountConfig.Alias,
+                            Number = accountConfig.Number,
+                            Broker = accountConfig.Broker,
                             Active = true, // Assuming active if we are syncing it
                             Deposits = new Dictionary<CurrencyType, decimal>(),
                             Positions = new List<Position>()
@@ -283,7 +282,7 @@ namespace yQuant.App.BrokerGateway
                     }
 
                     // Sync Positions
-                    var positions = await brokerAdapter.GetPositionsAsync(accountConfig.AccountNumber);
+                    var positions = await brokerAdapter.GetPositionsAsync(accountConfig.Number);
                     if (positions != null)
                     {
                         foreach (var pos in positions)
@@ -296,7 +295,7 @@ namespace yQuant.App.BrokerGateway
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to sync state for account {AccountId} with broker {BrokerType}.", accountConfig.Alias, accountConfig.BrokerType);
+                    _logger.LogError(ex, "Failed to sync state for account {AccountId} with broker {Broker}.", accountConfig.Alias, accountConfig.Broker);
                     var msg = _telegramBuilder.BuildAccountSyncFailureMessage(accountConfig.Alias, ex.Message);
                     await _telegramNotifier.SendNotificationAsync(msg);
                     
@@ -321,14 +320,8 @@ namespace yQuant.App.BrokerGateway
         public class AccountConfig
         {
             public string Alias { get; set; } = string.Empty;  // Internal account identifier
-            public string UserId { get; set; } = string.Empty;  // KIS User ID for token requests
-            public string BrokerType { get; set; } = string.Empty;
-            public string AccountNumber { get; set; } = string.Empty;
-            public KISCredentials? Credentials { get; set; }
-        }
-
-        public class KISCredentials
-        {
+            public string Broker { get; set; } = string.Empty;
+            public string Number { get; set; } = string.Empty;
             public string AppKey { get; set; } = string.Empty;
             public string AppSecret { get; set; } = string.Empty;
             public string BaseUrl { get; set; } = string.Empty;

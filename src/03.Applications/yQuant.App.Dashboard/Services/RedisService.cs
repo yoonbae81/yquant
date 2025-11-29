@@ -52,7 +52,7 @@ public class RedisService : IHostedService, IDisposable
                     var account = JsonSerializer.Deserialize<yQuant.Core.Models.Account>(accountJson.ToString());
                     if (account != null)
                     {
-                        fetchedAccounts[account.Alias ?? account.Id] = account;
+                        fetchedAccounts[account.Alias] = account;
                     }
                 }
             }

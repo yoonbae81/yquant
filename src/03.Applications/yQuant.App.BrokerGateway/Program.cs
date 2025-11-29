@@ -63,7 +63,7 @@ builder.Services.AddSingleton<KISAccountManager>(sp =>
     if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(appKey) && !string.IsNullOrEmpty(appSecret) && !string.IsNullOrEmpty(accountNumber))
     {
         // Use "Default" or similar as alias for single account mode
-        manager.RegisterAccount("Default", userId, appKey, appSecret, baseUrl, accountNumber);
+        manager.RegisterAccount("Default", appKey, appSecret, baseUrl, accountNumber);
     }
     else
     {

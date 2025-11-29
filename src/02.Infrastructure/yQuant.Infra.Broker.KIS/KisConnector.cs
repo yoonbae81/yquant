@@ -12,7 +12,6 @@ public class KisConnector : IKisConnector
     private readonly HttpClient _httpClient;
     private readonly ILogger<KisConnector> _logger;
     private readonly IRedisService? _redisService;
-    private readonly string _userId;
     private readonly string _accountAlias;
     private readonly string _appKey;
     private readonly string _appSecret;
@@ -24,12 +23,11 @@ public class KisConnector : IKisConnector
 
     public string BaseUrl => _httpClient.BaseAddress?.ToString() ?? "N/A";
 
-    public KisConnector(HttpClient httpClient, ILogger<KisConnector> logger, IRedisService? redisService, string userId, string accountAlias, string appKey, string appSecret, string? baseUrl = null, KISApiConfig? apiConfig = null)
+    public KisConnector(HttpClient httpClient, ILogger<KisConnector> logger, IRedisService? redisService, string accountAlias, string appKey, string appSecret, KISApiConfig? apiConfig = null)
     {
         _httpClient = httpClient;
         _logger = logger;
         _redisService = redisService;
-        _userId = userId;
         _accountAlias = accountAlias;
         _appKey = appKey;
         _appSecret = appSecret;
@@ -54,12 +52,12 @@ public class KisConnector : IKisConnector
             }
         }
 
-        // Use BaseUrl from spec if not provided as parameter
-        var effectiveBaseUrl = baseUrl ?? _apiConfig.BaseUrl;
+        // Use BaseUrl from spec
+        var effectiveBaseUrl = _apiConfig.BaseUrl;
 
         if (string.IsNullOrEmpty(effectiveBaseUrl))
         {
-             throw new InvalidOperationException("BaseUrl is not configured in kis-api-spec.json or provided as a parameter.");
+             throw new InvalidOperationException("BaseUrl is not configured in kis-api-spec.json or provided KISApiConfig.");
         }
 
         _httpClient.BaseAddress = new Uri(effectiveBaseUrl);

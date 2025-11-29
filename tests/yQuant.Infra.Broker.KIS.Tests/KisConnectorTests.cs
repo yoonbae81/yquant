@@ -40,15 +40,15 @@ public class KisConnectorTests
             { "Order", new EndpointConfig { Path = "/uapi/domestic-stock/v1/trading/order-cash", Method = "POST", TrId = "TTTC0802U" } }
         };
 
+        _apiConfig.BaseUrl = "https://test.api.com";
+
         _client = new KisConnector(
             httpClient,
             _mockLogger.Object,
             _mockRedisService.Object,
-            _userId,
             _accountAlias,
             "test_app_key",
             "test_app_secret",
-            "https://test.api.com",
             _apiConfig
         );
     }

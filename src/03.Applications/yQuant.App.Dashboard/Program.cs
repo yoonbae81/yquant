@@ -62,7 +62,9 @@ builder.Services.AddSingleton<IKisConnector>(sp =>
     var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(KisConnector));
     var logger = sp.GetRequiredService<ILogger<KisConnector>>();
     var redis = sp.GetService<IRedisService>();
-    return new KisConnector(httpClient, logger, redis, userId!, "DashboardAccount", appKey!, appSecret!, baseUrl!);
+    var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "kis-api-spec.json"));
+    apiConfig.BaseUrl = baseUrl!;
+    return new KisConnector(httpClient, logger, redis, "DashboardAccount", appKey!, appSecret!, apiConfig);
 });
 
 builder.Services.AddSingleton<KisBrokerAdapter>(sp =>
@@ -70,7 +72,7 @@ builder.Services.AddSingleton<KisBrokerAdapter>(sp =>
     var logger = sp.GetRequiredService<ILogger<KisBrokerAdapter>>();
     var client = sp.GetRequiredService<IKisConnector>();
     var prefix = accountNo?.Length >= 8 ? accountNo.Substring(0, 8) : "00000000";
-    return new KisBrokerAdapter(logger, client, prefix, userId!, "DashboardAccount");
+    return new KisBrokerAdapter(logger, client, prefix, "DashboardAccount");
 });
 
 builder.Services.AddSingleton<yQuant.Core.Services.AssetService>();

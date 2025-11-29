@@ -34,23 +34,25 @@ public class KISAccountManager
     /// </summary>
     /// <param name="accountAlias">Internal alias for the account</param>
     /// <param name="userId">KIS User ID for token requests</param>
-    public void RegisterAccount(string accountAlias, string userId, string appKey, string appSecret, string baseUrl, string accountNumber)
+    public void RegisterAccount(string accountAlias, string appKey, string appSecret, string baseUrl, string accountNumber)
     {
         try
         {
             var httpClient = _httpClientFactory.CreateClient("KIS");
             var kisLogger = _serviceProvider.GetRequiredService<ILogger<KisConnector>>();
             
-            var kisClient = new KisConnector(httpClient, kisLogger, _redisService, userId, accountAlias, appKey, appSecret, baseUrl);
+            var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "kis-api-spec.json"));
+            apiConfig.BaseUrl = baseUrl;
+            var kisClient = new KisConnector(httpClient, kisLogger, _redisService, accountAlias, appKey, appSecret, apiConfig);
             
             var adapterLogger = _serviceProvider.GetRequiredService<ILogger<KisBrokerAdapter>>();
             var accountPrefix = ExtractAccountPrefix(accountNumber);
-            var adapter = new KisBrokerAdapter(adapterLogger, kisClient, accountPrefix, userId, accountAlias);
+            var adapter = new KisBrokerAdapter(adapterLogger, kisClient, accountPrefix, accountAlias);
             
             _clients[accountAlias] = kisClient;
             _adapters[accountAlias] = adapter;
             
-            _logger.LogInformation("Registered KIS account: {Alias} (User: {UserId})", accountAlias, userId);
+            _logger.LogInformation("Registered KIS account: {Alias}", accountAlias);
         }
         catch (Exception ex)
         {

@@ -43,8 +43,8 @@ public class DashboardTests : Bunit.BunitContext
         // Arrange
         var accounts = new List<Account>
         {
-            new Account { Id = "Test1", Broker = "Broker1", AccountNumber = "123", Active = true, Deposits = new Dictionary<CurrencyType, decimal>{{CurrencyType.USD, 1000}} },
-            new Account { Id = "Test2", Broker = "Broker2", AccountNumber = "456", Active = true, Deposits = new Dictionary<CurrencyType, decimal>{{CurrencyType.KRW, 2000000}} }
+            new Account { Alias = "Test1", Broker = "Broker1", Number = "123", Active = true, Deposits = new Dictionary<CurrencyType, decimal>{{CurrencyType.USD, 1000}} },
+            new Account { Alias = "Test2", Broker = "Broker2", Number = "456", Active = true, Deposits = new Dictionary<CurrencyType, decimal>{{CurrencyType.KRW, 2000000}} }
         };
         _redisServiceMock.Setup(s => s.GetAccounts()).Returns(accounts);
 

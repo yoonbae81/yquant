@@ -20,7 +20,7 @@ public class KISAdapterTests
     {
         _mockKisClient = new Mock<IKisConnector>();
         _mockLogger = new Mock<ILogger<KisBrokerAdapter>>();
-        _adapter = new KisBrokerAdapter(_mockLogger.Object, _mockKisClient.Object, AccountNoPrefix, UserId, AccountAlias);
+        _adapter = new KisBrokerAdapter(_mockLogger.Object, _mockKisClient.Object, AccountNoPrefix, AccountAlias);
     }
 
     [Fact]

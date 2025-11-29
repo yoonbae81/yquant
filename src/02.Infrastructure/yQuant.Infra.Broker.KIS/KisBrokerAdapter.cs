@@ -10,15 +10,13 @@ public class KisBrokerAdapter : IBrokerAdapter
     private readonly ILogger<KisBrokerAdapter> _logger;
     private readonly IKisConnector _client;
     private readonly string _accountNoPrefix;
-    private readonly string _userId;
     private readonly string? _alias;
 
-    public KisBrokerAdapter(ILogger<KisBrokerAdapter> logger, IKisConnector client, string accountNoPrefix, string userId, string? alias = null)
+    public KisBrokerAdapter(ILogger<KisBrokerAdapter> logger, IKisConnector client, string accountNoPrefix, string? alias = null)
     {
         _logger = logger;
         _client = client;
         _accountNoPrefix = accountNoPrefix;
-        _userId = userId;
         _alias = alias;
     }
 
@@ -215,9 +213,8 @@ public class KisBrokerAdapter : IBrokerAdapter
 
         var account = new Account
         {
-            Id = _userId, // UserId from KIS
             Alias = _alias, // Account alias (e.g., "Main_Aggressive")
-            AccountNumber = accountNumber,
+            Number = accountNumber,
             Broker = "KIS",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal>()

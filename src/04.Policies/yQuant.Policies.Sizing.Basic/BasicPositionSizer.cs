@@ -69,7 +69,7 @@ public class BasicPositionSizer : IPositionSizer
         // 7. Order 객체 반환
         return new Order
         {
-            AccountAlias = account.Id,
+            AccountAlias = account.Alias,
             Ticker = signal.Ticker,
             Action = signal.Action,
             Type = OrderType.Market, // Documentation specifies Market for composed orders

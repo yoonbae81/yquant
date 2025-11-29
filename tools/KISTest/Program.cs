@@ -15,41 +15,97 @@ if (refreshToken)
     Console.WriteLine("⚠️  Token refresh mode enabled - will invalidate existing token\n");
 }
 
+// Load .env files
+var root = Directory.GetCurrentDirectory();
+var dotenv = Path.Combine(root, ".env");
+var dotenvLocal = Path.Combine(root, ".env.local");
+
+// Try to find .env in parent directories if not found in current (common in dev)
+if (!File.Exists(dotenv) && !File.Exists(dotenvLocal))
+{
+    var parent = Directory.GetParent(root);
+    while (parent != null)
+    {
+        var pEnv = Path.Combine(parent.FullName, ".env");
+        var pEnvLocal = Path.Combine(parent.FullName, ".env.local");
+        if (File.Exists(pEnv) || File.Exists(pEnvLocal))
+        {
+            root = parent.FullName;
+            dotenv = Path.Combine(root, ".env");
+            dotenvLocal = Path.Combine(root, ".env.local");
+            break;
+        }
+        parent = parent.Parent;
+    }
+}
+
+LoadEnvFile(dotenv);
+LoadEnvFile(dotenvLocal);
+
 // Load configuration
 var configuration = new ConfigurationBuilder()
     .SetBasePath(Directory.GetCurrentDirectory())
-    .AddJsonFile("appsettings.json", optional: true)
-    .AddUserSecrets<Program>(optional: true)
     .AddEnvironmentVariables()
     .Build();
 
-// Get Account:0 configuration
-var accounts = configuration.GetSection("Accounts").Get<List<AccountConfig>>();
-if (accounts == null || accounts.Count == 0)
+static void LoadEnvFile(string filePath)
 {
-    Console.WriteLine("❌ No accounts configured!");
-    Console.WriteLine("\n💡 Configure Account:0 using User Secrets:");
-    Console.WriteLine("dotnet user-secrets set \"Accounts:0:UserId\" \"YOUR_USER_ID\"");
-    Console.WriteLine("dotnet user-secrets set \"Accounts:0:Credentials:AppKey\" \"YOUR_APP_KEY\"");
-    Console.WriteLine("dotnet user-secrets set \"Accounts:0:Credentials:AppSecret\" \"YOUR_APP_SECRET\"");
-    Environment.Exit(1);
+    if (!File.Exists(filePath)) return;
+
+    Console.WriteLine($"📄 Loading env file: {filePath}");
+    foreach (var line in File.ReadAllLines(filePath))
+    {
+        if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+
+        var parts = line.Split('=', 2);
+        if (parts.Length != 2) continue;
+
+        var key = parts[0].Trim();
+        var value = parts[1].Trim();
+        
+        // Handle double quotes
+        if (value.StartsWith("\"") && value.EndsWith("\"") && value.Length >= 2)
+        {
+            value = value.Substring(1, value.Length - 2);
+        }
+
+        Environment.SetEnvironmentVariable(key, value);
+    }
 }
 
-var account = accounts[0];
+// Get Account configuration from Environment Variables
+var account = new AccountConfig
+{
+    AppKey = configuration["KIS__AppKey"],
+    AppSecret = configuration["KIS__AppSecret"],
+    Number = configuration["KIS__AccountNumber"],
+    Alias = configuration["KIS__Alias"] ?? "MainAccount",
+    Broker = configuration["KIS__Broker"] ?? "KIS",
+};
+
+if (string.IsNullOrEmpty(account.AppKey))
+{
+    // Fallback to User Secrets "Accounts:0" for backward compatibility or if user prefers secrets
+    var legacyAccount = configuration.GetSection("Accounts").Get<List<AccountConfig>>()?.FirstOrDefault();
+    if (legacyAccount != null)
+    {
+        account = legacyAccount;
+    }
+}
+
 Console.WriteLine($"📋 Account Info:");
 Console.WriteLine($"   Alias: {account.Alias}");
-Console.WriteLine($"   UserId: {account.UserId}");
-Console.WriteLine($"   AccountNumber: {account.AccountNumber}");
-Console.WriteLine($"   BrokerType: {account.BrokerType}");
-Console.WriteLine($"   BaseUrl: {account.Credentials?.BaseUrl}\n");
+Console.WriteLine($"   Number: {account.Number}");
+Console.WriteLine($"   Broker: {account.Broker}");
 
-if (string.IsNullOrEmpty(account.Credentials?.AppKey) || 
-    account.Credentials.AppKey == "YOUR_APP_KEY_1")
+if (string.IsNullOrEmpty(account.AppKey) || 
+    account.AppKey == "YOUR_APP_KEY_1")
 {
     Console.WriteLine("❌ AppKey not configured!");
-    Console.WriteLine("\n💡 Set your real credentials using User Secrets:");
-    Console.WriteLine("dotnet user-secrets set \"Accounts:0:Credentials:AppKey\" \"YOUR_REAL_APP_KEY\"");
-    Console.WriteLine("dotnet user-secrets set \"Accounts:0:Credentials:AppSecret\" \"YOUR_REAL_APP_SECRET\"");
+    Console.WriteLine("\n💡 Set your credentials in .env.local:");
+    Console.WriteLine("KIS__AppKey=YOUR_APP_KEY");
+    Console.WriteLine("KIS__AppSecret=YOUR_APP_SECRET");
+    Console.WriteLine("KIS__AccountNumber=12345678-01");
     Environment.Exit(1);
 }
 
@@ -92,16 +148,18 @@ try
     // Create HTTP client
     var httpClient = new HttpClient();
 
+    // Load API Config
+    var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "kis-api-spec.json"));
+
     Console.WriteLine("Test 1: Creating KIS Client...");
     var kisClient = new KisConnector(
         httpClient,
         logger,
         redisService,
-        account.UserId!,
         account.Alias!,
-        account.Credentials!.AppKey!,
-        account.Credentials.AppSecret!,
-        account.Credentials.BaseUrl!
+        account.AppKey!,
+        account.AppSecret!,
+        apiConfig
     );
     Console.WriteLine("✅ KIS Client created\n");
 
@@ -121,14 +179,13 @@ try
     var adapter = new KisBrokerAdapter(
         loggerFactory.CreateLogger<KisBrokerAdapter>(),
         kisClient,
-        account.AccountNumber!.Split('-')[0],
-        account.UserId!,
+        account.Number!.Split('-')[0],
         account.Alias
     );
 
-    var accountState = await adapter.GetAccountStateAsync(account.AccountNumber!);
+    var accountState = await adapter.GetAccountStateAsync(account.Number!);
     Console.WriteLine($"✅ Account retrieved:");
-    Console.WriteLine($"   Account ID: {accountState.Id}");
+    Console.WriteLine($"   Account ID: {accountState.Alias}");
     Console.WriteLine($"   Broker: {accountState.Broker}");
     Console.WriteLine($"   Active: {accountState.Active}");
     Console.WriteLine($"   Deposits: {accountState.Deposits.Count} currencies\n");
@@ -147,8 +204,7 @@ catch (HttpRequestException ex)
     Console.WriteLine($"❌ HTTP Request failed: {ex.Message}");
     Console.WriteLine("\n💡 Troubleshooting:");
     Console.WriteLine("1. Check your internet connection");
-    Console.WriteLine("2. Verify BaseUrl is correct (실전투자 vs 모의투자)");
-    Console.WriteLine("3. Check if KIS API is accessible");
+    Console.WriteLine("2. Check if KIS API is accessible");
     Environment.Exit(1);
 }
 catch (Exception ex)
@@ -158,7 +214,7 @@ catch (Exception ex)
     Console.WriteLine("\n💡 Troubleshooting:");
     Console.WriteLine("1. Verify AppKey and AppSecret are correct");
     Console.WriteLine("2. Check if the app is activated in KIS OpenAPI portal");
-    Console.WriteLine("3. Ensure UserId matches the account");
+    Console.WriteLine("3. Ensure account alias is correct");
     Environment.Exit(1);
 }
 
@@ -166,15 +222,8 @@ catch (Exception ex)
 public class AccountConfig
 {
     public string? Alias { get; set; }
-    public string? UserId { get; set; }
-    public string? BrokerType { get; set; }
-    public string? AccountNumber { get; set; }
-    public CredentialsConfig? Credentials { get; set; }
-}
-
-public class CredentialsConfig
-{
+    public string? Broker { get; set; }
+    public string? Number { get; set; }
     public string? AppKey { get; set; }
     public string? AppSecret { get; set; }
-    public string? BaseUrl { get; set; }
 }

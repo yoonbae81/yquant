@@ -27,8 +27,8 @@ else
     <MudText Typo="Typo.h5" Class="mt-6 mb-4">Positions</MudText>
     @foreach (var account in _accounts)
     {
-        <MudText Typo="Typo.h6" Class="mt-4 mb-2">Account: @account.Id (@account.Broker)</MudText>
-        <PositionTable Positions="RedisService.GetPositions(account.Alias ?? account.Id)" AccountAlias="@(account.Alias ?? account.Id)" OnOrderAction="HandleOrderAction" />
+        <MudText Typo="Typo.h6" Class="mt-4 mb-2">Account: @account.Alias (@account.Broker)</MudText>
+        <PositionTable Positions="RedisService.GetPositions(account.Alias)" AccountAlias="@(account.Alias)" OnOrderAction="HandleOrderAction" />
     }
 }
 
