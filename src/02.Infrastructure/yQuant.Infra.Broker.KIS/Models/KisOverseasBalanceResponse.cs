@@ -38,6 +38,12 @@ public class KisOverseasBalanceSummary
 
     [JsonPropertyName("frcr_dncl_amt_2")] // 외화 예수금 2
     public decimal FrcrDnclAmt2 { get; set; }
+
+    [JsonPropertyName("crcy_cd")] // 통화 코드
+    public string? CrcyCd { get; set; }
+
+    [JsonPropertyName("ovrs_crcy_cd")] // 해외 통화 코드
+    public string? OvrsCrcyCd { get; set; }
 }
 
 public class KisOverseasBalanceOutput3

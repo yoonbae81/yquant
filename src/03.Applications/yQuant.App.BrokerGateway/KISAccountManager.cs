@@ -41,7 +41,7 @@ public class KISAccountManager
             var httpClient = _httpClientFactory.CreateClient("KIS");
             var kisLogger = _serviceProvider.GetRequiredService<ILogger<KisConnector>>();
             
-            var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "kis-api-spec.json"));
+            var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
             apiConfig.BaseUrl = baseUrl;
             var kisClient = new KisConnector(httpClient, kisLogger, _redisService, accountAlias, appKey, appSecret, apiConfig);
             

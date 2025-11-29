@@ -39,15 +39,21 @@ public class KisConnector : IKisConnector
         else
         {
             // Load API Spec
-            var specPath = Path.Combine(AppContext.BaseDirectory, "kis-api-spec.json");
-            if (File.Exists(specPath))
+            var baseDir = AppContext.BaseDirectory;
+            var specDir = Path.Combine(baseDir, "API");
+            var specFile = Path.Combine(baseDir, "kis-api-spec.json");
+
+            if (Directory.Exists(specDir))
             {
-                var json = File.ReadAllText(specPath);
-                _apiConfig = JsonSerializer.Deserialize<KISApiConfig>(json) ?? new KISApiConfig();
+                _apiConfig = KISApiConfig.Load(specDir);
+            }
+            else if (File.Exists(specFile))
+            {
+                _apiConfig = KISApiConfig.Load(specFile);
             }
             else
             {
-                _logger.LogWarning("kis-api-spec.json not found at {Path}. API calls may fail.", specPath);
+                _logger.LogWarning("KIS API spec not found at {Dir} or {File}. API calls may fail.", specDir, specFile);
                 _apiConfig = new KISApiConfig();
             }
         }

@@ -306,13 +306,30 @@ public class KisBrokerAdapter : IBrokerAdapter
                 {
                     foreach (var summary in overseasResponse.Output2)
                     {
-                        if (summary.FrcrDnclAmt2 > 0)
+                        // If we have a currency code in the response, use it to match
+                        var responseCurrency = summary.CrcyCd ?? summary.OvrsCrcyCd;
+                        
+                        if (!string.IsNullOrEmpty(responseCurrency))
                         {
-                            if (Enum.TryParse<CurrencyType>(curr, out var currencyType))
+                            if (Enum.TryParse<CurrencyType>(responseCurrency, out var currencyType))
                             {
                                 if (!account.Deposits.ContainsKey(currencyType))
                                 {
                                     account.Deposits.Add(currencyType, summary.FrcrDnclAmt2);
+                                }
+                            }
+                        }
+                        else 
+                        {
+                            // Fallback to previous logic if no currency code found (but log warning)
+                            if (summary.FrcrDnclAmt2 > 0)
+                            {
+                                if (Enum.TryParse<CurrencyType>(curr, out var currencyType))
+                                {
+                                    if (!account.Deposits.ContainsKey(currencyType))
+                                    {
+                                        account.Deposits.Add(currencyType, summary.FrcrDnclAmt2);
+                                    }
                                 }
                             }
                         }

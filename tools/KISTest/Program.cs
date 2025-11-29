@@ -149,7 +149,7 @@ try
     var httpClient = new HttpClient();
 
     // Load API Config
-    var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "kis-api-spec.json"));
+    var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
 
     Console.WriteLine("Test 1: Creating KIS Client...");
     var kisClient = new KisConnector(

@@ -1,0 +1,128 @@
+{
+    "OverseasOrderSell": {
+        "Path": "/uapi/overseas-stock/v1/trading/order",
+        "Method": "POST",
+        "TrId": "TTTT1006U",
+        "TrIdMap": {
+            "US": "TTTT1002U",
+            "HK": "TTTS1002U",
+            "SH": "TTTS0202U",
+            "SZ": "TTTS0305U",
+            "JP": "TTTS0308U",
+            "VN": "TTTS0311U"
+        },
+        "Parameters": {
+            "CANO": {
+                "Description": "Account Number",
+                "Required": true,
+                "Type": "string",
+                "Length": 8
+            },
+            "ACNT_PRDT_CD": {
+                "Description": "Account Product Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "OVRS_EXCG_CD": {
+                "Description": "Exchange Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 4
+            },
+            "PDNO": {
+                "Description": "Stock Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 12
+            },
+            "ORD_QTY": {
+                "Description": "Order Quantity",
+                "Required": true,
+                "Type": "string",
+                "Length": 10
+            },
+            "OVRS_ORD_UNPR": {
+                "Description": "Order Price",
+                "Required": true,
+                "Type": "string",
+                "Length": 31
+            },
+            "ORD_SVR_DVSN_CD": {
+                "Description": "Order Server Division Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 1
+            },
+            "ORD_DVSN": {
+                "Description": "Order Division",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            }
+        }
+    },
+    "OverseasSellOrder": {
+        "Path": "/uapi/overseas-stock/v1/trading/order",
+        "Method": "POST",
+        "TrId": "TTTT1006U",
+        "TrIdMap": {
+            "US": "TTTT1006U",
+            "HK": "TTTS1001U",
+            "SH": "TTTS0202U",
+            "SZ": "TTTS0304U",
+            "JP": "TTTS0307U",
+            "VN": "TTTS0310U"
+        },
+        "Parameters": {
+            "CANO": {
+                "Description": "Account Number",
+                "Required": true,
+                "Type": "string",
+                "Length": 8
+            },
+            "ACNT_PRDT_CD": {
+                "Description": "Account Product Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "OVRS_EXCG_CD": {
+                "Description": "Exchange Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 4
+            },
+            "PDNO": {
+                "Description": "Stock Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 12
+            },
+            "ORD_QTY": {
+                "Description": "Order Quantity",
+                "Required": true,
+                "Type": "string",
+                "Length": 10
+            },
+            "OVRS_ORD_UNPR": {
+                "Description": "Order Price",
+                "Required": true,
+                "Type": "string",
+                "Length": 31
+            },
+            "ORD_SVR_DVSN_CD": {
+                "Description": "Order Server Division Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 1
+            },
+            "ORD_DVSN": {
+                "Description": "Order Division",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            }
+        }
+    }
+}

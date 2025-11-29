@@ -1,0 +1,20 @@
+{
+    "Hashkey": {
+        "Path": "/uapi/hashkey",
+        "Method": "POST",
+        "Parameters": {
+            "appkey": {
+                "Description": "App Key",
+                "Required": true,
+                "Type": "string",
+                "Length": 36
+            },
+            "appsecret": {
+                "Description": "App Secret",
+                "Required": true,
+                "Type": "string",
+                "Length": 180
+            }
+        }
+    }
+}

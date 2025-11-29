@@ -14,12 +14,38 @@ public class KISApiConfig
 
     public static KISApiConfig Load(string path)
     {
-        if (!System.IO.File.Exists(path))
+        if (System.IO.Directory.Exists(path))
         {
-            return new KISApiConfig();
+            var config = new KISApiConfig();
+            var files = System.IO.Directory.GetFiles(path, "*.json", System.IO.SearchOption.AllDirectories);
+            
+            foreach (var file in files)
+            {
+                var json = System.IO.File.ReadAllText(file);
+                var partialConfig = JsonSerializer.Deserialize<KISApiConfig>(json);
+                
+                if (partialConfig != null)
+                {
+                    if (!string.IsNullOrEmpty(partialConfig.BaseUrl))
+                    {
+                        config.BaseUrl = partialConfig.BaseUrl;
+                    }
+                    
+                    foreach (var kvp in partialConfig.ExtensionData)
+                    {
+                        config.ExtensionData[kvp.Key] = kvp.Value;
+                    }
+                }
+            }
+            return config;
         }
-        var json = System.IO.File.ReadAllText(path);
-        return JsonSerializer.Deserialize<KISApiConfig>(json) ?? new KISApiConfig();
+        else if (System.IO.File.Exists(path))
+        {
+            var json = System.IO.File.ReadAllText(path);
+            return JsonSerializer.Deserialize<KISApiConfig>(json) ?? new KISApiConfig();
+        }
+        
+        return new KISApiConfig();
     }
 
     public bool TryGetValue(string key, out EndpointConfig value)

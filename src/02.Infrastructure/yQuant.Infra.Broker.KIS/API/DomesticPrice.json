@@ -1,0 +1,21 @@
+{
+    "DomesticPrice": {
+        "Path": "/uapi/domestic-stock/v1/quotations/inquire-price",
+        "Method": "GET",
+        "TrId": "FHKST01010100",
+        "Parameters": {
+            "FID_COND_MRKT_DIV_CODE": {
+                "Description": "Market Division Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 1
+            },
+            "FID_INPUT_ISCD": {
+                "Description": "Stock Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 6
+            }
+        }
+    }
+}

@@ -78,7 +78,7 @@ class Program
                     var logger = sp.GetRequiredService<ILogger<KisConnector>>();
                     var redis = sp.GetService<IRedisService>();
                     
-                    var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "kis-api-spec.json"));
+                    var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
                     apiConfig.BaseUrl = baseUrl;
                     return new KisConnector(httpClient, logger, redis, targetAlias, appKey!, appSecret!, apiConfig);
                 });
