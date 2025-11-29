@@ -198,7 +198,7 @@
         "TrIdMap": {
             "US": "TTTT1006U",
             "HK": "TTTS1001U",
-            "SH": "TTTS1005U",
+            "SH": "TTTS0202U",
             "SZ": "TTTS0304U",
             "JP": "TTTS0307U",
             "VN": "TTTS0310U"
@@ -353,9 +353,9 @@
         }
     },
     "OverseasBalance": {
-        "Path": "/uapi/overseas-stock/v1/trading/inquire-balance",
+        "Path": "/uapi/overseas-stock/v1/trading/inquire-present-balance",
         "Method": "GET",
-        "TrId": "JTTT3012R",
+        "TrId": "CTRP6504R",
         "Parameters": {
             "CANO": {
                 "Description": "Account Number",
@@ -369,7 +369,7 @@
                 "Type": "string",
                 "Length": 2
             },
-            "OVRS_EXCH_CD": {
+            "OVRS_EXCG_CD": {
                 "Description": "Overseas Exchange Code",
                 "Required": true,
                 "Type": "string",
@@ -377,7 +377,7 @@
             },
             "TR_CRCY_CD": {
                 "Description": "Transaction Currency Code",
-                "Required": false,
+                "Required": true,
                 "Type": "string",
                 "Length": 3
             },
@@ -392,6 +392,30 @@
                 "Required": false,
                 "Type": "string",
                 "Length": 200
+            },
+            "WCRC_FRCR_DVSN_CD": {
+                "Description": "Won/Foreign Currency Division Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "TR_MKET_CD": {
+                "Description": "Transaction Market Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "NATN_CD": {
+                "Description": "Nation Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 3
+            },
+            "INQR_DVSN_CD": {
+                "Description": "Inquiry Division Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
             }
         }
     },
