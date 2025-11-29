@@ -24,7 +24,7 @@ public class KisConnector : IKisConnector
 
     public string BaseUrl => _httpClient.BaseAddress?.ToString() ?? "N/A";
 
-    public KisConnector(HttpClient httpClient, ILogger<KisConnector> logger, IRedisService? redisService, string userId, string accountAlias, string appKey, string appSecret, string baseUrl, KISApiConfig? apiConfig = null)
+    public KisConnector(HttpClient httpClient, ILogger<KisConnector> logger, IRedisService? redisService, string userId, string accountAlias, string appKey, string appSecret, string? baseUrl = null, KISApiConfig? apiConfig = null)
     {
         _httpClient = httpClient;
         _logger = logger;
@@ -33,7 +33,6 @@ public class KisConnector : IKisConnector
         _accountAlias = accountAlias;
         _appKey = appKey;
         _appSecret = appSecret;
-        _httpClient.BaseAddress = new Uri(baseUrl);
 
         if (apiConfig != null)
         {
@@ -54,6 +53,17 @@ public class KisConnector : IKisConnector
                 _apiConfig = new KISApiConfig();
             }
         }
+
+        // Use BaseUrl from spec if not provided as parameter
+        var effectiveBaseUrl = baseUrl ?? _apiConfig.BaseUrl;
+
+        if (string.IsNullOrEmpty(effectiveBaseUrl))
+        {
+             throw new InvalidOperationException("BaseUrl is not configured in kis-api-spec.json or provided as a parameter.");
+        }
+
+        _httpClient.BaseAddress = new Uri(effectiveBaseUrl);
+        _logger.LogInformation("KisConnector initialized with BaseUrl: {BaseUrl}", effectiveBaseUrl);
 
         _rateLimiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
         {

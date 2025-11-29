@@ -4,6 +4,7 @@ namespace yQuant.Infra.Broker.KIS;
 
 public class KISApiConfig : Dictionary<string, EndpointConfig>
 {
+    public string BaseUrl { get; set; } = string.Empty;
 }
 
 public class EndpointConfig

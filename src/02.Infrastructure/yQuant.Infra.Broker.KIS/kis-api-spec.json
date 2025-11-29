@@ -1,4 +1,5 @@
 {
+    "BaseUrl": "https://openapi.koreainvestment.com:9443",
     "Token": {
         "Path": "/oauth2/tokenP",
         "Method": "POST",
@@ -130,7 +131,7 @@
     "OverseasBuyOrder": {
         "Path": "/uapi/overseas-stock/v1/trading/order",
         "Method": "POST",
-        "TrId": "JTTT1002U",
+        "TrId": "TTTT1002U",
         "Parameters": {
             "CANO": {
                 "Description": "Account Number",

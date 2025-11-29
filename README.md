@@ -110,7 +110,6 @@ Accounts__0__BrokerType=KIS
 Accounts__0__AccountNumber=YOUR_ACCOUNT_NUMBER
 Accounts__0__Credentials__AppKey=YOUR_APP_KEY
 Accounts__0__Credentials__AppSecret=YOUR_APP_SECRET
-Accounts__0__Credentials__BaseUrl=https://openapi.koreainvestment.com:9443
 
 # Discord Notifications
 Discord__Enabled=true
