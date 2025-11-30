@@ -1,7 +1,10 @@
 @page "/dashboard"
 @using yQuant.App.Dashboard.Services
 @using yQuant.Core.Models
-@inject RedisService RedisService
+
+@using yQuant.Core.Ports.Output.Infrastructure
+@inject AssetService AssetService
+@inject IBrokerAdapterFactory BrokerAdapterFactory
 @inject NavigationManager NavigationManager
 
 <PageTitle>Dashboard</PageTitle>
@@ -28,22 +31,24 @@ else
     @foreach (var account in _accounts)
     {
         <MudText Typo="Typo.h6" Class="mt-4 mb-2">Account: @account.Alias (@account.Broker)</MudText>
-        <PositionTable Positions="RedisService.GetPositions(account.Alias)" AccountAlias="@(account.Alias)" OnOrderAction="HandleOrderAction" />
+        <PositionTable Positions="@account.Positions" AccountAlias="@(account.Alias)" OnOrderAction="HandleOrderAction" />
     }
 }
 
 @code {
     private IEnumerable<Account>? _accounts;
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
-        RedisService.OnChange += StateHasChanged;
-        LoadData();
+        await LoadData();
     }
 
-    private void LoadData()
+    private async Task LoadData()
     {
-        _accounts = RedisService.GetAccounts();
+        var aliases = BrokerAdapterFactory.GetAvailableAccounts();
+        var tasks = aliases.Select(async alias => await AssetService.GetAccountOverviewAsync(alias));
+        var accounts = await Task.WhenAll(tasks);
+        _accounts = accounts.Where(a => a != null).Select(a => a!).ToList();
         StateHasChanged();
     }
 
@@ -55,6 +60,6 @@ else
 
     public void Dispose()
     {
-        RedisService.OnChange -= StateHasChanged;
+        // No subscription to dispose
     }
 }

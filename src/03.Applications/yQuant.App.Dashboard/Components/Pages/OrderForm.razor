@@ -2,8 +2,9 @@
 @page "/orderform/{Ticker?}"
 @using yQuant.App.Dashboard.Services
 @using yQuant.Core.Models
+@using yQuant.Core.Ports.Output.Infrastructure
 @inject OrderPublisher OrderPublisher
-@inject RedisService RedisService
+@inject IBrokerAdapterFactory BrokerAdapterFactory
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 
@@ -53,7 +54,17 @@
 
     protected override void OnInitialized()
     {
-        AvailableAccounts = RedisService.GetAccounts();
+        var aliases = BrokerAdapterFactory.GetAvailableAccounts();
+        var accounts = new List<Account>();
+        foreach (var alias in aliases)
+        {
+            var adapter = BrokerAdapterFactory.GetAdapter(alias);
+            if (adapter != null)
+            {
+                accounts.Add(adapter.Account);
+            }
+        }
+        AvailableAccounts = accounts;
 
         if (Ticker != null) OrderModel.Ticker = Ticker;
         if (Action != null) OrderModel.Action = Action.Value;

@@ -2,8 +2,9 @@
 @using yQuant.App.Dashboard.Services
 @using yQuant.App.Dashboard.Models
 @using yQuant.Core.Models
+@using yQuant.Core.Ports.Output.Infrastructure
 @inject SchedulerService SchedulerService
-@inject RedisService RedisService
+@inject IBrokerAdapterFactory BrokerAdapterFactory
 @inject ISnackbar Snackbar
 
 <PageTitle>Scheduled Orders</PageTitle>
@@ -35,7 +36,7 @@
                     <MudNumericField T="int?" @bind-Value="CurrentSchedule.Quantity" Label="Quantity (Optional)" Variant="Variant.Text" Min="0" Class="mt-3" />
                     <MudDatePicker @bind-Date="ScheduleDate" Label="Schedule Date" Class="mt-3" />
                     <MudTimePicker @bind-Time="ScheduleTime" Label="Schedule Time" Class="mt-3" />
-                    <MudCheckBox T="bool" @bind-Checked="CurrentSchedule.IsRecurring" Label="Recurring" Class="mt-3" />
+                    <MudCheckBox T="bool" @bind-Value="CurrentSchedule.IsRecurring" Label="Recurring" Class="mt-3" />
                     @if (CurrentSchedule.IsRecurring)
                     {
                         <MudSelect T="string" @bind-Value="CurrentSchedule.RecurrencePattern" Label="Recurrence Pattern" Class="mt-3">
@@ -44,7 +45,7 @@
                         </MudSelect>
                     }
                     <MudTextField T="string" @bind-Value="CurrentSchedule.Notes" Label="Notes (Optional)" Lines="3" Class="mt-3" />
-                    <MudCheckBox T="bool" @bind-Checked="CurrentSchedule.IsActive" Label="Active" Class="mt-3" />                </MudForm>
+                    <MudCheckBox T="bool" @bind-Value="CurrentSchedule.IsActive" Label="Active" Class="mt-3" />                </MudForm>
             </MudCardContent>
             <MudCardActions Class="justify-end">
                 <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSchedule" Disabled="@(!ScheduleForm?.IsValid ?? true)">Save Schedule</MudButton>
@@ -70,12 +71,16 @@
                     <MudList T="ScheduledOrder">
                         @foreach (var schedule in _scheduledOrders.OrderBy(s => s.ScheduledTime))
                         {
-                            <MudListItem T="ScheduledOrder" Icon="@Icons.Material.Filled.Schedule" OnClick="@(() => EditSchedule(schedule))">
-                                <MudText>@schedule.Ticker (@schedule.Action) - @schedule.ScheduledTime.ToLocalTime().ToString("g")</MudText>
-                                <MudText Typo="Typo.caption">Account: @schedule.AccountAlias, Active: @schedule.IsActive @(schedule.IsRecurring ? $"({schedule.RecurrencePattern})" : "")</MudText>
-                                <MudListSecondaryAction>
-                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteSchedule(schedule.Id))" />
-                                </MudListSecondaryAction>
+                            <MudListItem T="ScheduledOrder" OnClick="@(() => EditSchedule(schedule))">
+                                <div class="d-flex justify-space-between align-center">
+                                    <div>
+                                        <MudText>@schedule.Ticker (@schedule.Action) - @schedule.ScheduledTime.ToLocalTime().ToString("g")</MudText>
+                                        <MudText Typo="Typo.caption">Account: @schedule.AccountAlias, Active: @schedule.IsActive @(schedule.IsRecurring ? $"({schedule.RecurrencePattern})" : "")</MudText>
+                                    </div>
+                                    <span @onclick:stopPropagation="true">
+                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteSchedule(schedule.Id))" />
+                                    </span>
+                                </div>
                             </MudListItem>
                         }
                     </MudList>
@@ -123,7 +128,17 @@
 
     private void LoadData()
     {
-        AvailableAccounts = RedisService.GetAccounts();
+        var aliases = BrokerAdapterFactory.GetAvailableAccounts();
+        var accounts = new List<Account>();
+        foreach (var alias in aliases)
+        {
+            var adapter = BrokerAdapterFactory.GetAdapter(alias);
+            if (adapter != null)
+            {
+                accounts.Add(adapter.Account);
+            }
+        }
+        AvailableAccounts = accounts;
         _scheduledOrders = SchedulerService.GetScheduledOrders();
 
         if (AvailableAccounts.Any() && string.IsNullOrEmpty(CurrentSchedule.AccountAlias))

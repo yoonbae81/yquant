@@ -1,10 +1,11 @@
 @page "/assets"
 @page "/assets/{AccountAlias}"
 @using yQuant.Core.Models
-@using yQuant.Core.Services
+
 @using yQuant.App.Dashboard.Services
+@using yQuant.Core.Ports.Output.Infrastructure
 @inject AssetService AssetService
-@inject RedisService RedisService
+@inject IBrokerAdapterFactory BrokerAdapterFactory
 @inject NavigationManager NavigationManager
 
 <MudText Typo="Typo.h4" GutterBottom="true">Asset Summary</MudText>
@@ -105,7 +106,17 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        _availableAccounts = RedisService.GetAccounts();
+        var aliases = BrokerAdapterFactory.GetAvailableAccounts();
+        var accounts = new List<Account>();
+        foreach (var alias in aliases)
+        {
+            var adapter = BrokerAdapterFactory.GetAdapter(alias);
+            if (adapter != null)
+            {
+                accounts.Add(adapter.Account);
+            }
+        }
+        _availableAccounts = accounts;
         
         if (string.IsNullOrEmpty(AccountAlias) && _availableAccounts.Any())
         {
