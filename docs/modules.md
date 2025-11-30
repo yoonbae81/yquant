@@ -45,6 +45,8 @@ Core의 인터페이스를 구현하고 실제 기술(DB, API, Network)을 다�
     - **OAuth 2.0 인증**: Access Token의 발급 및 만료 시 자동 갱신 처리
     - **API 통합**: 한국 주식(KRX)과 미국 주식(NASDAQ 등)의 상이한 API 엔드포인트를 하나의 인터페이스로 통합
     - **Rate Limiting**: 초당 요청 제한(QPS)을 준수하여 API 호출 제어
+    - **Token Caching**: Access Token을 메모리 및 로컬 파일(`%LocalAppData%/yQuant/KIS/tokens`)에 캐싱하여 재사용
+    - **US Market Order Emulation**: 미국 주식 시장가 주문 미지원으로 인해, 현재가 기준 Buffer(매수 +5%, 매도 -5%)를 적용한 지정가 주문으로 에뮬레이션
 
 ### 2.2. yQuant.Infra.Middleware.Redis
 - **역할**: 시스템의 신경망 역할을 하는 메시지 브로커 및 상태 저장소
@@ -198,6 +200,10 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
 - **역할**: 종목 마스터 데이터 동기화 및 관리
 - **주요 기능**:
     - **Master Data Sync**: 증권사 API로부터 거래 가능 종목 리스트 주기적 동기화
+    - **Dual Mode**:
+        - **Worker Mode**: 설정된 스케줄(`RunTime`)에 따라 백그라운드에서 주기적으로 동기화 수행
+        - **CLI Mode**: 커맨드라인 인자(`--worker` 미지정)로 실행 시 즉시 동기화 수행 (전체 또는 특정 국가)
+    - **Supported Exchanges**: KOSPI, KOSDAQ, NASDAQ, NYSE, AMEX, SSE, SZSE, TSE, HKEX, HNX, HOSE
     - **Redis Caching**: 종목 정보를 Redis에 캐싱하여 빠른 조회 지원
     - **Exchange Mapping**: 종목 코드와 거래소(Exchange) 매핑 정보 관리
 
