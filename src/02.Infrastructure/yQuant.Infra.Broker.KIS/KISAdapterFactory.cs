@@ -31,15 +31,18 @@ public class KISAdapterFactory : IBrokerAdapterFactory
         // Load API Config internally
         var apiPath = Path.Combine(AppContext.BaseDirectory, "API");
         _apiConfig = KISApiConfig.Load(apiPath);
+        System.Console.WriteLine("DEBUG: KISAdapterFactory initialized.");
     }
 
     public IEnumerable<string> GetAvailableAccounts()
     {
         var accountsSection = _configuration.GetSection("Accounts");
+        System.Console.WriteLine($"DEBUG: GetAvailableAccounts found {accountsSection.GetChildren().Count()} children.");
         foreach (var section in accountsSection.GetChildren())
         {
             var alias = section["Alias"];
             var broker = section["Broker"];
+            System.Console.WriteLine($"DEBUG: Found account Alias='{alias}', Broker='{broker}'");
             if (!string.IsNullOrEmpty(alias) && string.Equals(broker, "KIS", StringComparison.OrdinalIgnoreCase))
             {
                 yield return alias;
@@ -137,6 +140,8 @@ public class KISAdapterFactory : IBrokerAdapterFactory
     private Account? CreateAccountFromConfig(string alias)
     {
         var accountsSection = _configuration.GetSection("Accounts");
+        System.Console.WriteLine($"DEBUG: CreateAccountFromConfig searching for '{alias}' in {accountsSection.GetChildren().Count()} accounts.");
+        
         var accountSection = accountsSection.GetChildren()
             .FirstOrDefault(a => a["Alias"]?.Equals(alias, StringComparison.OrdinalIgnoreCase) == true);
 

@@ -8,18 +8,21 @@ public class TestCommand : ICommand
     private readonly KISAdapterFactory _factory;
     private readonly ILogger<TestCommand> _logger;
 
+    private readonly string _targetAlias;
+
     public string Name => "test";
     public string Description => "Test KIS API connection and retrieve account state";
 
-    public TestCommand(KISAdapterFactory factory, ILogger<TestCommand> logger)
+    public TestCommand(KISAdapterFactory factory, ILogger<TestCommand> logger, string targetAlias)
     {
         _factory = factory;
         _logger = logger;
+        _targetAlias = targetAlias;
     }
 
     public async Task ExecuteAsync(string[] args)
     {
-        var alias = _factory.GetAvailableAccounts().FirstOrDefault();
+        var alias = _targetAlias;
         if (alias == null)
         {
             System.Console.WriteLine("No KIS accounts found.");

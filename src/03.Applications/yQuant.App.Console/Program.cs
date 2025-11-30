@@ -73,10 +73,7 @@ class Program
                     }
                     return adapter;
                 });
-                // Also register concrete KISBrokerAdapter if needed by some commands (e.g. InfoCommand, OrderCommand used to take it)
-                // But better to change them to take IBrokerAdapter. 
-                // However, OrderCommand in original code took KISBrokerAdapter. 
-                // Let's see if we can cast or just register it if the factory returns it.
+                
                 services.AddSingleton<KISBrokerAdapter>(sp => 
                 {
                     var adapter = sp.GetRequiredService<IBrokerAdapter>();
@@ -89,8 +86,7 @@ class Program
                 services.AddSingleton<yQuant.Core.Services.AssetService>();
 
                 // Register Commands
-                // Register Commands
-                services.AddTransient<ICommand, AuthCommand>();
+                services.AddTransient<ICommand>(sp => new AuthCommand(sp.GetRequiredService<KISAdapterFactory>(), sp.GetRequiredService<ILogger<AuthCommand>>(), targetAlias));
                 
                 services.AddTransient<ICommand>(sp => 
                 {
@@ -112,7 +108,7 @@ class Program
                     return new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, account.Number, OrderAction.Sell);
                 });
                 services.AddTransient<ICommand>(sp => new ReportCommand(sp.GetRequiredService<IPerformanceRepository>(), sp.GetRequiredService<IQuantStatsService>(), targetAlias));
-                services.AddTransient<ICommand, TestCommand>();
+                services.AddTransient<ICommand>(sp => new TestCommand(sp.GetRequiredService<KISAdapterFactory>(), sp.GetRequiredService<ILogger<TestCommand>>(), targetAlias));
 
                 services.AddSingleton<CommandRouter>();
             })
@@ -120,31 +116,7 @@ class Program
 
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
         
-        // Check if Account can be resolved (validates existence)
-        try 
-        {
-            var account = host.Services.GetService<Account>();
-            if (account == null)
-            {
-                 // Should be caught by GetService throwing or returning null if not required, but we used AddSingleton factory which throws.
-                 // However, GetService might catch the exception inside? No, GetService returns null if not found, but if factory throws, it throws.
-                 // Let's use GetService and let it throw if factory fails?
-                 // Actually, let's just try to resolve it.
-            }
-        }
-        catch (Exception ex)
-        {
-            System.Console.WriteLine($"Error: {ex.Message}");
-            return;
-        }
-
-        // Check if services are registered (if ConfigureServices returned early)
-        var adapter = host.Services.GetService<KISBrokerAdapter>();
-        if (adapter == null)
-        {
-            System.Console.WriteLine("Error: Failed to initialize services. Check credentials.");
-            return;
-        }
+        System.Console.WriteLine($"DEBUG: targetAlias = '{targetAlias}'");
 
         try
         {

@@ -11,10 +11,13 @@ namespace yQuant.App.Console.Commands
         private readonly KISAdapterFactory _factory;
         private readonly ILogger<AuthCommand> _logger;
 
-        public AuthCommand(KISAdapterFactory factory, ILogger<AuthCommand> logger)
+        private readonly string _targetAlias;
+
+        public AuthCommand(KISAdapterFactory factory, ILogger<AuthCommand> logger, string targetAlias)
         {
             _factory = factory;
             _logger = logger;
+            _targetAlias = targetAlias;
         }
 
         public string Name => "auth";
@@ -22,8 +25,7 @@ namespace yQuant.App.Console.Commands
 
         public async Task ExecuteAsync(string[] args)
         {
-            // Default to first available account if not specified (TODO: Add args support)
-            var alias = _factory.GetAvailableAccounts().FirstOrDefault();
+            var alias = _targetAlias;
             if (alias == null)
             {
                 System.Console.WriteLine("No KIS accounts found.");
