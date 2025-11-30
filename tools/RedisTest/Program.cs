@@ -2,7 +2,7 @@ using StackExchange.Redis;
 using Microsoft.Extensions.Configuration;
 using System.Net;
 
-Console.WriteLine("🔍 Redis Connection Test");
+Console.WriteLine("?�� Redis Connection Test");
 Console.WriteLine("========================\n");
 
 // Load configuration
@@ -16,11 +16,11 @@ var configuration = new ConfigurationBuilder()
 var connectionString = Environment.GetEnvironmentVariable("Redis");
 if (string.IsNullOrEmpty(connectionString))
 {
-    Console.WriteLine("❌ Error: 'Redis' environment variable is not set.");
+    Console.WriteLine("??Error: 'Redis' environment variable is not set.");
     Environment.Exit(1);
 }
 
-Console.WriteLine($"📡 Connection String: {connectionString}\n");
+Console.WriteLine($"?�� Connection String: {connectionString}\n");
 
 try
 {
@@ -59,11 +59,11 @@ try
 
     if (redis.IsConnected)
     {
-        Console.WriteLine("✅ Connected successfully!\n");
+        Console.WriteLine("??Connected successfully!\n");
     }
     else
     {
-        Console.WriteLine("⚠️ Connection not established yet (IsConnected=false).");
+        Console.WriteLine("?�️ Connection not established yet (IsConnected=false).");
         Console.WriteLine($"Status: {redis.GetStatus()}");
     }
 
@@ -71,7 +71,7 @@ try
     Console.WriteLine("Test 2: Ping test...");
     var db = redis.GetDatabase();
     var latency = db.Ping();
-    Console.WriteLine($"✅ Ping latency: {latency.TotalMilliseconds:F2} ms\n");
+    Console.WriteLine($"??Ping latency: {latency.TotalMilliseconds:F2} ms\n");
 
     // Test 3: Write and Read
     Console.WriteLine("Test 3: Write and Read test...");
@@ -79,13 +79,13 @@ try
     var testValue = $"Test at {DateTime.Now:yyyy-MM-dd HH:mm:ss}";
     
     db.StringSet(testKey, testValue);
-    Console.WriteLine($"✅ Written: {testKey} = {testValue}");
+    Console.WriteLine($"??Written: {testKey} = {testValue}");
     
     var readValue = db.StringGet(testKey);
-    Console.WriteLine($"✅ Read: {testKey} = {readValue}");
+    Console.WriteLine($"??Read: {testKey} = {readValue}");
     
     db.KeyDelete(testKey);
-    Console.WriteLine($"✅ Deleted test key\n");
+    Console.WriteLine($"??Deleted test key\n");
 
     // Test 4: Pub/Sub
     Console.WriteLine("Test 4: Pub/Sub test...");
@@ -95,7 +95,7 @@ try
 
     subscriber.Subscribe(channel, (ch, message) =>
     {
-        Console.WriteLine($"✅ Received message: {message}");
+        Console.WriteLine($"??Received message: {message}");
         messageReceived = true;
     });
 
@@ -105,11 +105,11 @@ try
 
     if (messageReceived)
     {
-        Console.WriteLine("✅ Pub/Sub working correctly\n");
+        Console.WriteLine("??Pub/Sub working correctly\n");
     }
     else
     {
-        Console.WriteLine("⚠️  Pub/Sub message not received (this is OK for basic testing)\n");
+        Console.WriteLine("?�️  Pub/Sub message not received (this is OK for basic testing)\n");
     }
 
     subscriber.Unsubscribe(channel);
@@ -117,19 +117,19 @@ try
     // Test 5: Server Info
     Console.WriteLine("Test 5: Getting server info...");
     var endpoints = redis.GetEndPoints();
-    Console.WriteLine($"✅ Connected to: {endpoints[0]}\n");
+    Console.WriteLine($"??Connected to: {endpoints[0]}\n");
 
     // Summary
     Console.WriteLine("========================");
-    Console.WriteLine("✅ All critical tests passed!");
+    Console.WriteLine("??All critical tests passed!");
     Console.WriteLine("Redis is ready for yQuant.NET");
 
     redis.Dispose();
 }
 catch (RedisConnectionException ex)
 {
-    Console.WriteLine($"❌ Connection failed: {ex.Message}");
-    Console.WriteLine("\n💡 Troubleshooting:");
+    Console.WriteLine($"??Connection failed: {ex.Message}");
+    Console.WriteLine("\n?�� Troubleshooting:");
     Console.WriteLine("1. Check if Redis is running:");
     Console.WriteLine("   docker ps | findstr redis");
     Console.WriteLine("2. Start Redis if not running:");
@@ -139,7 +139,7 @@ catch (RedisConnectionException ex)
 }
 catch (Exception ex)
 {
-    Console.WriteLine($"❌ Error: {ex.Message}");
+    Console.WriteLine($"??Error: {ex.Message}");
     Console.WriteLine($"Stack trace: {ex.StackTrace}");
     Environment.Exit(1);
 }

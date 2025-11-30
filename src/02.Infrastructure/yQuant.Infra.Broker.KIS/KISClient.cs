@@ -2,72 +2,36 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
-using yQuant.Infra.Trading.KIS.Models;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Core.Models;
+using yQuant.Infra.Broker.KIS.Models;
+using yQuant.Infra.Broker.KIS.Models;
 
 namespace yQuant.Infra.Broker.KIS;
 
-public class KisConnector : IKisConnector
+public class KISClient : IKISClient
 {
     private readonly HttpClient _httpClient;
-    private readonly ILogger<KisConnector> _logger;
-    private readonly IRedisService? _redisService;
-    private readonly string _accountAlias;
-    private readonly string _appKey;
-    private readonly string _appSecret;
+    private readonly ILogger<KISClient> _logger;
+    private readonly Account _account;
     private readonly KISApiConfig _apiConfig;
     private readonly RateLimiter _rateLimiter;
+
+    private const string BaseUrl = "https://openapi.koreainvestment.com:9443";
 
     private string? _accessToken;
     private DateTime _accessTokenExpiration = DateTime.MinValue;
 
-    public string BaseUrl => _httpClient.BaseAddress?.ToString() ?? "N/A";
+    public Account Account => _account;
 
-    public KisConnector(HttpClient httpClient, ILogger<KisConnector> logger, IRedisService? redisService, string accountAlias, string appKey, string appSecret, KISApiConfig? apiConfig = null)
+    public KISClient(HttpClient httpClient, ILogger<KISClient> logger, Account account, KISApiConfig apiConfig)
     {
         _httpClient = httpClient;
         _logger = logger;
-        _redisService = redisService;
-        _accountAlias = accountAlias;
-        _appKey = appKey;
-        _appSecret = appSecret;
+        _account = account;
+        _apiConfig = apiConfig;
 
-        if (apiConfig != null)
-        {
-            _apiConfig = apiConfig;
-        }
-        else
-        {
-            // Load API Spec
-            var baseDir = AppContext.BaseDirectory;
-            var specDir = Path.Combine(baseDir, "API");
-            var specFile = Path.Combine(baseDir, "kis-api-spec.json");
-
-            if (Directory.Exists(specDir))
-            {
-                _apiConfig = KISApiConfig.Load(specDir);
-            }
-            else if (File.Exists(specFile))
-            {
-                _apiConfig = KISApiConfig.Load(specFile);
-            }
-            else
-            {
-                _logger.LogWarning("KIS API spec not found at {Dir} or {File}. API calls may fail.", specDir, specFile);
-                _apiConfig = new KISApiConfig();
-            }
-        }
-
-        // Use BaseUrl from spec
-        var effectiveBaseUrl = _apiConfig.BaseUrl;
-
-        if (string.IsNullOrEmpty(effectiveBaseUrl))
-        {
-             throw new InvalidOperationException("BaseUrl is not configured in kis-api-spec.json or provided KISApiConfig.");
-        }
-
-        _httpClient.BaseAddress = new Uri(effectiveBaseUrl);
-        _logger.LogInformation("KisConnector initialized with BaseUrl: {BaseUrl}", effectiveBaseUrl);
+        _httpClient.BaseAddress = new Uri(BaseUrl);
+        _logger.LogInformation("KISClient initialized with BaseUrl: {BaseUrl}", BaseUrl);
 
         _rateLimiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
         {
@@ -86,23 +50,6 @@ public class KisConnector : IKisConnector
             return;
         }
 
-        // 2. Check Redis cache (if available)
-        if (_redisService != null)
-        {
-            var redisKey = $"KIS:Token:{_accountAlias}";
-            var cachedToken = await _redisService.GetAsync<string>(redisKey);
-            if (!string.IsNullOrEmpty(cachedToken))
-            {
-                 // Verify if it's still valid (we might need to store expiration in Redis too, or just rely on Redis TTL)
-                 // For simplicity, let's assume if it's in Redis, it's valid.
-                 // Ideally we should store a structured object { Token, Expiration }
-                 _accessToken = cachedToken;
-                 _accessTokenExpiration = DateTime.UtcNow.AddMinutes(30); // Fallback expiration if not stored
-                 _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
-                 _logger.LogInformation("Loaded KIS access token from Redis for account {Alias}.", _accountAlias);
-                 return;
-            }
-        }
 
         // 3. Check local file cache (fallback when Redis is unavailable)
         var tokenFromFile = await LoadTokenFromFileAsync();
@@ -111,7 +58,7 @@ public class KisConnector : IKisConnector
             _accessToken = tokenFromFile.Token;
             _accessTokenExpiration = tokenFromFile.Expiration;
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
-            _logger.LogInformation("Loaded KIS access token from local file cache for account {Alias}.", _accountAlias);
+            _logger.LogInformation("Loaded KIS access token from local file cache for account {Alias}.", _account.Alias);
             return;
         }
 
@@ -124,7 +71,7 @@ public class KisConnector : IKisConnector
         try
         {
             var cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yQuant", "KIS", "tokens");
-            var cacheFile = Path.Combine(cacheDir, $"{_accountAlias}.json");
+            var cacheFile = Path.Combine(cacheDir, $"{_account.Alias}.json");
 
             if (!File.Exists(cacheFile))
             {
@@ -148,12 +95,12 @@ public class KisConnector : IKisConnector
             var cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yQuant", "KIS", "tokens");
             Directory.CreateDirectory(cacheDir);
 
-            var cacheFile = Path.Combine(cacheDir, $"{_accountAlias}.json");
+            var cacheFile = Path.Combine(cacheDir, $"{_account.Alias}.json");
             var entry = new TokenCacheEntry { Token = token, Expiration = expiration };
             var json = JsonSerializer.Serialize(entry);
 
             await File.WriteAllTextAsync(cacheFile, json);
-            _logger.LogInformation("Saved KIS access token to local file cache for account {Alias}.", _accountAlias);
+            _logger.LogInformation("Saved KIS access token to local file cache for account {Alias}.", _account.Alias);
         }
         catch (Exception ex)
         {
@@ -166,22 +113,16 @@ public class KisConnector : IKisConnector
         _accessToken = null;
         _accessTokenExpiration = DateTime.MinValue;
 
-        // Clear from Redis
-        if (_redisService != null)
-        {
-            var redisKey = $"KIS:Token:{_accountAlias}";
-            await _redisService.DeleteAsync(redisKey);
-        }
 
         // Clear from local file
         try
         {
             var cacheDir = Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "yQuant", "KIS", "tokens");
-            var cacheFile = Path.Combine(cacheDir, $"{_accountAlias}.json");
+            var cacheFile = Path.Combine(cacheDir, $"{_account.Alias}.json");
             if (File.Exists(cacheFile))
             {
                 File.Delete(cacheFile);
-                _logger.LogInformation("Deleted KIS access token from local file cache for account {Alias}.", _accountAlias);
+                _logger.LogInformation("Deleted KIS access token from local file cache for account {Alias}.", _account.Alias);
             }
         }
         catch (Exception ex)
@@ -189,7 +130,7 @@ public class KisConnector : IKisConnector
             _logger.LogWarning(ex, "Failed to delete token from local file cache.");
         }
 
-        _logger.LogInformation("Invalidated KIS access token for account {Alias}.", _accountAlias);
+        _logger.LogInformation("Invalidated KIS access token for account {Alias}.", _account.Alias);
     }
 
     private async Task GetAccessTokenAsync()
@@ -199,13 +140,13 @@ public class KisConnector : IKisConnector
             throw new InvalidOperationException("Token endpoint not defined in API spec.");
         }
 
-        _logger.LogInformation("Attempting to get new KIS access token for account {Alias}...", _accountAlias);
+        _logger.LogInformation("Attempting to get new KIS access token for account {Alias}...", _account.Alias);
 
         var requestBody = new
         {
             grant_type = "client_credentials",
-            appkey = _appKey,
-            appsecret = _appSecret
+            appkey = _account.AppKey,
+            appsecret = _account.AppSecret
         };
 
         using var lease = await _rateLimiter.AcquireAsync();
@@ -214,27 +155,21 @@ public class KisConnector : IKisConnector
             throw new RateLimitExceededException("KIS access token request rate limit exceeded.");
         }
 
-        var response = await _httpClient.PostAsJsonAsync(endpoint.Path, requestBody);
+        var response = await _httpClient.PostAsJsonAsync(endpoint!.Path, requestBody);
         response.EnsureSuccessStatusCode();
 
-        var tokenResponse = await response.Content.ReadFromJsonAsync<KisTokenResponse>();
+        var tokenResponse = await response.Content.ReadFromJsonAsync<TokenResponse>();
         if (tokenResponse != null && !string.IsNullOrEmpty(tokenResponse.AccessToken))
         {
             _accessToken = tokenResponse.AccessToken;
             _accessTokenExpiration = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn - 60);
             
-            // Store in Redis (if available)
-            if (_redisService != null)
-            {
-                var redisKey = $"KIS:Token:{_accountAlias}";
-                await _redisService.SetAsync(redisKey, _accessToken, TimeSpan.FromSeconds(tokenResponse.ExpiresIn - 60));
-            }
 
             // Store in local file cache
             await SaveTokenToFileAsync(_accessToken, _accessTokenExpiration);
 
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
-            _logger.LogInformation("Successfully obtained KIS access token for account {Alias}. Expires in {Seconds}s.", _accountAlias, tokenResponse.ExpiresIn);
+            _logger.LogInformation("Successfully obtained KIS access token for account {Alias}. Expires in {Seconds}s.", _account.Alias, tokenResponse.ExpiresIn);
         }
         else
         {
@@ -251,8 +186,8 @@ public class KisConnector : IKisConnector
 
         var requestBody = new
         {
-            appkey = _appKey,
-            appsecret = _appSecret,
+            appkey = _account.AppKey,
+            appsecret = _account.AppSecret,
             JsonBody = body
         };
 
@@ -266,15 +201,15 @@ public class KisConnector : IKisConnector
         // Request Header: content-type, appkey, appsecret
         // Request Body: JsonBody (The actual body of the order)
         
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint.Path);
-        requestMessage.Headers.Add("appkey", _appKey);
-        requestMessage.Headers.Add("appsecret", _appSecret);
+        var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint!.Path);
+        requestMessage.Headers.Add("appkey", _account.AppKey);
+        requestMessage.Headers.Add("appsecret", _account.AppSecret);
         requestMessage.Content = JsonContent.Create(body); // The body of the order is sent as the content
 
         var response = await _httpClient.SendAsync(requestMessage);
         response.EnsureSuccessStatusCode();
 
-        var hashResponse = await response.Content.ReadFromJsonAsync<KisHashkeyResponse>();
+        var hashResponse = await response.Content.ReadFromJsonAsync<HashkeyResponse>();
         return hashResponse?.HASH ?? throw new InvalidOperationException("Failed to retrieve Hashkey.");
     }
 
@@ -293,7 +228,7 @@ public class KisConnector : IKisConnector
             throw new RateLimitExceededException($"Rate limit exceeded for {endpointName}.");
         }
 
-        var requestMessage = new HttpRequestMessage(new HttpMethod(endpoint.Method), BuildUrl(endpoint.Path, queryParams));
+        var requestMessage = new HttpRequestMessage(new HttpMethod(endpoint!.Method), BuildUrl(endpoint.Path, queryParams));
 
         string? trId = endpoint.TrId;
         if (!string.IsNullOrEmpty(trIdVariant) && endpoint.TrIdMap != null && endpoint.TrIdMap.TryGetValue(trIdVariant, out var mappedTrId))
@@ -305,8 +240,8 @@ public class KisConnector : IKisConnector
         {
             requestMessage.Headers.Add("tr_id", trId);
         }
-        requestMessage.Headers.Add("appkey", _appKey);
-        requestMessage.Headers.Add("appsecret", _appSecret);
+        requestMessage.Headers.Add("appkey", _account.AppKey);
+        requestMessage.Headers.Add("appsecret", _account.AppSecret);
         requestMessage.Headers.Add("Accept", "application/json");
 
         if (headers != null)

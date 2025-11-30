@@ -45,8 +45,8 @@ public class MasterDataSyncServiceTests
 
         var kospiStocks = new List<StockMaster>
         {
-            new StockMaster { Ticker = "005930", Name = "삼성전자", Exchange = "KOSPI", Currency = CurrencyType.KRW },
-            new StockMaster { Ticker = "000660", Name = "SK하이닉스", Exchange = "KOSPI", Currency = CurrencyType.KRW }
+            new StockMaster { Ticker = "005930", Name = "?�성?�자", Exchange = "KOSPI", Currency = CurrencyType.KRW },
+            new StockMaster { Ticker = "000660", Name = "SK?�이?�스", Exchange = "KOSPI", Currency = CurrencyType.KRW }
         };
 
         var kosdaqStocks = new List<StockMaster>
@@ -132,7 +132,7 @@ public class MasterDataSyncServiceTests
 
         var stocks = new List<StockMaster>
         {
-            new StockMaster { Ticker = "005930", Name = "삼성전자", Exchange = "KOSPI", Currency = CurrencyType.KRW }
+            new StockMaster { Ticker = "005930", Name = "?�성?�자", Exchange = "KOSPI", Currency = CurrencyType.KRW }
         };
 
         _mockLoader.Setup(l => l.LoadMasterDataAsync("KOSPI", "http://example.com/kospi.zip"))

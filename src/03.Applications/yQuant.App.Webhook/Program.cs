@@ -26,7 +26,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 // Register Discord Notification Services
 builder.Services.Configure<DiscordConfiguration>(builder.Configuration.GetSection("Discord"));
 builder.Services.AddHttpClient("DiscordWebhook");
-builder.Services.AddSingleton<yQuant.Infra.Notification.Common.Services.TemplateService>();
+builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
 builder.Services.AddSingleton<ITradingLogger, DiscordLogger>();
 builder.Services.AddSingleton<ISystemLogger, DiscordLogger>();
 

@@ -1,4 +1,4 @@
-﻿namespace yQuant.Infra.Notification.Telegram.Tests;
+namespace yQuant.Infra.Notification.Telegram.Tests;
 
 public class UnitTest1
 {

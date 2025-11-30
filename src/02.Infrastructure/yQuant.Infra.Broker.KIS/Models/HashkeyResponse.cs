@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace yQuant.Infra.Trading.KIS.Models;
+namespace yQuant.Infra.Broker.KIS.Models;
 
-public class KisHashkeyResponse
+public class HashkeyResponse
 {
     [JsonPropertyName("HASH")]
     public string HASH { get; set; } = string.Empty;

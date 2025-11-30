@@ -43,44 +43,27 @@ builder.Services.AddRedisMiddleware(builder.Configuration);
 
 // Register KISAccountManager - manages multiple KIS accounts with independent credentials
 // Register KISAccountManager - manages multiple KIS accounts with independent credentials
-builder.Services.AddSingleton<KISAccountManager>(sp =>
+// Register KISApiConfig
+builder.Services.AddSingleton<KISApiConfig>(sp =>
 {
-    var logger = sp.GetRequiredService<ILogger<KISAccountManager>>();
-    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-    var redisService = sp.GetRequiredService<IRedisService>();
     var config = sp.GetRequiredService<IConfiguration>();
+    var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
     
-    var manager = new KISAccountManager(logger, httpClientFactory, sp, redisService);
-    
-    // Reverted to single account from KIS section
-    var kisConfig = config.GetSection("KIS");
-    var userId = kisConfig["UserId"];
-    var appKey = kisConfig["AppKey"];
-    var appSecret = kisConfig["AppSecret"];
-    var accountNumber = kisConfig["AccountNumber"];
-    var baseUrl = kisConfig["BaseUrl"] ?? "https://openapi.koreainvestment.com:9443";
-
-    if (!string.IsNullOrEmpty(userId) && !string.IsNullOrEmpty(appKey) && !string.IsNullOrEmpty(appSecret) && !string.IsNullOrEmpty(accountNumber))
-    {
-        // Use "Default" or similar as alias for single account mode
-        manager.RegisterAccount("Default", appKey, appSecret, baseUrl, accountNumber);
-    }
-    else
-    {
-        logger.LogWarning("Incomplete KIS configuration in appsettings.json.");
-    }
-    
-    return manager;
+    return apiConfig;
 });
+
+// Register KISAccountManager - manages multiple KIS accounts with independent credentials
+builder.Services.AddSingleton<KISAccountManager>();
 
 // Register Discord Notification Services
 builder.Services.Configure<DiscordConfiguration>(builder.Configuration.GetSection("Discord"));
 builder.Services.AddHttpClient("DiscordWebhook");
+builder.Services.AddSingleton<ISystemLogger, DiscordLogger>();
 builder.Services.AddSingleton<ITradingLogger, DiscordLogger>();
+builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
+builder.Services.AddSingleton<yQuant.Infra.Notification.Telegram.Services.TelegramTemplateService>();
 builder.Services.AddSingleton<IPerformanceRepository, yQuant.Infra.Reporting.Performance.Repositories.JsonPerformanceRepository>();
 builder.Services.AddSingleton<ITradingLogger, yQuant.Infra.Reporting.Performance.Loggers.PersistenceTradingLogger>();
-builder.Services.AddSingleton<ISystemLogger, DiscordLogger>();
-builder.Services.AddSingleton<yQuant.Infra.Notification.Common.Services.TemplateService>();
 
 builder.Services.AddHostedService<Worker>();
 

@@ -18,6 +18,5 @@
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification.Telegram\yQuant.Infra.Notification.Telegram.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification.Discord\yQuant.Infra.Notification.Discord.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Reporting.Performance\yQuant.Infra.Reporting.Performance.csproj" />
-    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification.Common\yQuant.Infra.Notification.Common.csproj" />
   </ItemGroup>
 </Project>

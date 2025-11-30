@@ -6,7 +6,7 @@ using System.Net;
 var connectionString = Environment.GetEnvironmentVariable("Redis");
 if (string.IsNullOrEmpty(connectionString))
 {
-    Console.WriteLine("❌ Error: 'Redis' environment variable is not set.");
+    Console.WriteLine("??Error: 'Redis' environment variable is not set.");
     Environment.Exit(1);
 }
 

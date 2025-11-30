@@ -1,23 +1,19 @@
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 using Microsoft.Extensions.Logging;
-using yQuant.Infra.Trading.KIS.Models;
+using yQuant.Infra.Broker.KIS.Models;
 
 namespace yQuant.Infra.Broker.KIS;
 
-public class KisBrokerAdapter : IBrokerAdapter
+public class KISBrokerAdapter : IBrokerAdapter
 {
-    private readonly ILogger<KisBrokerAdapter> _logger;
-    private readonly IKisConnector _client;
-    private readonly string _accountNoPrefix;
-    private readonly string? _alias;
+    private readonly ILogger<KISBrokerAdapter> _logger;
+    private readonly IKISClient _client;
 
-    public KisBrokerAdapter(ILogger<KisBrokerAdapter> logger, IKisConnector client, string accountNoPrefix, string? alias = null)
+    public KISBrokerAdapter(IKISClient client, ILogger<KISBrokerAdapter> logger)
     {
         _logger = logger;
         _client = client;
-        _accountNoPrefix = accountNoPrefix;
-        _alias = alias;
     }
 
     /// <summary>
@@ -45,9 +41,10 @@ public class KisBrokerAdapter : IBrokerAdapter
         await _client.EnsureConnectedAsync();
     }
 
-    public async Task<OrderResult> PlaceOrderAsync(Order order, string accountNumber)
+    public async Task<OrderResult> PlaceOrderAsync(Order order)
     {
         await EnsureConnectedAsync();
+        var accountNumber = _client.Account.Number;
         _logger.LogInformation("Placing order for {Ticker} {Action} {Qty} at {Price} for account {AccountNumber} via KIS.", order.Ticker, order.Action, order.Qty, order.Price, accountNumber);
 
         // Simple logic to distinguish Domestic vs Overseas based on Ticker length or format
@@ -81,7 +78,7 @@ public class KisBrokerAdapter : IBrokerAdapter
         try
         {
             string endpoint = order.Action == OrderAction.Buy ? "DomesticBuyOrder" : "DomesticSellOrder";
-            var response = await _client.ExecuteAsync<KisDomesticOrderResponse>(endpoint, requestBody);
+            var response = await _client.ExecuteAsync<DomesticOrderResponse>(endpoint, requestBody);
             _logger.LogInformation("KIS Domestic order response: {Response}", response);
             
             if (response == null) return OrderResult.Failure("No response from KIS");
@@ -147,7 +144,7 @@ public class KisBrokerAdapter : IBrokerAdapter
         try
         {
             string endpoint = order.Action == OrderAction.Buy ? "OverseasBuyOrder" : "OverseasSellOrder";
-            var response = await _client.ExecuteAsync<KisOverseasOrderResponse>(endpoint, requestBody, trIdVariant: countryCode);
+            var response = await _client.ExecuteAsync<OverseasOrderResponse>(endpoint, requestBody, trIdVariant: countryCode);
             _logger.LogInformation("KIS Overseas order response: {Response}", response);
             
             if (response == null) return OrderResult.Failure("No response from KIS");
@@ -206,19 +203,26 @@ public class KisBrokerAdapter : IBrokerAdapter
         };
     }
 
-    public async Task<Account> GetAccountStateAsync(string accountNumber)
+    public async Task<Account> GetAccountStateAsync()
     {
         await EnsureConnectedAsync();
+        var accountNumber = _client.Account.Number;
         _logger.LogInformation("Getting account state for account {AccountNumber} via KIS.", accountNumber);
 
-        var account = new Account
+        // Use the account from the client directly
+        var account = _client.Account;
+        
+        // Verify account number matches (optional but good for safety)
+        if (account.Number != accountNumber)
         {
-            Alias = _alias, // Account alias (e.g., "Main_Aggressive")
-            Number = accountNumber,
-            Broker = "KIS",
-            Active = true,
-            Deposits = new Dictionary<CurrencyType, decimal>()
-        };
+            _logger.LogWarning("Requested account number {Requested} does not match client account {Client}. Using client account.", accountNumber, account.Number);
+        }
+
+        // Initialize deposits if null
+        if (account.Deposits == null)
+        {
+            account.Deposits = new Dictionary<CurrencyType, decimal>();
+        }
 
         // Get Domestic Balance (KRW)
         try
@@ -251,10 +255,10 @@ public class KisBrokerAdapter : IBrokerAdapter
 
             var domesticHeaders = new Dictionary<string, string>
             {
-                { "custtype", "P" }  // P = 개인, B = 법인
+                { "custtype", "P" }  // P = 媛쒖씤, B = 踰뺤씤
             };
 
-            var domesticResponse = await _client.ExecuteAsync<KisDomesticBalanceResponse>("DomesticBalance", null, domesticQueryParams, domesticHeaders);
+            var domesticResponse = await _client.ExecuteAsync<DomesticBalanceResponse>("DomesticBalance", null, domesticQueryParams, domesticHeaders);
             if (domesticResponse?.Output2 != null && domesticResponse.Output2.Count > 0)
             {
                 account.Deposits.Add(CurrencyType.KRW, domesticResponse.Output2[0].DncaTotAmt);
@@ -300,7 +304,7 @@ public class KisBrokerAdapter : IBrokerAdapter
                     { "custtype", "P" }
                 };
 
-                var overseasResponse = await _client.ExecuteAsync<KisOverseasBalanceResponse>("OverseasBalance", null, overseasQueryParams, overseasHeaders);
+                var overseasResponse = await _client.ExecuteAsync<OverseasBalanceResponse>("OverseasBalance", null, overseasQueryParams, overseasHeaders);
                 
                 if (overseasResponse?.Output2 != null)
                 {
@@ -345,9 +349,10 @@ public class KisBrokerAdapter : IBrokerAdapter
         return account;
     }
 
-    public async Task<List<Position>> GetPositionsAsync(string accountNumber)
+    public async Task<List<Position>> GetPositionsAsync()
     {
         await EnsureConnectedAsync();
+        var accountNumber = _client.Account.Number;
         _logger.LogInformation("Getting positions for account {AccountNumber} via KIS.", accountNumber);
 
         var positions = new List<Position>();
@@ -372,12 +377,12 @@ public class KisBrokerAdapter : IBrokerAdapter
                 { "CTX_AREA_NK100", "" }
             };
 
-            var domesticResponse = await _client.ExecuteAsync<KisDomesticBalanceResponse>("DomesticBalance", null, domesticQueryParams);
+            var domesticResponse = await _client.ExecuteAsync<DomesticBalanceResponse>("DomesticBalance", null, domesticQueryParams);
             if (domesticResponse?.Output1 != null)
             {
                 positions.AddRange(domesticResponse.Output1.Select(p => new Position
                 {
-                    AccountAlias = _alias ?? accountNumber,
+                    AccountAlias = _client.Account.Alias ?? accountNumber,
                     Ticker = p.Pdno,
                     Currency = CurrencyType.KRW,
                     Qty = p.HldgQty,
@@ -409,12 +414,12 @@ public class KisBrokerAdapter : IBrokerAdapter
                     { "OVRS_EXCH_CD", exch }
                 };
 
-                var overseasResponse = await _client.ExecuteAsync<KisOverseasPositionsResponse>("OverseasPositions", null, overseasQueryParams);
+                var overseasResponse = await _client.ExecuteAsync<OverseasPositionsResponse>("OverseasPositions", null, overseasQueryParams);
                 if (overseasResponse?.Output1 != null)
                 {
                     positions.AddRange(overseasResponse.Output1.Select(p => new Position
                     {
-                        AccountAlias = _alias ?? accountNumber,
+                        AccountAlias = _client.Account.Alias ?? accountNumber,
                         Ticker = p.OvrsPdno,
                         Currency = GetCurrencyFromExchangeCode(exch),
                         Qty = p.SellableQty,
@@ -482,9 +487,10 @@ public class KisBrokerAdapter : IBrokerAdapter
         };
     }
 
-    public async Task<IEnumerable<Order>> GetOpenOrdersAsync(string accountNumber)
+    public async Task<IEnumerable<Order>> GetOpenOrdersAsync()
     {
         await EnsureConnectedAsync();
+        var accountNumber = _client.Account.Number;
         _logger.LogInformation("Getting open orders for account {AccountNumber} via KIS.", accountNumber);
 
         var openOrders = new List<Order>();
@@ -497,14 +503,13 @@ public class KisBrokerAdapter : IBrokerAdapter
             {
                 { "CANO", cano },
                 { "ACNT_PRDT_CD", acntPrdtCd },
-                { "INQR_DVSN_1", "0" }, // 0: 조회순서
-                { "INQR_DVSN_3", "00" }, // 00: 전체
-                { "INQR_DVSN_2", "01" }, // 01: 미체결
-                { "CTX_AREA_FK100", "" },
+                { "INQR_DVSN_1", "0" }, // 0: 議고쉶?쒖꽌
+                { "INQR_DVSN_3", "00" }, // 00: ?꾩껜
+                { "INQR_DVSN_2", "01" }, // 01: 誘몄껜寃?                { "CTX_AREA_FK100", "" },
                 { "CTX_AREA_NK100", "" }
             };
 
-            var domesticResponse = await _client.ExecuteAsync<KisDomesticOpenOrdersResponse>("DomesticOpenOrders", null, domesticQueryParams);
+            var domesticResponse = await _client.ExecuteAsync<DomesticOpenOrdersResponse>("DomesticOpenOrders", null, domesticQueryParams);
             if (domesticResponse?.Output1 != null)
             {
                 foreach (var item in domesticResponse.Output1)
@@ -514,7 +519,7 @@ public class KisBrokerAdapter : IBrokerAdapter
                         openOrders.Add(new Order
                         {
                             Id = Guid.NewGuid(), // KIS doesn't give UUID, generate one or use OrdNo if string
-                            AccountAlias = _alias ?? accountNumber,
+                            AccountAlias = _client.Account.Alias ?? accountNumber,
                             Ticker = item.Pdno,
                             Action = item.SllBuyDvsnCd == "02" ? OrderAction.Buy : OrderAction.Sell,
                             Type = OrderType.Limit, // Assuming limit for now
@@ -547,7 +552,7 @@ public class KisBrokerAdapter : IBrokerAdapter
                 { "CTX_AREA_NK200", "" }
             };
 
-            var overseasResponse = await _client.ExecuteAsync<KisOverseasOpenOrdersResponse>("OverseasOpenOrders", null, overseasQueryParams);
+            var overseasResponse = await _client.ExecuteAsync<OverseasOpenOrdersResponse>("OverseasOpenOrders", null, overseasQueryParams);
             if (overseasResponse?.Output != null)
             {
                 foreach (var item in overseasResponse.Output)
@@ -557,7 +562,7 @@ public class KisBrokerAdapter : IBrokerAdapter
                         openOrders.Add(new Order
                         {
                             Id = Guid.NewGuid(),
-                            AccountAlias = _alias ?? accountNumber,
+                            AccountAlias = _client.Account.Alias ?? accountNumber,
                             Ticker = item.Pdno,
                             Action = item.SllBuyDvsnCd == "02" ? OrderAction.Buy : OrderAction.Sell,
                             Type = OrderType.Limit,
@@ -594,7 +599,7 @@ public class KisBrokerAdapter : IBrokerAdapter
                     { "FID_INPUT_ISCD", ticker }
                 };
 
-                var response = await _client.ExecuteAsync<KisDomesticPriceResponse>("DomesticPrice", null, queryParams);
+                var response = await _client.ExecuteAsync<DomesticPriceResponse>("DomesticPrice", null, queryParams);
                 if (response?.Output != null)
                 {
                     decimal.TryParse(response.Output.StckPrpr, out var price);
@@ -635,7 +640,7 @@ public class KisBrokerAdapter : IBrokerAdapter
                         { "SYMB", ticker }
                     };
 
-                    var response = await _client.ExecuteAsync<KisOverseasPriceResponse>("OverseasPrice", null, queryParams);
+                    var response = await _client.ExecuteAsync<OverseasPriceResponse>("OverseasPrice", null, queryParams);
                     if (response?.Output != null && !string.IsNullOrEmpty(response.Output.Last))
                     {
                         decimal.TryParse(response.Output.Last, out var price);
@@ -654,4 +659,3 @@ public class KisBrokerAdapter : IBrokerAdapter
         return new PriceInfo(0, 0);
     }
 }
-

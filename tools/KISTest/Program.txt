@@ -6,14 +6,14 @@ using yQuant.Infra.Middleware.Redis;
 using yQuant.Infra.Middleware.Redis.Interfaces;
 using yQuant.Infra.Middleware.Redis.Services;
 
-Console.WriteLine("?îç KIS Account Connection Test");
+Console.WriteLine("?ÔøΩÔøΩ KIS Account Connection Test");
 Console.WriteLine("================================\n");
 
 // Parse command-line arguments
 bool refreshToken = args.Contains("--refresh-token") || args.Contains("-r");
 if (refreshToken)
 {
-    Console.WriteLine("?†Ô∏è  Token refresh mode enabled - will invalidate existing token\n");
+    Console.WriteLine("?ÔøΩÔ∏è  Token refresh mode enabled - will invalidate existing token\n");
 }
 
 // Load .env files
@@ -53,7 +53,7 @@ static void LoadEnvFile(string filePath)
 {
     if (!File.Exists(filePath)) return;
 
-    Console.WriteLine($"?ìÑ Loading env file: {filePath}");
+    Console.WriteLine($"?ÔøΩÔøΩ Loading env file: {filePath}");
     foreach (var line in File.ReadAllLines(filePath))
     {
         if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
@@ -86,7 +86,7 @@ var account = new Account
     Active = true
 };
 
-Console.WriteLine($"?ìã Account Info:");
+Console.WriteLine($"?ÔøΩÔøΩ Account Info:");
 Console.WriteLine($"   Alias: {account.Alias}");
 Console.WriteLine($"   Number: {account.Number}");
 Console.WriteLine($"   Broker: {account.Broker}");
@@ -95,7 +95,7 @@ if (string.IsNullOrEmpty(account.AppKey) ||
     account.AppKey == "YOUR_APP_KEY_1")
 {
     Console.WriteLine("??AppKey not configured!");
-    Console.WriteLine("\n?í° Set your credentials in .env.local:");
+    Console.WriteLine("\n?ÔøΩÔøΩ Set your credentials in .env.local:");
     Console.WriteLine("KIS__AppKey=YOUR_APP_KEY");
     Console.WriteLine("KIS__AppSecret=YOUR_APP_SECRET");
     Console.WriteLine("KIS__AccountNumber=12345678-01");
@@ -110,7 +110,7 @@ try
         builder.AddConsole();
         builder.SetMinimumLevel(LogLevel.Information);
     });
-    var logger = loggerFactory.CreateLogger<KISConnector>();
+    var logger = loggerFactory.CreateLogger<KISClient>();
 
     // Redis Service
     IRedisService? redisService = null;
@@ -134,7 +134,7 @@ try
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"?†Ô∏è Redis connection failed: {ex.Message}. Proceeding without Redis.");
+            Console.WriteLine($"?ÔøΩÔ∏è Redis connection failed: {ex.Message}. Proceeding without Redis.");
         }
     }
 
@@ -145,10 +145,9 @@ try
     var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
 
     Console.WriteLine("Test 1: Creating KIS Client...");
-    var kisClient = new KISConnector(
+    var kisClient = new KISClient(
         httpClient,
         logger,
-        redisService,
         account,
         apiConfig
     );
@@ -193,7 +192,7 @@ try
 catch (HttpRequestException ex)
 {
     Console.WriteLine($"??HTTP Request failed: {ex.Message}");
-    Console.WriteLine("\n?í° Troubleshooting:");
+    Console.WriteLine("\n?ÔøΩÔøΩ Troubleshooting:");
     Console.WriteLine("1. Check your internet connection");
     Console.WriteLine("2. Check if KIS API is accessible");
     Environment.Exit(1);
@@ -202,7 +201,7 @@ catch (Exception ex)
 {
     Console.WriteLine($"??Error: {ex.Message}");
     Console.WriteLine($"\nStack trace: {ex.StackTrace}");
-    Console.WriteLine("\n?í° Troubleshooting:");
+    Console.WriteLine("\n?ÔøΩÔøΩ Troubleshooting:");
     Console.WriteLine("1. Verify AppKey and AppSecret are correct");
     Console.WriteLine("2. Check if the app is activated in KIS OpenAPI portal");
     Console.WriteLine("3. Ensure account alias is correct");

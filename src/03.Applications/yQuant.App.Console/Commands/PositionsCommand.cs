@@ -15,13 +15,9 @@ namespace yQuant.App.Console.Commands
             _assetService = assetService;
             _accountNumber = accountNumber;
         }
-
-        public string Name => "positions";
-        public string Description => "Show account positions (formerly assets)";
-
         public async Task ExecuteAsync(string[] args)
         {
-            var account = await _assetService.GetAccountOverviewAsync(_accountNumber);
+            var account = await _assetService.GetAccountOverviewAsync();
             
             System.Console.WriteLine("========================================");
             System.Console.WriteLine($"Account Summary: {account.Alias} ({account.Number})");

@@ -6,6 +6,7 @@ using yQuant.App.Dashboard.Services;
 using Microsoft.Extensions.Hosting; // For AddHostedService
 using Microsoft.Extensions.Configuration; // For GetConnectionString
 using Microsoft.Extensions.DependencyInjection; // For GetRequiredService
+using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Reporting.Performance.Interfaces;
 using yQuant.Infra.Reporting.Performance.Repositories;
@@ -49,30 +50,36 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 builder.Services.AddHttpClient();
 
 // Retrieve configuration values for KISClient
-// Retrieve configuration values for KISClient
 var configuration = builder.Configuration;
-var userId = configuration["KIS:UserId"];
 var appKey = configuration["KIS:AppKey"];
 var appSecret = configuration["KIS:AppSecret"];
-var baseUrl = configuration["KIS:BaseUrl"];
 var accountNo = configuration["KIS:AccountNo"];
 
-builder.Services.AddSingleton<IKisConnector>(sp =>
+// Create Account object
+var dashboardAccount = new Account
 {
-    var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(KisConnector));
-    var logger = sp.GetRequiredService<ILogger<KisConnector>>();
-    var redis = sp.GetService<IRedisService>();
+    Alias = "DashboardAccount",
+    Number = accountNo!,
+    Broker = "KIS",
+    AppKey = appKey!,
+    AppSecret = appSecret!,
+    Deposits = new Dictionary<CurrencyType, decimal>(),
+    Active = true
+};
+
+builder.Services.AddSingleton<IKISClient>(sp =>
+{
+    var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(KISClient));
+    var logger = sp.GetRequiredService<ILogger<KISClient>>();
     var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
-    apiConfig.BaseUrl = baseUrl!;
-    return new KisConnector(httpClient, logger, redis, "DashboardAccount", appKey!, appSecret!, apiConfig);
+    return new KISClient(httpClient, logger, dashboardAccount, apiConfig);
 });
 
-builder.Services.AddSingleton<KisBrokerAdapter>(sp =>
+builder.Services.AddSingleton<KISBrokerAdapter>(sp =>
 {
-    var logger = sp.GetRequiredService<ILogger<KisBrokerAdapter>>();
-    var client = sp.GetRequiredService<IKisConnector>();
-    var prefix = accountNo?.Length >= 8 ? accountNo.Substring(0, 8) : "00000000";
-    return new KisBrokerAdapter(logger, client, prefix, "DashboardAccount");
+    var logger = sp.GetRequiredService<ILogger<KISBrokerAdapter>>();
+    var client = sp.GetRequiredService<IKISClient>();
+    return new KISBrokerAdapter(client, logger);
 });
 
 builder.Services.AddSingleton<yQuant.Core.Services.AssetService>();

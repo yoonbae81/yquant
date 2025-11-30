@@ -51,6 +51,8 @@ public class BasicPositionSizerTests
             Alias = "TestAccount",
             Number = "123",
             Broker = "Test",
+            AppKey = "test_key",
+            AppSecret = "test_secret",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal> { { CurrencyType.USD, 1_000_000m } },
             Positions = new List<Position>()
@@ -93,6 +95,8 @@ public class BasicPositionSizerTests
             Alias = "TestAccount",
             Number = "123",
             Broker = "Test",
+            AppKey = "test_key",
+            AppSecret = "test_secret",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal> { { CurrencyType.USD, 100m } }, // Not enough cash
             Positions = new List<Position>()

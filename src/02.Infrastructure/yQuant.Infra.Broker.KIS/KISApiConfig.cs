@@ -7,8 +7,6 @@ using System.Text.Json.Serialization;
 
 public class KISApiConfig
 {
-    public string BaseUrl { get; set; } = string.Empty;
-
     [JsonExtensionData]
     public Dictionary<string, JsonElement> ExtensionData { get; set; } = new();
 
@@ -26,11 +24,6 @@ public class KISApiConfig
                 
                 if (partialConfig != null)
                 {
-                    if (!string.IsNullOrEmpty(partialConfig.BaseUrl))
-                    {
-                        config.BaseUrl = partialConfig.BaseUrl;
-                    }
-                    
                     foreach (var kvp in partialConfig.ExtensionData)
                     {
                         config.ExtensionData[kvp.Key] = kvp.Value;
@@ -48,7 +41,7 @@ public class KISApiConfig
         return new KISApiConfig();
     }
 
-    public bool TryGetValue(string key, out EndpointConfig value)
+    public bool TryGetValue(string key, out EndpointConfig? value)
     {
         value = null;
         if (ExtensionData.TryGetValue(key, out var element))

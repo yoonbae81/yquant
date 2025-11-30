@@ -1,8 +1,8 @@
 using System.Text.Json.Serialization;
 
-namespace yQuant.Infra.Trading.KIS.Models;
+namespace yQuant.Infra.Broker.KIS.Models;
 
-public class KisOverseasOrderResponse
+public class OverseasOrderResponse
 {
     [JsonPropertyName("rt_cd")]
     public string RtCd { get; set; } = string.Empty;
@@ -11,10 +11,10 @@ public class KisOverseasOrderResponse
     public string Msg1 { get; set; } = string.Empty;
 
     [JsonPropertyName("output")]
-    public KisOverseasOrderOutput? Output { get; set; }
+    public OverseasOrderOutput? Output { get; set; }
 }
 
-public class KisOverseasOrderOutput
+public class OverseasOrderOutput
 {
     [JsonPropertyName("ODNO")]
     public string Odno { get; set; } = string.Empty;

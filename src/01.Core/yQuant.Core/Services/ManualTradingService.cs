@@ -24,7 +24,7 @@ public class ManualTradingService : IManualTradingUseCase
 
         // Basic validation could go here
 
-        var result = await _brokerAdapter.PlaceOrderAsync(order, order.AccountAlias);
+        var result = await _brokerAdapter.PlaceOrderAsync(order);
         _logger.LogInformation("Manual order result: {IsSuccess} - {Message}", result.IsSuccess, result.Message);
     }
 }

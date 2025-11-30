@@ -15,6 +15,8 @@ public class CoreModelsTests
             Alias = "TestAccount",
             Number = "12345",
             Broker = "TestBroker",
+            AppKey = "test_key",
+            AppSecret = "test_secret",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal>
             {

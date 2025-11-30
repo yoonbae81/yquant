@@ -46,7 +46,7 @@ public class RedisMasterDataRepositoryTests
             new StockMaster 
             { 
                 Ticker = "005930", 
-                Name = "삼성전자", 
+                Name = "?�성?�자", 
                 Exchange = "KOSPI", 
                 Currency = CurrencyType.KRW 
             },
@@ -115,7 +115,7 @@ public class RedisMasterDataRepositoryTests
         var ticker = "005930";
         var hashEntries = new HashEntry[]
         {
-            new HashEntry("name", "삼성전자"),
+            new HashEntry("name", "?�성?�자"),
             new HashEntry("exchange", "KOSPI"),
             new HashEntry("currency", "KRW")
         };
@@ -131,7 +131,7 @@ public class RedisMasterDataRepositoryTests
         // Assert
         Assert.IsNotNull(result);
         Assert.AreEqual(ticker, result.Ticker);
-        Assert.AreEqual("삼성전자", result.Name);
+        Assert.AreEqual("?�성?�자", result.Name);
         Assert.AreEqual("KOSPI", result.Exchange);
         Assert.AreEqual(CurrencyType.KRW, result.Currency);
     }

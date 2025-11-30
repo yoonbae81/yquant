@@ -43,44 +43,19 @@ class Program
             })
             .ConfigureServices((context, services) =>
             {
-                // Read from multi-account configuration
-                var accountsSection = context.Configuration.GetSection("Accounts");
-                var targetAccount = accountsSection.GetChildren()
-                    .FirstOrDefault(a => a["Alias"]?.Equals(targetAlias, StringComparison.OrdinalIgnoreCase) == true);
-                
-                if (targetAccount == null)
-                {
-                    // Will be handled in Main after build
-                    return; 
-                }
+                services.AddSingleton<KISAccountProvider>();
 
-                var accountNo = targetAccount["Number"];
-                var appKey = targetAccount["AppKey"];
-                var appSecret = targetAccount["AppSecret"];
-                var baseUrl = targetAccount["BaseUrl"] ?? "https://openapi.koreainvestment.com:9443";
-
-                if (string.IsNullOrEmpty(appKey) || string.IsNullOrEmpty(appSecret))
+                // Register Account object via Provider
+                services.AddSingleton<Account>(sp =>
                 {
-                    System.Console.WriteLine($"CRITICAL: Account '{targetAlias}' is missing credentials (AppKey, AppSecret).");
-                    return;
-                }
-
-                services.AddHttpClient<IKISConnector, KISConnector>(client =>
-                {
-                    client.BaseAddress = new Uri(baseUrl);
+                    var provider = sp.GetRequiredService<KISAccountProvider>();
+                    var account = provider.GetAccount(targetAlias);
+                    if (account == null)
+                    {
+                        throw new InvalidOperationException($"Account '{targetAlias}' not found or invalid.");
+                    }
+                    return account;
                 });
-
-                // Create Account object
-                var account = new Account
-                {
-                    Alias = targetAlias,
-                    Number = accountNo!,
-                    Broker = targetAccount["Broker"] ?? "KIS",
-                    AppKey = appKey!,
-                    AppSecret = appSecret!,
-                    Deposits = new Dictionary<CurrencyType, decimal>(),
-                    Active = true
-                };
 
                 // Register KISApiConfig
                 services.AddSingleton<KISApiConfig>(sp =>
@@ -91,29 +66,22 @@ class Program
                     return apiConfig;
                 });
 
-                // Register KISConnector with Account object
-                services.AddSingleton<IKISConnector>(sp =>
+                // Register KISClient with Account object
+                services.AddSingleton<IKISClient>(sp =>
                 {
-                    var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(KISConnector));
-                    var logger = sp.GetRequiredService<ILogger<KISConnector>>();
-                    var redis = sp.GetService<IRedisService>();
+                    var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(KISClient));
+                    var logger = sp.GetRequiredService<ILogger<KISClient>>();
                     var apiConfig = sp.GetRequiredService<KISApiConfig>();
+                    var account = sp.GetRequiredService<Account>();
                     
-                    // Override BaseUrl from account config if present
-                    if (!string.IsNullOrEmpty(baseUrl))
-                    {
-                        apiConfig.BaseUrl = baseUrl;
-                    }
-
-                    return new KISConnector(httpClient, logger, redis, account, apiConfig);
+                    return new KISClient(httpClient, logger, account, apiConfig);
                 });
 
                 services.AddSingleton<KISBrokerAdapter>(sp =>
                 {
                     var logger = sp.GetRequiredService<ILogger<KISBrokerAdapter>>();
-                    var client = sp.GetRequiredService<IKISConnector>();
-                    var prefix = accountNo?.Length >= 8 ? accountNo.Substring(0, 8) : "00000000";
-                    return new KISBrokerAdapter(logger, client, prefix, targetAlias);
+                    var client = sp.GetRequiredService<IKISClient>();
+                    return new KISBrokerAdapter(client, logger);
                 });
 
                 services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
@@ -122,11 +90,27 @@ class Program
 
                 // Register Commands
                 services.AddTransient<ICommand, TokenCommand>();
-                services.AddTransient<ICommand>(sp => new DepositCommand(sp.GetRequiredService<yQuant.Core.Services.AssetService>(), accountNo));
-                services.AddTransient<ICommand>(sp => new PositionsCommand(sp.GetRequiredService<yQuant.Core.Services.AssetService>(), accountNo));
+                services.AddTransient<ICommand>(sp => 
+                {
+                    var account = sp.GetRequiredService<Account>();
+                    return new DepositCommand(sp.GetRequiredService<yQuant.Core.Services.AssetService>(), account.Number);
+                });
+                services.AddTransient<ICommand>(sp => 
+                {
+                    var account = sp.GetRequiredService<Account>();
+                    return new PositionsCommand(sp.GetRequiredService<yQuant.Core.Services.AssetService>(), account.Number);
+                });
                 services.AddTransient<ICommand>(sp => new PriceCommand(sp.GetRequiredService<KISBrokerAdapter>()));
-                services.AddTransient<ICommand>(sp => new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, accountNo, OrderAction.Buy));
-                services.AddTransient<ICommand>(sp => new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, accountNo, OrderAction.Sell));
+                services.AddTransient<ICommand>(sp => 
+                {
+                    var account = sp.GetRequiredService<Account>();
+                    return new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, account.Number, OrderAction.Buy);
+                });
+                services.AddTransient<ICommand>(sp => 
+                {
+                    var account = sp.GetRequiredService<Account>();
+                    return new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, account.Number, OrderAction.Sell);
+                });
                 services.AddTransient<ICommand>(sp => new ReportCommand(sp.GetRequiredService<IPerformanceRepository>(), sp.GetRequiredService<IQuantStatsService>(), targetAlias));
 
                 services.AddSingleton<CommandRouter>();
@@ -134,23 +118,22 @@ class Program
             .Build();
 
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
-        var config = host.Services.GetRequiredService<IConfiguration>();
         
-        // Verify account exists
-        var accountsSection = config.GetSection("Accounts");
-        var targetAccount = accountsSection.GetChildren()
-            .FirstOrDefault(a => a["Alias"]?.Equals(targetAlias, StringComparison.OrdinalIgnoreCase) == true);
-
-        if (targetAccount == null)
+        // Check if Account can be resolved (validates existence)
+        try 
         {
-            System.Console.WriteLine($"Error: Account '{targetAlias}' not found in configuration.");
-            return;
+            var account = host.Services.GetService<Account>();
+            if (account == null)
+            {
+                 // Should be caught by GetService throwing or returning null if not required, but we used AddSingleton factory which throws.
+                 // However, GetService might catch the exception inside? No, GetService returns null if not found, but if factory throws, it throws.
+                 // Let's use GetService and let it throw if factory fails?
+                 // Actually, let's just try to resolve it.
+            }
         }
-
-        var accountNo = targetAccount["Number"];
-        if (string.IsNullOrEmpty(accountNo))
+        catch (Exception ex)
         {
-            logger.LogError($"Account Number is missing for account '{targetAlias}'.");
+            System.Console.WriteLine($"Error: {ex.Message}");
             return;
         }
 

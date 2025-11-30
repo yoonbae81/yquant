@@ -21,7 +21,6 @@ namespace yQuant.App.BrokerGateway
         private readonly ISystemLogger _systemLogger;
 
         private KISAccountManager? _kisAccountManager;
-        private List<AccountConfig> _accountsToSync = new();
         private TimeSpan _syncInterval;
 
         public Worker(ILogger<Worker> logger, IConfiguration configuration,
@@ -44,52 +43,11 @@ namespace yQuant.App.BrokerGateway
 
         public override async Task StartAsync(CancellationToken cancellationToken)
         {
-            var config = new BrokerGatewayConfig();
-            _configuration.Bind(config);
-
-            _accountsToSync = config.Accounts ?? new List<AccountConfig>();
-            _syncInterval = TimeSpan.FromSeconds(config.SyncIntervalSeconds > 0 ? config.SyncIntervalSeconds : 1);
+            var syncIntervalSeconds = _configuration.GetValue<int>("SyncIntervalSeconds");
+            _syncInterval = TimeSpan.FromSeconds(syncIntervalSeconds > 0 ? syncIntervalSeconds : 1);
 
             _kisAccountManager = _serviceProvider.GetRequiredService<KISAccountManager>();
-            LoadAccountAdapters(_accountsToSync);
             await base.StartAsync(cancellationToken);
-        }
-
-        private void LoadAccountAdapters(List<AccountConfig> accounts)
-        {
-            if (_kisAccountManager == null)
-            {
-                _logger.LogError("KISAccountManager is not initialized.");
-                return;
-            }
-
-            foreach (var account in accounts)
-            {
-                if (account.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
-                {
-                    if (string.IsNullOrEmpty(account.AppKey) || string.IsNullOrEmpty(account.AppSecret))
-                    {
-                        _logger.LogWarning("Account {Alias} has missing credentials. Skipping.", account.Alias);
-                        continue;
-                    }
-
-                    try
-                    {
-                        _kisAccountManager.RegisterAccount(
-                            account.Alias,
-                            account.AppKey,
-                            account.AppSecret,
-                            account.BaseUrl,
-                            account.Number
-                        );
-                        _logger.LogInformation("Loaded KIS account: {Alias}", account.Alias);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to load KIS account: {Alias}", account.Alias);
-                    }
-                }
-            }
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
@@ -148,8 +106,14 @@ namespace yQuant.App.BrokerGateway
                 return;
             }
 
-            var accountConfig = _accountsToSync.FirstOrDefault(a => a.Alias == order.AccountAlias);
-            if (accountConfig == null)
+            if (_kisAccountManager == null)
+            {
+                _logger.LogError("KISAccountManager is not initialized.");
+                return;
+            }
+
+            var account = _kisAccountManager.GetAccount(order.AccountAlias);
+            if (account == null)
             {
                 _logger.LogWarning("No configuration found for AccountAlias {AccountAlias} for order {OrderId}.", order.AccountAlias, order.Id);
                 var msg = _telegramBuilder.BuildNoAccountConfigMessage(order.AccountAlias, order.Ticker);
@@ -158,9 +122,9 @@ namespace yQuant.App.BrokerGateway
             }
 
             IBrokerAdapter? brokerAdapter = null;
-            if (accountConfig.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
+            if (account.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
             {
-                brokerAdapter = _kisAccountManager?.GetAdapter(order.AccountAlias);
+                brokerAdapter = _kisAccountManager.GetAdapter(order.AccountAlias);
             }
 
             if (brokerAdapter == null)
@@ -176,8 +140,8 @@ namespace yQuant.App.BrokerGateway
                 // Ensure connection is established before sending order
                 await brokerAdapter.EnsureConnectedAsync();
 
-                var orderResult = await brokerAdapter.PlaceOrderAsync(order, accountConfig.Number);
-                _logger.LogInformation("Order {OrderId} placed via {Broker}. Result: {IsSuccess} - {Message}", order.Id, accountConfig.Broker, orderResult.IsSuccess, orderResult.Message);
+                var orderResult = await brokerAdapter.PlaceOrderAsync(order);
+                _logger.LogInformation("Order {OrderId} placed via {Broker}. Result: {IsSuccess} - {Message}", order.Id, account.Broker, orderResult.IsSuccess, orderResult.Message);
 
                 // Publish execution result to Redis
                 var db = _redis.GetDatabase();
@@ -232,18 +196,23 @@ namespace yQuant.App.BrokerGateway
 
         private async Task SyncAccountStates()
         {
+            if (_kisAccountManager == null) return;
+
             var db = _redis.GetDatabase();
-            foreach (var accountConfig in _accountsToSync)
+            foreach (var alias in _kisAccountManager.GetAccountAliases())
             {
+                var account = _kisAccountManager.GetAccount(alias);
+                if (account == null) continue;
+
                 IBrokerAdapter? brokerAdapter = null;
-                if (accountConfig.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
+                if (account.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
                 {
-                    brokerAdapter = _kisAccountManager?.GetAdapter(accountConfig.Alias);
+                    brokerAdapter = _kisAccountManager.GetAdapter(alias);
                 }
 
                 if (brokerAdapter == null)
                 {
-                    _logger.LogWarning("No broker adapter found for account {Alias}. Skipping sync.", accountConfig.Alias);
+                    _logger.LogWarning("No broker adapter found for account {Alias}. Skipping sync.", alias);
                     continue;
                 }
 
@@ -253,84 +222,54 @@ namespace yQuant.App.BrokerGateway
                     await brokerAdapter.EnsureConnectedAsync();
 
                     // Sync Account State
-                    var accountState = await brokerAdapter.GetAccountStateAsync(accountConfig.Number);
+                    var accountState = await brokerAdapter.GetAccountStateAsync();
                     if (accountState != null)
                     {
                         // Map AccountState to yQuant.Core.Models.Account
-                        var coreAccount = new Account
-                        {
-                            Alias = accountConfig.Alias,
-                            Number = accountConfig.Number,
-                            Broker = accountConfig.Broker,
-                            Active = true, // Assuming active if we are syncing it
-                            Deposits = new Dictionary<CurrencyType, decimal>(),
-                            Positions = new List<Position>()
-                        };
-
-                        // Populate deposits from Account's Deposits dictionary
+                        // We can reuse the existing account object but it's safer to create a DTO or update the existing one carefully
+                        // For now, let's update the deposits on the existing account object and serialize it
+                        
+                        account.Deposits.Clear(); // Clear old deposits
                         if (accountState.Deposits.TryGetValue(CurrencyType.KRW, out var krwDeposit))
                         {
-                            coreAccount.Deposits.Add(CurrencyType.KRW, krwDeposit);
+                            account.Deposits.Add(CurrencyType.KRW, krwDeposit);
                         }
                         if (accountState.Deposits.TryGetValue(CurrencyType.USD, out var usdDeposit))
                         {
-                            coreAccount.Deposits.Add(CurrencyType.USD, usdDeposit);
+                            account.Deposits.Add(CurrencyType.USD, usdDeposit);
                         }
 
-                        await db.StringSetAsync($"cache:account:{accountConfig.Alias}", JsonSerializer.Serialize(coreAccount), TimeSpan.FromSeconds(5));
-                        _logger.LogDebug("Synced account state for {AccountId}", accountConfig.Alias);
+                        await db.StringSetAsync($"cache:account:{alias}", JsonSerializer.Serialize(account), TimeSpan.FromSeconds(5));
+                        _logger.LogDebug("Synced account state for {AccountId}", alias);
                     }
 
                     // Sync Positions
-                    var positions = await brokerAdapter.GetPositionsAsync(accountConfig.Number);
+                    var positions = await brokerAdapter.GetPositionsAsync();
                     if (positions != null)
                     {
                         foreach (var pos in positions)
                         {
                             // KISAdapter returns yQuant.Core.Models.Position directly
-                            await db.StringSetAsync($"cache:position:{accountConfig.Alias}:{pos.Ticker}", JsonSerializer.Serialize(pos), TimeSpan.FromSeconds(5));
-                            _logger.LogDebug("Synced position for {AccountId}: {Ticker}", accountConfig.Alias, pos.Ticker);
+                            await db.StringSetAsync($"cache:position:{alias}:{pos.Ticker}", JsonSerializer.Serialize(pos), TimeSpan.FromSeconds(5));
+                            _logger.LogDebug("Synced position for {AccountId}: {Ticker}", alias, pos.Ticker);
                         }
                     }
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Failed to sync state for account {AccountId} with broker {Broker}.", accountConfig.Alias, accountConfig.Broker);
-                    var msg = _telegramBuilder.BuildAccountSyncFailureMessage(accountConfig.Alias, ex.Message);
+                    _logger.LogError(ex, "Failed to sync state for account {AccountId} with broker {Broker}.", alias, account.Broker);
+                    var msg = _telegramBuilder.BuildAccountSyncFailureMessage(alias, ex.Message);
                     await _telegramNotifier.SendNotificationAsync(msg);
                     
                     // Logging
                     foreach (var logger in _tradingLoggers)
                     {
-                        await logger.LogAccountErrorAsync(accountConfig.Alias, ex, "SyncAccountStates");
+                        await logger.LogAccountErrorAsync(alias, ex, "SyncAccountStates");
                     }
                 }
             }
         }
 
 
-        // Configuration classes
-        public class BrokerGatewayConfig
-        {
-            public List<AccountConfig>? Accounts { get; set; }
-            public TelegramConfig? Telegram { get; set; }
-            public int SyncIntervalSeconds { get; set; }
-        }
-
-        public class AccountConfig
-        {
-            public string Alias { get; set; } = string.Empty;  // Internal account identifier
-            public string Broker { get; set; } = string.Empty;
-            public string Number { get; set; } = string.Empty;
-            public string AppKey { get; set; } = string.Empty;
-            public string AppSecret { get; set; } = string.Empty;
-            public string BaseUrl { get; set; } = string.Empty;
-        }
-
-        public class TelegramConfig
-        {
-            public string BotToken { get; set; } = string.Empty;
-            public string ChatId { get; set; } = string.Empty;
-        }
     }
 }

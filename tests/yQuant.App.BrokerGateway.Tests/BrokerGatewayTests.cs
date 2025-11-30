@@ -59,7 +59,7 @@ public class BrokerGatewayTests
     public async Task Worker_StartsAndStops_Successfully()
     {
         // Arrange
-        var templateService = new yQuant.Infra.Notification.Common.Services.TemplateService();
+        var templateService = new yQuant.Infra.Notification.Telegram.Services.TelegramTemplateService();
         var telegramBuilder = new TelegramMessageBuilder(templateService);
         var worker = new Worker(_loggerMock!.Object, _configMock!.Object, _redisMock!.Object, _serviceProviderMock!.Object, _telegramNotifierMock!.Object, telegramBuilder, new[] { _tradingLoggerMock!.Object }, _systemLoggerMock!.Object);
 

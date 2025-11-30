@@ -1,13 +1,13 @@
-namespace yQuant.Infra.Trading.KIS.Models;
+namespace yQuant.Infra.Broker.KIS.Models;
 
-public class KisDomesticOpenOrdersResponse
+public class DomesticOpenOrdersResponse
 {
     public string RtCd { get; set; } = string.Empty;
     public string Msg1 { get; set; } = string.Empty;
-    public List<KisDomesticOpenOrder> Output1 { get; set; } = new();
+    public List<DomesticOpenOrder> Output1 { get; set; } = new();
 }
 
-public class KisDomesticOpenOrder
+public class DomesticOpenOrder
 {
     public string Pdno { get; set; } = string.Empty; // Ticker
     public string PrdtName { get; set; } = string.Empty; // Name
@@ -20,14 +20,14 @@ public class KisDomesticOpenOrder
     public string RmnQty { get; set; } = string.Empty; // Remaining Qty
 }
 
-public class KisOverseasOpenOrdersResponse
+public class OverseasOpenOrdersResponse
 {
     public string RtCd { get; set; } = string.Empty;
     public string Msg1 { get; set; } = string.Empty;
-    public List<KisOverseasOpenOrder> Output { get; set; } = new();
+    public List<OverseasOpenOrder> Output { get; set; } = new();
 }
 
-public class KisOverseasOpenOrder
+public class OverseasOpenOrder
 {
     public string Pdno { get; set; } = string.Empty; // Ticker
     public string PrdtName { get; set; } = string.Empty; // Name

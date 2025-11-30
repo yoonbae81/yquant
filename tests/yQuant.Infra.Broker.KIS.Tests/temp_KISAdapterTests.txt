@@ -1,36 +1,26 @@
-using Moq;
+﻿using Moq;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS;
-using yQuant.Infra.Broker.KIS.Models;
+using yQuant.Infra.Trading.KIS.Models;
 using Xunit;
 
 namespace yQuant.Infra.Broker.KIS.Tests;
 
 public class KISAdapterTests
 {
-    private readonly Mock<IKISClient> _mockKisClient;
+    private readonly Mock<IKISConnector> _mockKisClient;
     private readonly Mock<ILogger<KISBrokerAdapter>> _mockLogger;
     private readonly KISBrokerAdapter _adapter;
     private const string AccountNoPrefix = "12345678";
     private const string UserId = "test_user";
     private const string AccountAlias = "test_alias";
-    private const string AccountNumber = "12345678-01";
 
     public KISAdapterTests()
     {
-        _mockKisClient = new Mock<IKISClient>();
+        _mockKisClient = new Mock<IKISConnector>();
         _mockLogger = new Mock<ILogger<KISBrokerAdapter>>();
-        
-        var account = new Account
-        {
-            Alias = AccountAlias,
-            Number = AccountNumber,
-            Broker = "KIS"
-        };
-        _mockKisClient.Setup(c => c.Account).Returns(account);
-
-        _adapter = new KISBrokerAdapter(_mockKisClient.Object, _mockLogger.Object);
+        _adapter = new KISBrokerAdapter(_mockLogger.Object, _mockKisClient.Object, AccountNoPrefix, AccountAlias);
     }
 
     [Fact]
@@ -46,37 +36,36 @@ public class KISAdapterTests
             Qty = 10,
             Price = 70000
         };
+        var accountNo = "12345678-01";
 
         _mockKisClient
-            .Setup(c => c.ExecuteAsync<DomesticOrderResponse>(
+            .Setup(c => c.ExecuteAsync<KisDomesticOrderResponse>(
                 "DomesticBuyOrder", // Endpoint name changed in Adapter logic
                 It.IsAny<object>(),
                 null,
-                null,
                 null
             ))
-            .ReturnsAsync(new DomesticOrderResponse 
+            .ReturnsAsync(new KisDomesticOrderResponse 
             { 
                 RtCd = "0", 
                 Msg1 = "Order Placed", 
-                Output = new DomesticOrderOutput { Odno = "12345" } 
+                Output = new KisDomesticOrderOutput { Odno = "12345" } 
             });
 
         // Act
-        var result = await _adapter.PlaceOrderAsync(order);
+        var result = await _adapter.PlaceOrderAsync(order, accountNo);
 
         // Assert
         Assert.True(result.IsSuccess);
         Assert.Equal("Order Placed", result.Message);
         Assert.Equal("12345", result.BrokerOrderId);
-        _mockKisClient.Verify(c => c.ExecuteAsync<DomesticOrderResponse>(
+        _mockKisClient.Verify(c => c.ExecuteAsync<KisDomesticOrderResponse>(
             "DomesticBuyOrder",
             It.Is<object>(body => 
                 body.GetType().GetProperty("PDNO")!.GetValue(body)!.ToString() == "005930" &&
                 body.GetType().GetProperty("ORD_QTY")!.GetValue(body)!.ToString() == "10" &&
                 body.GetType().GetProperty("ORD_UNPR")!.GetValue(body)!.ToString() == "70000"
             ),
-            null,
             null,
             null
         ), Times.Once);
@@ -95,19 +84,19 @@ public class KISAdapterTests
             Qty = 10,
             Price = 70000
         };
+        var accountNo = "12345678-01";
 
         _mockKisClient
-            .Setup(c => c.ExecuteAsync<DomesticOrderResponse>(
+            .Setup(c => c.ExecuteAsync<KisDomesticOrderResponse>(
                 "DomesticBuyOrder",
                 It.IsAny<object>(),
                 null,
-                null,
                 null
             ))
-            .ReturnsAsync(new DomesticOrderResponse { RtCd = "1", Msg1 = "Error" });
+            .ReturnsAsync(new KisDomesticOrderResponse { RtCd = "1", Msg1 = "Error" });
 
         // Act
-        var result = await _adapter.PlaceOrderAsync(order);
+        var result = await _adapter.PlaceOrderAsync(order, accountNo);
 
         // Assert
         Assert.False(result.IsSuccess);
@@ -119,16 +108,15 @@ public class KISAdapterTests
         // Arrange
         var ticker = "005930";
         _mockKisClient
-            .Setup(c => c.ExecuteAsync<DomesticPriceResponse>(
+            .Setup(c => c.ExecuteAsync<KisDomesticPriceResponse>(
                 "DomesticPrice",
                 null,
                 It.Is<Dictionary<string, string>>(q => q["FID_INPUT_ISCD"] == ticker),
-                null,
                 null
             ))
-            .ReturnsAsync(new DomesticPriceResponse
+            .ReturnsAsync(new KisDomesticPriceResponse
             {
-                Output = new DomesticPriceDetail
+                Output = new KisDomesticPriceDetail
                 {
                     StckPrpr = "70000",
                     PrdyCtrt = "1.5"
@@ -149,16 +137,15 @@ public class KISAdapterTests
         // Arrange
         var ticker = "AAPL";
         _mockKisClient
-            .Setup(c => c.ExecuteAsync<OverseasPriceResponse>(
+            .Setup(c => c.ExecuteAsync<KisOverseasPriceResponse>(
                 "OverseasPrice",
                 null,
                 It.Is<Dictionary<string, string>>(q => q["SYMB"] == ticker && q["EXCD"] == "NAS"),
-                null,
                 null
             ))
-            .ReturnsAsync(new OverseasPriceResponse
+            .ReturnsAsync(new KisOverseasPriceResponse
             {
-                Output = new OverseasPriceDetail
+                Output = new KisOverseasPriceDetail
                 {
                     Last = "150.00",
                     Rate = "2.5"

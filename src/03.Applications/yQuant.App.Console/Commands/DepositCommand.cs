@@ -21,7 +21,7 @@ namespace yQuant.App.Console.Commands
 
         public async Task ExecuteAsync(string[] args)
         {
-            var account = await _assetService.GetAccountOverviewAsync(_accountNumber);
+            var account = await _assetService.GetAccountOverviewAsync();
 
             System.Console.WriteLine("\n[Deposits]");
             foreach (var deposit in account.Deposits)

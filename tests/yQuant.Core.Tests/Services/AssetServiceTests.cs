@@ -27,6 +27,8 @@ public class AssetServiceTests
             Alias = "user1",
             Number = accountNumber,
             Broker = "TestBroker",
+            AppKey = "test_key",
+            AppSecret = "test_secret",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal>
             {

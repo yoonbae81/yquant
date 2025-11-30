@@ -1,8 +1,9 @@
-using System.Net;
+﻿using System.Net;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using Moq;
 using Moq.Protected;
+using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Trading.KIS.Models;
 using yQuant.Infra.Middleware.Redis.Interfaces;
@@ -13,9 +14,9 @@ namespace yQuant.Infra.Broker.KIS.Tests;
 public class KisConnectorTests
 {
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
-    private readonly Mock<ILogger<KisConnector>> _mockLogger;
+    private readonly Mock<ILogger<KISConnector>> _mockLogger;
     private readonly Mock<IRedisService> _mockRedisService;
-    private readonly KisConnector _client;
+    private readonly KISConnector _client;
     private readonly KISApiConfig _apiConfig;
     private readonly string _userId;
     private readonly string _accountAlias;
@@ -30,25 +31,37 @@ public class KisConnectorTests
             BaseAddress = new Uri("https://test.api.com")
         };
 
-        _mockLogger = new Mock<ILogger<KisConnector>>();
+        _mockLogger = new Mock<ILogger<KISConnector>>();
         _mockRedisService = new Mock<IRedisService>();
 
-        _apiConfig = new KISApiConfig
+        _apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
+        if (_apiConfig == null || _apiConfig.ExtensionData.Count == 0)
         {
-            { "Token", new EndpointConfig { Path = "/oauth2/tokenP", Method = "POST" } },
-            { "Hashkey", new EndpointConfig { Path = "/uapi/hashkey", Method = "POST" } },
-            { "Order", new EndpointConfig { Path = "/uapi/domestic-stock/v1/trading/order-cash", Method = "POST", TrId = "TTTC0802U" } }
-        };
+            // Fallback to manual config if API folder doesn't exist
+            _apiConfig = new KISApiConfig();
+            _apiConfig.ExtensionData["Token"] = JsonSerializer.SerializeToElement(new EndpointConfig { Path = "/oauth2/tokenP", Method = "POST" });
+            _apiConfig.ExtensionData["Hashkey"] = JsonSerializer.SerializeToElement(new EndpointConfig { Path = "/uapi/hashkey", Method = "POST" });
+            _apiConfig.ExtensionData["Order"] = JsonSerializer.SerializeToElement(new EndpointConfig { Path = "/uapi/domestic-stock/v1/trading/order-cash", Method = "POST", TrId = "TTTC0802U" });
+        }
 
         _apiConfig.BaseUrl = "https://test.api.com";
 
-        _client = new KisConnector(
+        var account = new yQuant.Core.Models.Account
+        {
+            Alias = _accountAlias,
+            Number = "12345678-01",
+            Broker = "KIS",
+            AppKey = "test_app_key",
+            AppSecret = "test_app_secret",
+            Deposits = new Dictionary<CurrencyType, decimal>(),
+            Active = true
+        };
+
+        _client = new KISConnector(
             httpClient,
             _mockLogger.Object,
             _mockRedisService.Object,
-            _accountAlias,
-            "test_app_key",
-            "test_app_secret",
+            account,
             _apiConfig
         );
     }

@@ -30,7 +30,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         // Register Notification Services
         services.Configure<yQuant.Infra.Notification.Discord.DiscordConfiguration>(hostContext.Configuration.GetSection("Discord"));
         services.AddHttpClient("DiscordWebhook");
-        services.AddSingleton<yQuant.Infra.Notification.Common.Services.TemplateService>();
+        services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
         services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.ISystemLogger, yQuant.Infra.Notification.Discord.DiscordLogger>();
 
         // Configuration

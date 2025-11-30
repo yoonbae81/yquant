@@ -55,6 +55,8 @@ public class OrderCompositionServiceTests
             Alias = accountAlias, 
             Number = "12345", 
             Broker = "Test Broker",
+            AppKey = "test_key",
+            AppSecret = "test_secret",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal>()
         };

@@ -67,7 +67,7 @@ namespace yQuant.App.Console.Commands
             };
 
             _logger.LogInformation("Placing {Type} {Action} order for {Ticker}: {Qty} @ {Price}", order.Type, order.Action, ticker, qty, price?.ToString() ?? "Market");
-            var result = await _adapter.PlaceOrderAsync(order, _accountNumber);
+            var result = await _adapter.PlaceOrderAsync(order);
             System.Console.WriteLine($"Order Result: {(result.IsSuccess ? "Success" : "Failed")}");
             System.Console.WriteLine($"Message: {result.Message}");
             if (!string.IsNullOrEmpty(result.BrokerOrderId))

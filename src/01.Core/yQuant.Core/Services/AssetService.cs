@@ -13,13 +13,13 @@ public class AssetService
         _brokerAdapter = brokerAdapter;
     }
 
-    public async Task<Account> GetAccountOverviewAsync(string accountNumber)
+    public async Task<Account> GetAccountOverviewAsync()
     {
         // 1. Get Account State (Deposits)
-        var account = await _brokerAdapter.GetAccountStateAsync(accountNumber);
+        var account = await _brokerAdapter.GetAccountStateAsync();
 
         // 2. Get Positions
-        var positions = await _brokerAdapter.GetPositionsAsync(accountNumber);
+        var positions = await _brokerAdapter.GetPositionsAsync();
         
         // 3. Merge Positions into Account
         account.Positions = positions;
