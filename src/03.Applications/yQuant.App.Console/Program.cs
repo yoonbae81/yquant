@@ -1,7 +1,8 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using yQuant.App.Console.Commands;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Middleware.Redis;
@@ -21,16 +22,18 @@ class Program
         {
             System.Console.WriteLine("Usage: yquant <accountAlias> <command> [args...]");
             System.Console.WriteLine("Commands:");
-            System.Console.WriteLine("  assets");
-            System.Console.WriteLine("  price <ticker>");
+            System.Console.WriteLine("  token [-r]");
+            System.Console.WriteLine("  deposit");
+            System.Console.WriteLine("  positions");
+            System.Console.WriteLine("  info <ticker>");
             System.Console.WriteLine("  buy <ticker> <qty> [price]");
             System.Console.WriteLine("  sell <ticker> <qty> [price]");
-            System.Console.WriteLine("  report export");
+            System.Console.WriteLine("  report");
             return;
         }
 
         var targetAlias = args[0];
-        var cmd = args[1].ToLower();
+        var cmdName = args[1];
 
         var host = Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration((context, config) =>
@@ -47,11 +50,7 @@ class Program
                 
                 if (targetAccount == null)
                 {
-                    // Will be handled in Main after build, but we can't easily stop here without throwing
-                    // Registering a dummy or throwing exception? 
-                    // Better to let it fail gracefully in Main, but we need services.
-                    // Let's register nulls or throw meaningful exception that we catch?
-                    // Actually, if we throw here, Host.Build() throws.
+                    // Will be handled in Main after build
                     return; 
                 }
 
@@ -66,34 +65,71 @@ class Program
                     return;
                 }
 
-                services.AddHttpClient<IKisConnector, KisConnector>(client =>
+                services.AddHttpClient<IKISConnector, KISConnector>(client =>
                 {
                     client.BaseAddress = new Uri(baseUrl);
                 });
 
-                // Register KisConnector manually to inject config values
-                services.AddSingleton<IKisConnector>(sp =>
+                // Create Account object
+                var account = new Account
                 {
-                    var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(KisConnector));
-                    var logger = sp.GetRequiredService<ILogger<KisConnector>>();
-                    var redis = sp.GetService<IRedisService>();
-                    
+                    Alias = targetAlias,
+                    Number = accountNo!,
+                    Broker = targetAccount["Broker"] ?? "KIS",
+                    AppKey = appKey!,
+                    AppSecret = appSecret!,
+                    Deposits = new Dictionary<CurrencyType, decimal>(),
+                    Active = true
+                };
+
+                // Register KISApiConfig
+                services.AddSingleton<KISApiConfig>(sp =>
+                {
+                    var config = sp.GetRequiredService<IConfiguration>();
                     var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
-                    apiConfig.BaseUrl = baseUrl;
-                    return new KisConnector(httpClient, logger, redis, targetAlias, appKey!, appSecret!, apiConfig);
+                    
+                    return apiConfig;
                 });
 
-                services.AddSingleton<KisBrokerAdapter>(sp =>
+                // Register KISConnector with Account object
+                services.AddSingleton<IKISConnector>(sp =>
                 {
-                    var logger = sp.GetRequiredService<ILogger<KisBrokerAdapter>>();
-                    var client = sp.GetRequiredService<IKisConnector>();
+                    var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(KISConnector));
+                    var logger = sp.GetRequiredService<ILogger<KISConnector>>();
+                    var redis = sp.GetService<IRedisService>();
+                    var apiConfig = sp.GetRequiredService<KISApiConfig>();
+                    
+                    // Override BaseUrl from account config if present
+                    if (!string.IsNullOrEmpty(baseUrl))
+                    {
+                        apiConfig.BaseUrl = baseUrl;
+                    }
+
+                    return new KISConnector(httpClient, logger, redis, account, apiConfig);
+                });
+
+                services.AddSingleton<KISBrokerAdapter>(sp =>
+                {
+                    var logger = sp.GetRequiredService<ILogger<KISBrokerAdapter>>();
+                    var client = sp.GetRequiredService<IKISConnector>();
                     var prefix = accountNo?.Length >= 8 ? accountNo.Substring(0, 8) : "00000000";
-                    return new KisBrokerAdapter(logger, client, prefix, targetAlias);
+                    return new KISBrokerAdapter(logger, client, prefix, targetAlias);
                 });
 
                 services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
                 services.AddSingleton<IQuantStatsService, QuantStatsService>();
                 services.AddSingleton<yQuant.Core.Services.AssetService>();
+
+                // Register Commands
+                services.AddTransient<ICommand, TokenCommand>();
+                services.AddTransient<ICommand>(sp => new DepositCommand(sp.GetRequiredService<yQuant.Core.Services.AssetService>(), accountNo));
+                services.AddTransient<ICommand>(sp => new PositionsCommand(sp.GetRequiredService<yQuant.Core.Services.AssetService>(), accountNo));
+                services.AddTransient<ICommand>(sp => new PriceCommand(sp.GetRequiredService<KISBrokerAdapter>()));
+                services.AddTransient<ICommand>(sp => new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, accountNo, OrderAction.Buy));
+                services.AddTransient<ICommand>(sp => new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, accountNo, OrderAction.Sell));
+                services.AddTransient<ICommand>(sp => new ReportCommand(sp.GetRequiredService<IPerformanceRepository>(), sp.GetRequiredService<IQuantStatsService>(), targetAlias));
+
+                services.AddSingleton<CommandRouter>();
             })
             .Build();
 
@@ -119,128 +155,17 @@ class Program
         }
 
         // Check if services are registered (if ConfigureServices returned early)
-        var adapter = host.Services.GetService<KisBrokerAdapter>();
+        var adapter = host.Services.GetService<KISBrokerAdapter>();
         if (adapter == null)
         {
             System.Console.WriteLine("Error: Failed to initialize services. Check credentials.");
             return;
         }
 
-        var assetService = host.Services.GetRequiredService<yQuant.Core.Services.AssetService>();
-
         try
         {
-            if (cmd == "assets")
-            {
-                var account = await assetService.GetAccountOverviewAsync(accountNo);
-                
-                System.Console.WriteLine("========================================");
-                System.Console.WriteLine($"Account Summary: {account.Alias} ({account.Number})");
-                System.Console.WriteLine("========================================");
-                
-                System.Console.WriteLine("\n[Deposits]");
-                foreach (var deposit in account.Deposits)
-                {
-                    System.Console.WriteLine($"- {deposit.Key}: {deposit.Value:N2}");
-                }
-
-                System.Console.WriteLine($"\nTotal Equity (KRW): {account.GetTotalEquity(CurrencyType.KRW):N0} KRW");
-                System.Console.WriteLine($"Total Equity (USD): {account.GetTotalEquity(CurrencyType.USD):N2} USD");
-
-                System.Console.WriteLine("\n[Positions]");
-                System.Console.WriteLine($"{"Ticker",-10} {"Qty",-10} {"AvgPrice",-15} {"CurPrice",-15} {"PnL",-15} {"Return%",-10}");
-                System.Console.WriteLine(new string('-', 80));
-
-                foreach (var pos in account.Positions)
-                {
-                    var pnl = pos.UnrealizedPnL;
-                    var returnRate = pos.AvgPrice != 0 ? (pos.CurrentPrice - pos.AvgPrice) / pos.AvgPrice * 100 : 0;
-                    
-                    System.Console.WriteLine($"{pos.Ticker,-10} {pos.Qty,-10} {pos.AvgPrice,-15:N2} {pos.CurrentPrice,-15:N2} {pnl,-15:N2} {returnRate,-10:F2}%");
-                }
-                System.Console.WriteLine("========================================");
-            }
-            else if (cmd == "price" && args.Length > 2)
-            {
-                var ticker = args[2];
-                var priceInfo = await adapter.GetPriceAsync(ticker);
-                System.Console.WriteLine($"Ticker: {ticker}");
-                System.Console.WriteLine($"Price: {priceInfo.CurrentPrice:N2}");
-                System.Console.WriteLine($"Change: {priceInfo.ChangeRate:N2}%");
-            }
-            else if ((cmd == "buy" || cmd == "sell") && args.Length >= 4)
-            {
-                var ticker = args[2];
-                if (!decimal.TryParse(args[3], out var qty))
-                {
-                    System.Console.WriteLine("Invalid quantity.");
-                    return;
-                }
-
-                decimal? price = null;
-                var orderType = OrderType.Market;
-
-                if (args.Length > 4)
-                {
-                    if (!decimal.TryParse(args[4], out var p))
-                    {
-                        System.Console.WriteLine("Invalid price.");
-                        return;
-                    }
-                    price = p;
-                    orderType = OrderType.Limit;
-                }
-
-                var order = new Order
-                {
-                    AccountAlias = targetAlias,
-                    Ticker = ticker,
-                    Action = cmd == "buy" ? OrderAction.Buy : OrderAction.Sell,
-                    Type = orderType,
-                    Qty = qty,
-                    Price = price,
-                    Timestamp = DateTime.UtcNow
-                };
-
-                logger.LogInformation("Placing {Type} {Action} order for {Ticker}: {Qty} @ {Price}", order.Type, order.Action, ticker, qty, price?.ToString() ?? "Market");
-                var result = await adapter.PlaceOrderAsync(order, accountNo);
-                System.Console.WriteLine($"Order Result: {(result.IsSuccess ? "Success" : "Failed")}");
-                System.Console.WriteLine($"Message: {result.Message}");
-                if (!string.IsNullOrEmpty(result.BrokerOrderId))
-                {
-                    System.Console.WriteLine($"Broker Order ID: {result.BrokerOrderId}");
-                }
-            }
-            else if (cmd == "report")
-            {
-                // Usage: yquant <alias> report export
-                if (args.Length > 2 && args[2].ToLower() == "export")
-                {
-                    var repo = host.Services.GetRequiredService<IPerformanceRepository>();
-                    var service = host.Services.GetRequiredService<IQuantStatsService>();
-
-                    var logs = await repo.GetLogsAsync(targetAlias);
-                    if (!logs.Any())
-                    {
-                        System.Console.WriteLine($"No performance logs found for account: {targetAlias}");
-                        return;
-                    }
-
-                    var csv = service.GenerateCsvReport(logs);
-                    var filename = $"report_{targetAlias}_{DateTime.Now:yyyyMMdd}.csv";
-                    await File.WriteAllTextAsync(filename, csv);
-                    System.Console.WriteLine($"Exported to {filename}");
-                }
-                else
-                {
-                    System.Console.WriteLine($"Usage: yquant {targetAlias} report export");
-                }
-            }
-            else
-            {
-                System.Console.WriteLine("Invalid command or arguments.");
-                System.Console.WriteLine($"Usage: yquant {targetAlias} <command> [args...]");
-            }
+            var router = host.Services.GetRequiredService<CommandRouter>();
+            await router.ExecuteAsync(cmdName, args);
         }
         catch (Exception ex)
         {

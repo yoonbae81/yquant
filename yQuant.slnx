@@ -8,7 +8,6 @@
     <Project Path="src/02.Infrastructure/yQuant.Infra.Broker.KIS/yQuant.Infra.Broker.KIS.csproj" />
     <Project Path="src/02.Infrastructure/yQuant.Infra.Master.KIS/yQuant.Infra.Master.KIS.csproj" />
     <Project Path="src/02.Infrastructure/yQuant.Infra.Middleware.Redis/yQuant.Infra.Middleware.Redis.csproj" />
-    <Project Path="src/02.Infrastructure/yQuant.Infra.Notification.Common/yQuant.Infra.Notification.Common.csproj" />
     <Project Path="src/02.Infrastructure/yQuant.Infra.Notification.Telegram/yQuant.Infra.Notification.Telegram.csproj" />
     <Project Path="src/02.Infrastructure/yQuant.Infra.Reporting.Performance/yQuant.Infra.Reporting.Performance.csproj" />
   </Folder>
