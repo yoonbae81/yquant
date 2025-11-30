@@ -1,8 +1,6 @@
-using yQuant.Infra.Broker.KIS.Models;
+using yQuant.Core.Models;
 
 namespace yQuant.Infra.Broker.KIS;
-
-using yQuant.Core.Models;
 
 public interface IKISClient
 {

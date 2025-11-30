@@ -105,47 +105,50 @@ public class KISBrokerAdapter : IBrokerAdapter
     {
         var (cano, acntPrdtCd) = ParseAccountNumber(accountNumber);
         
-        string kisExchangeCode = GetKisExchangeCode(order.Exchange);
+        string exchangeCode = GetKisExchangeCode(order.Exchange);
         string countryCode = GetCountryCode(order.Exchange);
+        
+        string ordDvsn = order.Type == OrderType.Market ? "01" : "00";
+        string ordUnpr = order.Type == OrderType.Market ? "0" : (order.Price ?? 0).ToString("F2");
+
+        // KIS API Limitation: US Market Orders ("01") are not supported.
+        // Emulate using Limit Order with buffer.
+        if (countryCode == "US" && order.Type == OrderType.Market)
+        {
+            _logger.LogInformation("Emulating Market Order for US stock {Ticker} using Limit Order with buffer.", order.Ticker);
+            var limitPrice = await EmulateUsMarketOrderAsync(order.Ticker, order.Action);
+            
+            ordDvsn = "00"; // Limit
+            ordUnpr = limitPrice.ToString("F2");
+            
+            _logger.LogInformation("Current Price used for emulation: {LimitPrice}", limitPrice);
+        }
+
+        // Adjust price formatting for JPY and VND (no decimals usually)
+        if (order.Currency == CurrencyType.JPY || order.Currency == CurrencyType.VND)
+        {
+             ordUnpr = order.Type == OrderType.Market ? "0" : (order.Price ?? 0).ToString("F0");
+        }
         
         var requestBody = new
         {
             CANO = cano,
             ACNT_PRDT_CD = acntPrdtCd,
-            OVRS_EXCG_CD = kisExchangeCode,
+            OVRS_EXCG_CD = exchangeCode,
             PDNO = order.Ticker,
             ORD_QTY = order.Qty.ToString(),
-            OVRS_ORD_UNPR = order.Type == OrderType.Market ? "0" : (order.Price ?? 0).ToString("F2"), // Ensure 2 decimal places (might need adjustment for JPY/VND)
+            OVRS_ORD_UNPR = ordUnpr,
             ORD_SVR_DVSN_CD = "0",
-            ORD_DVSN = order.Type == OrderType.Market ? "01" : "00"
+            ORD_DVSN = ordDvsn
         };
-
-        // Adjust price formatting for JPY and VND (no decimals usually)
-        if (order.Currency == CurrencyType.JPY || order.Currency == CurrencyType.VND)
-        {
-             // Use anonymous type with different property if needed, or just format string
-             // But we are using object for requestBody. 
-             // Let's recreate requestBody with correct formatting if needed.
-             // Actually, "F2" might be rejected for JPY.
-             var priceString = order.Type == OrderType.Market ? "0" : (order.Price ?? 0).ToString("F0");
-             
-             // Re-create anonymous object to override price
-             requestBody = new
-             {
-                CANO = cano,
-                ACNT_PRDT_CD = acntPrdtCd,
-                OVRS_EXCG_CD = kisExchangeCode,
-                PDNO = order.Ticker,
-                ORD_QTY = order.Qty.ToString(),
-                OVRS_ORD_UNPR = priceString,
-                ORD_SVR_DVSN_CD = "0",
-                ORD_DVSN = order.Type == OrderType.Market ? "01" : "00"
-             };
-        }
 
         try
         {
             string endpoint = order.Action == OrderAction.Buy ? "OverseasOrderBuy" : "OverseasOrderSell";
+            
+            // Log the request body for debugging "Input Classification Error"
+            _logger.LogInformation("Sending KIS Overseas Order Request: {RequestBody}", System.Text.Json.JsonSerializer.Serialize(requestBody));
+
             var response = await _client.ExecuteAsync<OverseasOrderResponse>(endpoint, requestBody, trIdVariant: countryCode);
             _logger.LogInformation("KIS Overseas order response: {Response}", response);
             
@@ -165,6 +168,19 @@ public class KISBrokerAdapter : IBrokerAdapter
             _logger.LogError(ex, "Failed to place overseas order via KIS.");
             return OrderResult.Failure($"Exception: {ex.Message}");
         }
+    }
+
+    private async Task<decimal> EmulateUsMarketOrderAsync(string ticker, OrderAction action)
+    {
+        var priceInfo = await GetPriceAsync(ticker);
+        if (priceInfo.CurrentPrice <= 0)
+        {
+            throw new InvalidOperationException($"Failed to fetch current price for {ticker} to emulate Market Order.");
+        }
+
+        decimal limitPrice = priceInfo.CurrentPrice * (action == OrderAction.Buy ? 1.05m : 0.95m);
+
+        return Math.Round(limitPrice, 2);
     }
 
     private string GetKisExchangeCode(string exchange)
