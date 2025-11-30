@@ -73,7 +73,7 @@ class Program
                     }
                     return adapter;
                 });
-                // Also register concrete KISBrokerAdapter if needed by some commands (e.g. PriceCommand, OrderCommand used to take it)
+                // Also register concrete KISBrokerAdapter if needed by some commands (e.g. InfoCommand, OrderCommand used to take it)
                 // But better to change them to take IBrokerAdapter. 
                 // However, OrderCommand in original code took KISBrokerAdapter. 
                 // Let's see if we can cast or just register it if the factory returns it.
@@ -100,7 +100,7 @@ class Program
                 {
                     return new PositionsCommand(sp.GetRequiredService<yQuant.Core.Services.AssetService>(), targetAlias);
                 });
-                services.AddTransient<ICommand>(sp => new PriceCommand(sp.GetRequiredService<KISBrokerAdapter>()));
+                services.AddTransient<ICommand>(sp => new InfoCommand(sp.GetRequiredService<KISBrokerAdapter>()));
                 services.AddTransient<ICommand>(sp => 
                 {
                     var account = sp.GetRequiredService<Account>();

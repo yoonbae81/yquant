@@ -4,11 +4,11 @@ using yQuant.Infra.Broker.KIS;
 
 namespace yQuant.App.Console.Commands
 {
-    public class PriceCommand : ICommand
+    public class InfoCommand : ICommand
     {
         private readonly KISBrokerAdapter _adapter;
 
-        public PriceCommand(KISBrokerAdapter adapter)
+        public InfoCommand(KISBrokerAdapter adapter)
         {
             _adapter = adapter;
         }
