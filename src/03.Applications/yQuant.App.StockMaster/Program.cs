@@ -4,6 +4,11 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Master.KIS;
 
 IHost host = Host.CreateDefaultBuilder(args)
+    .ConfigureAppConfiguration((hostingContext, config) =>
+    {
+        config.SetBasePath(AppContext.BaseDirectory);
+        config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+    })
     .ConfigureServices((hostContext, services) =>
     {
         var configuration = hostContext.Configuration;
@@ -18,6 +23,7 @@ IHost host = Host.CreateDefaultBuilder(args)
         var options = ConfigurationOptions.Parse(redisConn);
         options.AbortOnConnectFail = false;
         services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(options));
+        services.AddSingleton<yQuant.Infra.Middleware.Redis.Interfaces.IRedisService, yQuant.Infra.Middleware.Redis.Services.RedisService>();
 
         // HttpClient
         services.AddHttpClient();
