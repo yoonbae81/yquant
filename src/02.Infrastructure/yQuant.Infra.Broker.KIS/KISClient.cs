@@ -176,34 +176,17 @@ public class KISClient : IKISClient
         }
     }
 
-    private async Task<string> GetHashkeyAsync(object body)
+    private async Task<string> GetHashkeyAsync(string jsonBody)
     {
         if (!_apiConfig.TryGetValue("Hashkey", out var endpoint))
         {
             throw new InvalidOperationException("Hashkey endpoint not defined in API spec.");
         }
 
-        var requestBody = new
-        {
-            appkey = _account.AppKey,
-            appsecret = _account.AppSecret,
-            JsonBody = body
-        };
-
-        // Hashkey request does not need Authorization header, but needs appkey/appsecret in body (or header? Spec says body for some, header for others. Markdown says body is encrypted? No, markdown says send body to hashkey endpoint)
-        // Markdown: "Send the JSON body of the order request to this endpoint... returns hash value"
-        // Spec in kis-api-spec.json says: Parameters: appkey, appsecret. 
-        // Wait, the markdown says "Request Body: JsonBody (The body to be sent via POST)".
-        // And also headers: appkey, appsecret, content-type.
-        
-        // Let's follow the markdown carefully:
-        // Request Header: content-type, appkey, appsecret
-        // Request Body: JsonBody (The actual body of the order)
-        
         var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint!.Path);
         requestMessage.Headers.Add("appkey", _account.AppKey);
         requestMessage.Headers.Add("appsecret", _account.AppSecret);
-        requestMessage.Content = JsonContent.Create(body); // The body of the order is sent as the content
+        requestMessage.Content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
 
         var response = await _httpClient.SendAsync(requestMessage);
         response.EnsureSuccessStatusCode();
@@ -256,18 +239,23 @@ public class KISClient : IKISClient
             // For POST requests (excluding Token and Hashkey themselves), generate and add Hashkey
             if (endpointName != "Token" && endpointName != "Hashkey")
             {
+                var jsonBody = JsonSerializer.Serialize(body);
                 try 
                 {
-                    var hashkey = await GetHashkeyAsync(body);
+                    var hashkey = await GetHashkeyAsync(jsonBody);
                     requestMessage.Headers.Add("hashkey", hashkey);
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(ex, "Failed to generate hashkey. Proceeding without it (might fail if required).");
                 }
+                
+                requestMessage.Content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
             }
-            
-            requestMessage.Content = JsonContent.Create(body);
+            else
+            {
+                requestMessage.Content = new StringContent(JsonSerializer.Serialize(body), System.Text.Encoding.UTF8, "application/json");
+            }
         }
         else if (endpoint.Method.Equals("GET", StringComparison.OrdinalIgnoreCase))
         {

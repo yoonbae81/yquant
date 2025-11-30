@@ -79,7 +79,7 @@ public class KISBrokerAdapter : IBrokerAdapter
 
         try
         {
-            string endpoint = order.Action == OrderAction.Buy ? "DomesticBuyOrder" : "DomesticSellOrder";
+            string endpoint = order.Action == OrderAction.Buy ? "DomesticOrderBuy" : "DomesticOrderSell";
             var response = await _client.ExecuteAsync<DomesticOrderResponse>(endpoint, requestBody);
             _logger.LogInformation("KIS Domestic order response: {Response}", response);
             
@@ -145,7 +145,7 @@ public class KISBrokerAdapter : IBrokerAdapter
 
         try
         {
-            string endpoint = order.Action == OrderAction.Buy ? "OverseasBuyOrder" : "OverseasSellOrder";
+            string endpoint = order.Action == OrderAction.Buy ? "OverseasOrderBuy" : "OverseasOrderSell";
             var response = await _client.ExecuteAsync<OverseasOrderResponse>(endpoint, requestBody, trIdVariant: countryCode);
             _logger.LogInformation("KIS Overseas order response: {Response}", response);
             
