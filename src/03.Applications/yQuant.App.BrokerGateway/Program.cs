@@ -10,18 +10,10 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration; // Needed for GetConnectionString
 using Microsoft.Extensions.Logging;
 using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Core.Models; // Added for Account
 
 var builder = Host.CreateApplicationBuilder(args);
 
-// Redis configuration removed as per user request
-// var redisConn = Environment.GetEnvironmentVariable("Redis");
-// if (!string.IsNullOrEmpty(redisConn))
-// {
-//     builder.Configuration.AddRedis(redisConn);
-// }
-
-// Register Redis
-// Register Redis
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
     var redisConn = Environment.GetEnvironmentVariable("Redis");
@@ -41,19 +33,44 @@ builder.Services.AddSingleton<TelegramMessageBuilder>();
 builder.Services.AddHttpClient("KIS");
 builder.Services.AddRedisMiddleware(builder.Configuration);
 
-// Register KISAccountManager - manages multiple KIS accounts with independent credentials
-// Register KISAccountManager - manages multiple KIS accounts with independent credentials
-// Register KISApiConfig
+// Register KISApiConfig (Singleton)
 builder.Services.AddSingleton<KISApiConfig>(sp =>
 {
     var config = sp.GetRequiredService<IConfiguration>();
     var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
-    
     return apiConfig;
 });
 
-// Register KISAccountManager - manages multiple KIS accounts with independent credentials
-builder.Services.AddSingleton<KISAccountManager>();
+// Register KISAccountProvider
+builder.Services.AddTransient<KISAccountProvider>();
+
+// Register Adapters (IBrokerAdapter)
+builder.Services.AddSingleton<Dictionary<string, IBrokerAdapter>>(sp =>
+{
+    var accountProvider = sp.GetRequiredService<KISAccountProvider>();
+    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    var apiConfig = sp.GetRequiredService<KISApiConfig>();
+    
+    var adapters = new Dictionary<string, IBrokerAdapter>();
+    var accounts = accountProvider.GetAccounts();
+
+    foreach (var account in accounts)
+    {
+        if (account.Broker == "KIS")
+        {
+            var httpClient = httpClientFactory.CreateClient("KIS");
+            var clientLogger = loggerFactory.CreateLogger<KISClient>();
+            var client = new KISClient(httpClient, clientLogger, account, apiConfig);
+            
+            var adapterLogger = loggerFactory.CreateLogger<KISBrokerAdapter>();
+            var adapter = new KISBrokerAdapter(client, adapterLogger);
+            
+            adapters[account.Alias] = adapter;
+        }
+    }
+    return adapters;
+});
 
 // Register Discord Notification Services
 builder.Services.Configure<DiscordConfiguration>(builder.Configuration.GetSection("Discord"));

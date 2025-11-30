@@ -6,6 +6,8 @@ namespace yQuant.Core.Ports.Output.Infrastructure;
 
 public interface IBrokerAdapter
 {
+    Account Account { get; }
+
     // 주문 실행
     Task<OrderResult> PlaceOrderAsync(Order order);
 

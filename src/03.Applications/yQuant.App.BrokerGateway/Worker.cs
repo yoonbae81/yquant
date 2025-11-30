@@ -3,7 +3,7 @@ using StackExchange.Redis;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
-using yQuant.Infra.Notification.Telegram; // Assuming this will contain the notification service
+using yQuant.Infra.Notification.Telegram;
 using System.Reflection;
 
 namespace yQuant.App.BrokerGateway
@@ -20,7 +20,7 @@ namespace yQuant.App.BrokerGateway
         private readonly IEnumerable<ITradingLogger> _tradingLoggers;
         private readonly ISystemLogger _systemLogger;
 
-        private KISAccountManager? _kisAccountManager;
+        private readonly Dictionary<string, IBrokerAdapter> _adapters;
         private TimeSpan _syncInterval;
 
         public Worker(ILogger<Worker> logger, IConfiguration configuration,
@@ -29,7 +29,8 @@ namespace yQuant.App.BrokerGateway
             INotificationService telegramNotifier,
             TelegramMessageBuilder telegramBuilder,
             IEnumerable<ITradingLogger> tradingLoggers,
-            ISystemLogger systemLogger)
+            ISystemLogger systemLogger,
+            Dictionary<string, IBrokerAdapter> adapters)
         {
             _logger = logger;
             _configuration = configuration;
@@ -39,6 +40,7 @@ namespace yQuant.App.BrokerGateway
             _telegramBuilder = telegramBuilder;
             _tradingLoggers = tradingLoggers;
             _systemLogger = systemLogger;
+            _adapters = adapters;
         }
 
         public override async Task StartAsync(CancellationToken cancellationToken)
@@ -46,7 +48,6 @@ namespace yQuant.App.BrokerGateway
             var syncIntervalSeconds = _configuration.GetValue<int>("SyncIntervalSeconds");
             _syncInterval = TimeSpan.FromSeconds(syncIntervalSeconds > 0 ? syncIntervalSeconds : 1);
 
-            _kisAccountManager = _serviceProvider.GetRequiredService<KISAccountManager>();
             await base.StartAsync(cancellationToken);
         }
 
@@ -106,34 +107,16 @@ namespace yQuant.App.BrokerGateway
                 return;
             }
 
-            if (_kisAccountManager == null)
+            // Look up adapter directly
+            if (!_adapters.TryGetValue(order.AccountAlias, out var brokerAdapter))
             {
-                _logger.LogError("KISAccountManager is not initialized.");
-                return;
-            }
-
-            var account = _kisAccountManager.GetAccount(order.AccountAlias);
-            if (account == null)
-            {
-                _logger.LogWarning("No configuration found for AccountAlias {AccountAlias} for order {OrderId}.", order.AccountAlias, order.Id);
-                var msg = _telegramBuilder.BuildNoAccountConfigMessage(order.AccountAlias, order.Ticker);
-                await _telegramNotifier.SendNotificationAsync(msg);
-                return;
-            }
-
-            IBrokerAdapter? brokerAdapter = null;
-            if (account.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
-            {
-                brokerAdapter = _kisAccountManager.GetAdapter(order.AccountAlias);
-            }
-
-            if (brokerAdapter == null)
-            {
-                _logger.LogError("No broker adapter found for account {AccountAlias}.", order.AccountAlias);
+                _logger.LogWarning("No broker adapter found for account {AccountAlias}.", order.AccountAlias);
                 var msg = _telegramBuilder.BuildNoBrokerAdapterMessage(order.AccountAlias, order.Ticker);
                 await _telegramNotifier.SendNotificationAsync(msg);
                 return;
             }
+
+            var account = brokerAdapter.Account;
 
             try
             {
@@ -196,25 +179,11 @@ namespace yQuant.App.BrokerGateway
 
         private async Task SyncAccountStates()
         {
-            if (_kisAccountManager == null) return;
-
             var db = _redis.GetDatabase();
-            foreach (var alias in _kisAccountManager.GetAccountAliases())
+            foreach (var alias in _adapters.Keys)
             {
-                var account = _kisAccountManager.GetAccount(alias);
-                if (account == null) continue;
-
-                IBrokerAdapter? brokerAdapter = null;
-                if (account.Broker.Equals("KIS", StringComparison.OrdinalIgnoreCase))
-                {
-                    brokerAdapter = _kisAccountManager.GetAdapter(alias);
-                }
-
-                if (brokerAdapter == null)
-                {
-                    _logger.LogWarning("No broker adapter found for account {Alias}. Skipping sync.", alias);
-                    continue;
-                }
+                var brokerAdapter = _adapters[alias];
+                var account = brokerAdapter.Account;
 
                 try
                 {
@@ -269,7 +238,5 @@ namespace yQuant.App.BrokerGateway
                 }
             }
         }
-
-
     }
 }

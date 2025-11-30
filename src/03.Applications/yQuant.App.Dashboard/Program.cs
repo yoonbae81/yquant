@@ -49,37 +49,43 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 // Add HttpClientFactory
 builder.Services.AddHttpClient();
 
-// Retrieve configuration values for KISClient
-var configuration = builder.Configuration;
-var appKey = configuration["KIS:AppKey"];
-var appSecret = configuration["KIS:AppSecret"];
-var accountNo = configuration["KIS:AccountNo"];
-
-// Create Account object
-var dashboardAccount = new Account
+// Register KISApiConfig (Singleton)
+builder.Services.AddSingleton<KISApiConfig>(sp =>
 {
-    Alias = "DashboardAccount",
-    Number = accountNo!,
-    Broker = "KIS",
-    AppKey = appKey!,
-    AppSecret = appSecret!,
-    Deposits = new Dictionary<CurrencyType, decimal>(),
-    Active = true
-};
-
-builder.Services.AddSingleton<IKISClient>(sp =>
-{
-    var httpClient = sp.GetRequiredService<IHttpClientFactory>().CreateClient(nameof(KISClient));
-    var logger = sp.GetRequiredService<ILogger<KISClient>>();
+    var config = sp.GetRequiredService<IConfiguration>();
     var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
-    return new KISClient(httpClient, logger, dashboardAccount, apiConfig);
+    return apiConfig;
 });
 
-builder.Services.AddSingleton<KISBrokerAdapter>(sp =>
+// Register KISAccountProvider
+builder.Services.AddTransient<KISAccountProvider>();
+
+// Register Adapters (IBrokerAdapter)
+builder.Services.AddSingleton<Dictionary<string, IBrokerAdapter>>(sp =>
 {
-    var logger = sp.GetRequiredService<ILogger<KISBrokerAdapter>>();
-    var client = sp.GetRequiredService<IKISClient>();
-    return new KISBrokerAdapter(client, logger);
+    var accountProvider = sp.GetRequiredService<KISAccountProvider>();
+    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
+    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
+    var apiConfig = sp.GetRequiredService<KISApiConfig>();
+    
+    var adapters = new Dictionary<string, IBrokerAdapter>();
+    var accounts = accountProvider.GetAccounts();
+
+    foreach (var account in accounts)
+    {
+        if (account.Broker == "KIS")
+        {
+            var httpClient = httpClientFactory.CreateClient("KIS");
+            var clientLogger = loggerFactory.CreateLogger<KISClient>();
+            var client = new KISClient(httpClient, clientLogger, account, apiConfig);
+            
+            var adapterLogger = loggerFactory.CreateLogger<KISBrokerAdapter>();
+            var adapter = new KISBrokerAdapter(client, adapterLogger);
+            
+            adapters[account.Alias] = adapter;
+        }
+    }
+    return adapters;
 });
 
 builder.Services.AddSingleton<yQuant.Core.Services.AssetService>();

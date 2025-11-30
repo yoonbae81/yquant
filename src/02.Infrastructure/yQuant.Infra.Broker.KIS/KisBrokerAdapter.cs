@@ -16,6 +16,8 @@ public class KISBrokerAdapter : IBrokerAdapter
         _client = client;
     }
 
+    public Account Account => _client.Account;
+
     /// <summary>
     /// Parses account number in format "XXXXXXXX-YY" or "XXXXXXXXXXYY" into (CANO, ACNT_PRDT_CD)
     /// CANO: 8 digits, ACNT_PRDT_CD: 2 digits

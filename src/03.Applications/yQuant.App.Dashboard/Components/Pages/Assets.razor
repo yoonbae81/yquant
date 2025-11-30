@@ -1,14 +1,31 @@
 @page "/assets"
+@page "/assets/{AccountAlias}"
 @using yQuant.Core.Models
 @using yQuant.Core.Services
+@using yQuant.App.Dashboard.Services
 @inject AssetService AssetService
-@inject IConfiguration Configuration
+@inject RedisService RedisService
+@inject NavigationManager NavigationManager
 
 <MudText Typo="Typo.h4" GutterBottom="true">Asset Summary</MudText>
 
+<MudSelect T="string" Label="Select Account" Value="@AccountAlias" ValueChanged="OnAccountChanged" Variant="Variant.Outlined" Class="mb-4">
+    @foreach (var acc in _availableAccounts)
+    {
+        <MudSelectItem Value="@acc.Alias">@acc.Alias (@acc.Broker)</MudSelectItem>
+    }
+</MudSelect>
+
 @if (account == null)
 {
-    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    @if (!string.IsNullOrEmpty(AccountAlias))
+    {
+        <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+    }
+    else
+    {
+        <MudText>Please select an account.</MudText>
+    }
 }
 else
 {
@@ -80,15 +97,37 @@ else
 }
 
 @code {
+    [Parameter]
+    public string? AccountAlias { get; set; }
+
     private Account? account;
+    private IEnumerable<Account> _availableAccounts = new List<Account>();
 
     protected override async Task OnInitializedAsync()
     {
-        var accountNo = Configuration["KIS:AccountNumber"];
-        if (!string.IsNullOrEmpty(accountNo))
+        _availableAccounts = RedisService.GetAccounts();
+        
+        if (string.IsNullOrEmpty(AccountAlias) && _availableAccounts.Any())
         {
-            account = await AssetService.GetAccountOverviewAsync(accountNo);
+            AccountAlias = _availableAccounts.First().Alias;
         }
+
+        if (!string.IsNullOrEmpty(AccountAlias))
+        {
+            await LoadAccountData(AccountAlias);
+        }
+    }
+
+    private async Task OnAccountChanged(string alias)
+    {
+        AccountAlias = alias;
+        NavigationManager.NavigateTo($"/assets/{alias}"); // Update URL
+        await LoadAccountData(alias);
+    }
+
+    private async Task LoadAccountData(string alias)
+    {
+        account = await AssetService.GetAccountOverviewAsync(alias);
     }
 
     private string GetColorStyle(decimal value)
