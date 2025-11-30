@@ -4,7 +4,6 @@ using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS.Models;
-using yQuant.Infra.Broker.KIS.Models;
 
 namespace yQuant.Infra.Broker.KIS;
 

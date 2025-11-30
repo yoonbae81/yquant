@@ -6,18 +6,18 @@ using yQuant.Infra.Broker.KIS;
 
 namespace yQuant.App.Console.Commands
 {
-    public class TokenCommand : ICommand
+    public class AuthCommand : ICommand
     {
         private readonly IKISClient _kisClient;
-        private readonly ILogger<TokenCommand> _logger;
+        private readonly ILogger<AuthCommand> _logger;
 
-        public TokenCommand(IKISClient KISConnector, ILogger<TokenCommand> logger)
+        public AuthCommand(IKISClient kisClient, ILogger<AuthCommand> logger)
         {
-            _kisClient = KISConnector;
+            _kisClient = kisClient;
             _logger = logger;
         }
 
-        public string Name => "token";
+        public string Name => "auth";
         public string Description => "Manage KIS API token (use -r to refresh)";
 
         public async Task ExecuteAsync(string[] args)

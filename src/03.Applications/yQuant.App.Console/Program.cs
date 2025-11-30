@@ -22,18 +22,45 @@ class Program
         {
             System.Console.WriteLine("Usage: yquant <accountAlias> <command> [args...]");
             System.Console.WriteLine("Commands:");
-            System.Console.WriteLine("  token [-r]");
+            System.Console.WriteLine("  auth [-r]");
             System.Console.WriteLine("  deposit");
             System.Console.WriteLine("  positions");
             System.Console.WriteLine("  info <ticker>");
             System.Console.WriteLine("  buy <ticker> <qty> [price]");
             System.Console.WriteLine("  sell <ticker> <qty> [price]");
             System.Console.WriteLine("  report");
+            System.Console.WriteLine("  test [-r]");
             return;
         }
 
         var targetAlias = args[0];
         var cmdName = args[1];
+
+        var root = Directory.GetCurrentDirectory();
+        var dotenv = Path.Combine(root, ".env");
+        var dotenvLocal = Path.Combine(root, ".env.local");
+
+        // Try to find .env in parent directories if not found in current (common in dev)
+        if (!File.Exists(dotenv) && !File.Exists(dotenvLocal))
+        {
+            var parent = Directory.GetParent(root);
+            while (parent != null)
+            {
+                var pEnv = Path.Combine(parent.FullName, ".env");
+                var pEnvLocal = Path.Combine(parent.FullName, ".env.local");
+                if (File.Exists(pEnv) || File.Exists(pEnvLocal))
+                {
+                    root = parent.FullName;
+                    dotenv = Path.Combine(root, ".env");
+                    dotenvLocal = Path.Combine(root, ".env.local");
+                    break;
+                }
+                parent = parent.Parent;
+            }
+        }
+
+        LoadEnvFile(dotenv);
+        LoadEnvFile(dotenvLocal);
 
         var host = Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration((context, config) =>
@@ -43,6 +70,7 @@ class Program
             })
             .ConfigureServices((context, services) =>
             {
+                services.AddHttpClient();
                 services.AddSingleton<KISAccountProvider>();
 
                 // Register Account object via Provider
@@ -83,13 +111,14 @@ class Program
                     var client = sp.GetRequiredService<IKISClient>();
                     return new KISBrokerAdapter(client, logger);
                 });
+                services.AddSingleton<IBrokerAdapter>(sp => sp.GetRequiredService<KISBrokerAdapter>());
 
                 services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
                 services.AddSingleton<IQuantStatsService, QuantStatsService>();
                 services.AddSingleton<yQuant.Core.Services.AssetService>();
 
                 // Register Commands
-                services.AddTransient<ICommand, TokenCommand>();
+                services.AddTransient<ICommand, AuthCommand>();
                 services.AddTransient<ICommand>(sp => 
                 {
                     var account = sp.GetRequiredService<Account>();
@@ -112,6 +141,7 @@ class Program
                     return new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, account.Number, OrderAction.Sell);
                 });
                 services.AddTransient<ICommand>(sp => new ReportCommand(sp.GetRequiredService<IPerformanceRepository>(), sp.GetRequiredService<IQuantStatsService>(), targetAlias));
+                services.AddTransient<ICommand, TestCommand>();
 
                 services.AddSingleton<CommandRouter>();
             })
@@ -153,6 +183,30 @@ class Program
         catch (Exception ex)
         {
             logger.LogError(ex, "An error occurred during execution.");
+        }
+    }
+
+    static void LoadEnvFile(string filePath)
+    {
+        if (!File.Exists(filePath)) return;
+
+        foreach (var line in File.ReadAllLines(filePath))
+        {
+            if (string.IsNullOrWhiteSpace(line) || line.StartsWith("#")) continue;
+
+            var parts = line.Split('=', 2);
+            if (parts.Length != 2) continue;
+
+            var key = parts[0].Trim();
+            var value = parts[1].Trim();
+            
+            // Handle double quotes
+            if (value.StartsWith("\"") && value.EndsWith("\"") && value.Length >= 2)
+            {
+                value = value.Substring(1, value.Length - 2);
+            }
+
+            Environment.SetEnvironmentVariable(key, value);
         }
     }
 }

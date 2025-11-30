@@ -1,7 +1,6 @@
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Core.Ports.Output.Infrastructure;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -24,7 +23,6 @@ public class KISAccountManager
     public KISAccountManager(
         ILogger<KISAccountManager> logger,
         IHttpClientFactory httpClientFactory,
-        IServiceProvider serviceProvider,
         IServiceProvider serviceProvider,
         KISApiConfig apiConfig,
         KISAccountProvider accountProvider)
