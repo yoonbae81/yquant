@@ -1,16 +1,16 @@
 using System;
 using System.Collections.Generic;
 using yQuant.Core.Models;
-using yQuant.Infra.Notification.Common.Models;
-using yQuant.Infra.Notification.Common.Services;
+using yQuant.Infra.Notification.Discord.Models;
+using yQuant.Infra.Notification.Discord.Services;
 
 namespace yQuant.Infra.Notification.Discord
 {
     public class MessageBuilder
     {
-        private readonly TemplateService _templateService;
+        private readonly DiscordTemplateService _templateService;
 
-        public MessageBuilder(TemplateService templateService)
+        public MessageBuilder(DiscordTemplateService templateService)
         {
             _templateService = templateService;
         }
@@ -28,7 +28,7 @@ namespace yQuant.Infra.Notification.Discord
                 { "Timestamp", signal.Timestamp.ToString("o") }
             };
 
-            var embed = _templateService.ProcessDiscordTemplate("Signal", values);
+            var embed = _templateService.ProcessTemplate("Signal", values);
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
         }
 
@@ -46,7 +46,7 @@ namespace yQuant.Infra.Notification.Discord
                 { "Timestamp", order.Timestamp.ToString("o") }
             };
 
-            var embed = _templateService.ProcessDiscordTemplate(templateName, values);
+            var embed = _templateService.ProcessTemplate(templateName, values);
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
         }
 
@@ -64,7 +64,7 @@ namespace yQuant.Infra.Notification.Discord
                 { "Timestamp", DateTime.UtcNow.ToString("o") }
             };
 
-            var embed = _templateService.ProcessDiscordTemplate("Execution_Failure", values);
+            var embed = _templateService.ProcessTemplate("Execution_Failure", values);
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
         }
 
@@ -85,7 +85,7 @@ namespace yQuant.Infra.Notification.Discord
                 { "Timestamp", DateTime.UtcNow.ToString("o") }
             };
 
-            var embed = _templateService.ProcessDiscordTemplate("Error", values);
+            var embed = _templateService.ProcessTemplate("Error", values);
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
         }
 
@@ -102,7 +102,7 @@ namespace yQuant.Infra.Notification.Discord
                 { "Timestamp", DateTime.UtcNow.ToString("o") }
             };
 
-            var embed = _templateService.ProcessDiscordTemplate("Summary", values);
+            var embed = _templateService.ProcessTemplate("Summary", values);
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
         }
 
@@ -115,7 +115,7 @@ namespace yQuant.Infra.Notification.Discord
                 { "Timestamp", DateTime.UtcNow.ToString("o") }
             };
 
-            var embed = _templateService.ProcessDiscordTemplate("Startup", values);
+            var embed = _templateService.ProcessTemplate("Startup", values);
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
         }
 
@@ -128,7 +128,7 @@ namespace yQuant.Infra.Notification.Discord
                 { "Timestamp", DateTime.UtcNow.ToString("o") }
             };
 
-            var embed = _templateService.ProcessDiscordTemplate("Status", values);
+            var embed = _templateService.ProcessTemplate("Status", values);
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
         }
     }

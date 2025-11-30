@@ -1,14 +1,14 @@
 using System.Collections.Generic;
 using yQuant.Core.Models;
-using yQuant.Infra.Notification.Common.Services;
+using yQuant.Infra.Notification.Telegram.Services;
 
 namespace yQuant.Infra.Notification.Telegram
 {
     public class TelegramMessageBuilder
     {
-        private readonly TemplateService _templateService;
+        private readonly TelegramTemplateService _templateService;
 
-        public TelegramMessageBuilder(TemplateService templateService)
+        public TelegramMessageBuilder(TelegramTemplateService templateService)
         {
             _templateService = templateService;
         }
@@ -22,7 +22,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Qty", order.Qty.ToString() },
                 { "Price", order.Price?.ToString() ?? "Market" }
             };
-            return _templateService.ProcessTelegramTemplate("OrderSuccess", values);
+            return _templateService.ProcessTemplate("OrderSuccess", values);
         }
 
         public string BuildOrderFailureMessage(Order order, string message)
@@ -32,7 +32,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Ticker", order.Ticker },
                 { "Message", message }
             };
-            return _templateService.ProcessTelegramTemplate("OrderFailure", values);
+            return _templateService.ProcessTemplate("OrderFailure", values);
         }
 
         public string BuildAccountSyncFailureMessage(string alias, string message)
@@ -42,7 +42,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Alias", alias },
                 { "Message", message }
             };
-            return _templateService.ProcessTelegramTemplate("AccountSyncFailure", values);
+            return _templateService.ProcessTemplate("AccountSyncFailure", values);
         }
 
         public string BuildNoAccountConfigMessage(string alias, string ticker)
@@ -52,7 +52,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Alias", alias },
                 { "Ticker", ticker }
             };
-            return _templateService.ProcessTelegramTemplate("NoAccountConfig", values);
+            return _templateService.ProcessTemplate("NoAccountConfig", values);
         }
 
         public string BuildNoBrokerAdapterMessage(string alias, string ticker)
@@ -62,7 +62,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Alias", alias },
                 { "Ticker", ticker }
             };
-            return _templateService.ProcessTelegramTemplate("NoBrokerAdapter", values);
+            return _templateService.ProcessTemplate("NoBrokerAdapter", values);
         }
     }
 }

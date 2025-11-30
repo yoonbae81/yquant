@@ -7,8 +7,8 @@ using Microsoft.Extensions.Options;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 
-using yQuant.Infra.Notification.Common.Models;
-using yQuant.Infra.Notification.Common.Services;
+using yQuant.Infra.Notification.Discord.Models;
+using yQuant.Infra.Notification.Discord.Services;
 
 namespace yQuant.Infra.Notification.Discord
 {
@@ -23,7 +23,7 @@ namespace yQuant.Infra.Notification.Discord
             IHttpClientFactory httpClientFactory,
             IOptions<DiscordConfiguration> config,
             ILogger<DiscordLogger> logger,
-            TemplateService templateService)
+            DiscordTemplateService templateService)
         {
             _httpClient = httpClientFactory.CreateClient("DiscordWebhook");
             _config = config.Value;

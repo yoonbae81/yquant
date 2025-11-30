@@ -2,7 +2,6 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
-    <ProjectReference Include="..\yQuant.Infra.Notification.Common\yQuant.Infra.Notification.Common.csproj" />
   </ItemGroup>
 
   <ItemGroup>
@@ -16,5 +15,11 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
   </PropertyGroup>
+
+  <ItemGroup>
+    <None Update="Templates\*.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
 
 </Project>

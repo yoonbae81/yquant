@@ -1,7 +1,7 @@
 using System.Collections.Generic;
 using System.Text.Json.Serialization;
 
-namespace yQuant.Infra.Notification.Common.Models
+namespace yQuant.Infra.Notification.Discord.Models
 {
     public class DiscordWebhookPayload
     {

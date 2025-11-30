@@ -2,17 +2,16 @@ using System;
 using System.Collections.Generic;
 using System.IO;
 using System.Text.Json;
-using yQuant.Infra.Notification.Common.Models;
+using yQuant.Infra.Notification.Discord.Models;
 
-namespace yQuant.Infra.Notification.Common.Services
+namespace yQuant.Infra.Notification.Discord.Services
 {
-    public class TemplateService
+    public class DiscordTemplateService
     {
         private readonly string _templateDirectory;
         private Dictionary<string, DiscordEmbed> _discordTemplates;
-        private Dictionary<string, string> _telegramTemplates;
 
-        public TemplateService(string templateDirectory = null)
+        public DiscordTemplateService(string templateDirectory = null)
         {
             _templateDirectory = templateDirectory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
             LoadTemplates();
@@ -30,32 +29,16 @@ namespace yQuant.Infra.Notification.Common.Services
             {
                 _discordTemplates = new Dictionary<string, DiscordEmbed>();
             }
-
-            var telegramPath = Path.Combine(_templateDirectory, "telegram-templates.json");
-            if (File.Exists(telegramPath))
-            {
-                var json = File.ReadAllText(telegramPath);
-                _telegramTemplates = JsonSerializer.Deserialize<Dictionary<string, string>>(json);
-            }
-            else
-            {
-                _telegramTemplates = new Dictionary<string, string>();
-            }
         }
 
-        public DiscordEmbed GetDiscordTemplate(string templateName)
+        public DiscordEmbed GetTemplate(string templateName)
         {
             return _discordTemplates.TryGetValue(templateName, out var template) ? Clone(template) : null;
         }
 
-        public string GetTelegramTemplate(string templateName)
+        public DiscordEmbed ProcessTemplate(string templateName, Dictionary<string, string> values)
         {
-            return _telegramTemplates.TryGetValue(templateName, out var template) ? template : null;
-        }
-
-        public DiscordEmbed ProcessDiscordTemplate(string templateName, Dictionary<string, string> values)
-        {
-            var template = GetDiscordTemplate(templateName);
+            var template = GetTemplate(templateName);
             if (template == null) return null;
 
             if (template.Title != null) template.Title = ReplaceValues(template.Title, values);
@@ -76,23 +59,8 @@ namespace yQuant.Infra.Notification.Common.Services
                     if (field.Value != null) field.Value = ReplaceValues(field.Value, values);
                 }
             }
-            
-            // Handle Color if it's a placeholder (not supported by int?, but maybe we want to support it?)
-            // The template has "color": 3447003. If we want dynamic color, we need to handle it.
-            // Current JSON has integer. If we want dynamic, we'd need string in JSON and parse it.
-            // For now, let's assume color is static in template or handled by caller if needed.
-            // But wait, Execution template has dynamic color based on Buy/Sell.
-            // I created Execution_Buy and Execution_Sell, so color is static in each.
-            
+
             return template;
-        }
-
-        public string ProcessTelegramTemplate(string templateName, Dictionary<string, string> values)
-        {
-            var template = GetTelegramTemplate(templateName);
-            if (template == null) return null;
-
-            return ReplaceValues(template, values);
         }
 
         private string ReplaceValues(string text, Dictionary<string, string> values)
