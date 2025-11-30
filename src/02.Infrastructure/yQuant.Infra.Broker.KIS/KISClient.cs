@@ -176,24 +176,7 @@ public class KISClient : IKISClient
         }
     }
 
-    private async Task<string> GetHashkeyAsync(string jsonBody)
-    {
-        if (!_apiConfig.TryGetValue("Hashkey", out var endpoint))
-        {
-            throw new InvalidOperationException("Hashkey endpoint not defined in API spec.");
-        }
 
-        var requestMessage = new HttpRequestMessage(HttpMethod.Post, endpoint!.Path);
-        requestMessage.Headers.Add("appkey", _account.AppKey);
-        requestMessage.Headers.Add("appsecret", _account.AppSecret);
-        requestMessage.Content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
-
-        var response = await _httpClient.SendAsync(requestMessage);
-        response.EnsureSuccessStatusCode();
-
-        var hashResponse = await response.Content.ReadFromJsonAsync<HashkeyResponse>();
-        return hashResponse?.HASH ?? throw new InvalidOperationException("Failed to retrieve Hashkey.");
-    }
 
     public async Task<TResponse?> ExecuteAsync<TResponse>(string endpointName, object? body = null, Dictionary<string, string>? queryParams = null, Dictionary<string, string>? headers = null, string? trIdVariant = null)
     {
@@ -240,16 +223,6 @@ public class KISClient : IKISClient
             if (endpointName != "Token" && endpointName != "Hashkey")
             {
                 var jsonBody = JsonSerializer.Serialize(body);
-                try 
-                {
-                    var hashkey = await GetHashkeyAsync(jsonBody);
-                    requestMessage.Headers.Add("hashkey", hashkey);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(ex, "Failed to generate hashkey. Proceeding without it (might fail if required).");
-                }
-                
                 requestMessage.Content = new StringContent(jsonBody, System.Text.Encoding.UTF8, "application/json");
             }
             else
