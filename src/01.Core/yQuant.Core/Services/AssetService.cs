@@ -7,16 +7,17 @@ namespace yQuant.Core.Services;
 
 public class AssetService
 {
-    private readonly Dictionary<string, IBrokerAdapter> _adapters;
+    private readonly IBrokerAdapterFactory _adapterFactory;
 
-    public AssetService(Dictionary<string, IBrokerAdapter> adapters)
+    public AssetService(IBrokerAdapterFactory adapterFactory)
     {
-        _adapters = adapters;
+        _adapterFactory = adapterFactory;
     }
 
     public async Task<Account?> GetAccountOverviewAsync(string accountAlias)
     {
-        if (!_adapters.TryGetValue(accountAlias, out var adapter))
+        var adapter = _adapterFactory.GetAdapter(accountAlias);
+        if (adapter == null)
         {
             return null;
         }

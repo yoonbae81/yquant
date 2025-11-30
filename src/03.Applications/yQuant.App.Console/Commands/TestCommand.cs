@@ -5,22 +5,28 @@ namespace yQuant.App.Console.Commands;
 
 public class TestCommand : ICommand
 {
-    private readonly IKISClient _client;
-    private readonly KISBrokerAdapter _adapter;
+    private readonly KISAdapterFactory _factory;
     private readonly ILogger<TestCommand> _logger;
 
     public string Name => "test";
     public string Description => "Test KIS API connection and retrieve account state";
 
-    public TestCommand(IKISClient client, KISBrokerAdapter adapter, ILogger<TestCommand> logger)
+    public TestCommand(KISAdapterFactory factory, ILogger<TestCommand> logger)
     {
-        _client = client;
-        _adapter = adapter;
+        _factory = factory;
         _logger = logger;
     }
 
     public async Task ExecuteAsync(string[] args)
     {
+        var alias = _factory.GetAvailableAccounts().FirstOrDefault();
+        if (alias == null)
+        {
+            System.Console.WriteLine("No KIS accounts found.");
+            return;
+        }
+        System.Console.WriteLine($"Target Account: {alias}");
+
         bool refreshToken = args.Contains("-r") || args.Contains("--refresh-token");
 
         System.Console.WriteLine("🚀 KIS Account Connection Test");
@@ -29,16 +35,23 @@ public class TestCommand : ICommand
         if (refreshToken)
         {
             System.Console.WriteLine("♻️  Token refresh mode enabled - will invalidate existing token\n");
-            await _client.InvalidateTokenAsync();
+            await _factory.InvalidateTokenAsync(alias);
             System.Console.WriteLine("✅ Token invalidated\n");
         }
 
         System.Console.WriteLine("Test 1: Connecting to KIS API (getting access token)...");
-        await _client.EnsureConnectedAsync();
+        await _factory.EnsureConnectedAsync(alias);
         System.Console.WriteLine("✅ Successfully connected to KIS API!\n");
 
         System.Console.WriteLine("Test 2: Getting account balance...");
-        var accountState = await _adapter.GetAccountStateAsync();
+        var adapter = _factory.GetAdapter(alias);
+        if (adapter == null) 
+        {
+             System.Console.WriteLine("❌ Failed to create adapter.");
+             return;
+        }
+
+        var accountState = await adapter.GetAccountStateAsync();
         
         System.Console.WriteLine($"✅ Account retrieved:");
         System.Console.WriteLine($"   Account ID: {accountState.Alias}");

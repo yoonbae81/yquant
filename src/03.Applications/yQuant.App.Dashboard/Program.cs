@@ -49,49 +49,15 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 // Add HttpClientFactory
 builder.Services.AddHttpClient();
 
-// Register KISApiConfig (Singleton)
-builder.Services.AddSingleton<KISApiConfig>(sp =>
-{
-    var config = sp.GetRequiredService<IConfiguration>();
-    var apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
-    return apiConfig;
-});
-
-// Register KISAccountProvider
-builder.Services.AddTransient<KISAccountProvider>();
-
-// Register Adapters (IBrokerAdapter)
-builder.Services.AddSingleton<Dictionary<string, IBrokerAdapter>>(sp =>
-{
-    var accountProvider = sp.GetRequiredService<KISAccountProvider>();
-    var httpClientFactory = sp.GetRequiredService<IHttpClientFactory>();
-    var loggerFactory = sp.GetRequiredService<ILoggerFactory>();
-    var apiConfig = sp.GetRequiredService<KISApiConfig>();
-    
-    var adapters = new Dictionary<string, IBrokerAdapter>();
-    var accounts = accountProvider.GetAccounts();
-
-    foreach (var account in accounts)
-    {
-        if (account.Broker == "KIS")
-        {
-            var httpClient = httpClientFactory.CreateClient("KIS");
-            var clientLogger = loggerFactory.CreateLogger<KISClient>();
-            var client = new KISClient(httpClient, clientLogger, account, apiConfig);
-            
-            var adapterLogger = loggerFactory.CreateLogger<KISBrokerAdapter>();
-            var adapter = new KISBrokerAdapter(client, adapterLogger);
-            
-            adapters[account.Alias] = adapter;
-        }
-    }
-    return adapters;
-});
+// Register KISAdapterFactory
+builder.Services.AddSingleton<KISAdapterFactory>();
+builder.Services.AddSingleton<IBrokerAdapterFactory>(sp => sp.GetRequiredService<KISAdapterFactory>());
 
 builder.Services.AddSingleton<yQuant.Core.Services.AssetService>();
 
 // Register custom services
 builder.Services.AddSingleton<OrderPublisher>();
+
 // Register RedisService and SchedulerService both as IHostedService and as a regular service for direct injection
 builder.Services.AddHostedService<RedisService>();
 builder.Services.AddSingleton(sp => (RedisService)sp.GetServices<IHostedService>().First(s => s is RedisService));

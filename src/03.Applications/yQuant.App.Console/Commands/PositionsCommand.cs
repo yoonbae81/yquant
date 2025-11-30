@@ -8,20 +8,26 @@ namespace yQuant.App.Console.Commands
     public class PositionsCommand : ICommand
     {
         private readonly AssetService _assetService;
-        private readonly string _accountNumber;
+        private readonly string _accountAlias;
 
-        public PositionsCommand(AssetService assetService, string accountNumber)
+        public PositionsCommand(AssetService assetService, string accountAlias)
         {
             _assetService = assetService;
-            _accountNumber = accountNumber;
+            _accountAlias = accountAlias;
         }
 
         public string Name => "positions";
         public string Description => "Show account positions";
         public async Task ExecuteAsync(string[] args)
         {
-            var account = await _assetService.GetAccountOverviewAsync();
+            var account = await _assetService.GetAccountOverviewAsync(_accountAlias);
             
+            if (account == null)
+            {
+                System.Console.WriteLine($"Account '{_accountAlias}' not found or failed to load.");
+                return;
+            }
+
             System.Console.WriteLine("========================================");
             System.Console.WriteLine($"Account Summary: {account.Alias} ({account.Number})");
             System.Console.WriteLine("========================================");
