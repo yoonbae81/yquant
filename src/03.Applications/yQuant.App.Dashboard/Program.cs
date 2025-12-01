@@ -42,6 +42,7 @@ builder.Services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>
 // Register Broker Adapter Factory and Order Publisher
 builder.Services.AddSingleton<IBrokerAdapterFactory, RedisBrokerAdapterFactory>();
 builder.Services.AddSingleton<OrderPublisher>();
+builder.Services.AddSingleton<AssetService>();
 
 var app = builder.Build();
 
