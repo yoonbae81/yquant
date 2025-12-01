@@ -59,7 +59,7 @@ public class AssetService
         try 
         {
             // Get Account State (Deposits)
-            account = await adapter.GetAccountStateAsync();
+            account = await adapter.GetDepositAsync(null);
 
             // Get Positions
             var positions = await adapter.GetPositionsAsync();

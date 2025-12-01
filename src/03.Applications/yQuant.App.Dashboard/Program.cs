@@ -34,21 +34,6 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
     
     var options = ConfigurationOptions.Parse(redisConn);
     options.AbortOnConnectFail = false;
-    return ConnectionMultiplexer.Connect(options);
-});
-
-// Add HttpClientFactory
-builder.Services.AddHttpClient();
-
-// Register KISAdapterFactory
-builder.Services.AddSingleton<KISAdapterFactory>();
-builder.Services.AddSingleton<IBrokerAdapterFactory>(sp => sp.GetRequiredService<KISAdapterFactory>());
-
-builder.Services.AddSingleton<yQuant.App.Dashboard.Services.AssetService>();
-
-// Register custom services
-builder.Services.AddSingleton<OrderPublisher>();
-
 // Register Infra RedisService
 builder.Services.AddSingleton<IRedisService, yQuant.Infra.Middleware.Redis.Services.RedisService>();
 

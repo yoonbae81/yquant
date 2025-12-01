@@ -138,107 +138,77 @@ namespace yQuant.App.BrokerGateway
                 var cached = await db.StringGetAsync(cacheKey);
                 if (cached.HasValue)
                 {
-                    return new BrokerResponse { RequestId = request.Id, Success = true, Payload = cached.ToString() };
+                    return new BrokerResponse
+                    {
+                        RequestId = request.Id,
+                        Success = true,
+                        Payload = cached
+                    };
                 }
             }
 
-            // Fetch
-            var priceInfo = await adapter.GetPriceAsync(ticker);
-            var json = JsonSerializer.Serialize(priceInfo);
+            // Fetch from Broker
+            try
+            {
+                var priceInfo = await adapter.GetPriceAsync(ticker);
+                var json = JsonSerializer.Serialize(priceInfo);
 
-            // Cache Store (5 min)
-            await db.StringSetAsync(cacheKey, json, TimeSpan.FromMinutes(5));
+                // Cache Result (TTL 5s)
+                await db.StringSetAsync(cacheKey, json, TimeSpan.FromSeconds(5));
 
-            return new BrokerResponse { RequestId = request.Id, Success = true, Payload = json };
+                return new BrokerResponse
+                {
+                    RequestId = request.Id,
+                    Success = true,
+                    Payload = json
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Price Error: {ex.Message}" };
+            }
         }
 
         private async Task<BrokerResponse> HandleGetDepositAsync(IBrokerAdapter adapter, BrokerRequest request)
         {
-            if (!Enum.TryParse<CurrencyType>(request.Payload, out var currency))
+            try
             {
-                return new BrokerResponse { RequestId = request.Id, Success = false, Message = "Invalid CurrencyType." };
-            }
-
-            var db = _redis.GetDatabase();
-            var cacheKey = $"cache:deposit:{request.Account}";
-
-            Account? account = null;
-
-            // Cache Lookup (Full Account)
-            if (!request.ForceRefresh)
-            {
-                var cached = await db.StringGetAsync(cacheKey);
-                if (cached.HasValue)
+                CurrencyType? currencyType = null;
+                if (!string.IsNullOrEmpty(request.Payload) && Enum.TryParse<CurrencyType>(request.Payload, true, out var parsed))
                 {
-                    account = JsonSerializer.Deserialize<Account>(cached.ToString());
+                    currencyType = parsed;
                 }
-            }
 
-            // Fetch if missing
-            if (account == null)
-            {
-                // Pass currency to adapter for optimization
-                account = await adapter.GetDepositAsync(currency);
-                // Note: We are not caching here if we fetch partial state to avoid overwriting full state.
-                // Or we could implement partial caching, but for now, optimization is prioritized.
+                var account = await adapter.GetDepositAsync(currencyType);
+                return new BrokerResponse
+                {
+                    RequestId = request.Id,
+                    Success = true,
+                    Payload = JsonSerializer.Serialize(account)
+                };
             }
-
-            // Filter
-            if (account != null && account.Deposits.TryGetValue(currency, out var amount))
+            catch (Exception ex)
             {
-                return new BrokerResponse { RequestId = request.Id, Success = true, Payload = JsonSerializer.Serialize(amount.ToString()) };
+                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Deposit Error: {ex.Message}" };
             }
-            
-            return new BrokerResponse { RequestId = request.Id, Success = true, Payload = JsonSerializer.Serialize("0") };
         }
 
         private async Task<BrokerResponse> HandleGetPositionsAsync(IBrokerAdapter adapter, BrokerRequest request)
         {
-            if (!Enum.TryParse<CountryCode>(request.Payload, out var country))
+            try
             {
-                return new BrokerResponse { RequestId = request.Id, Success = false, Message = "Invalid CountryCode." };
-            }
-
-            var db = _redis.GetDatabase();
-            var cacheKey = $"cache:positions:{request.Account}";
-
-            List<Position>? positions = null;
-
-            // Cache Lookup
-            if (!request.ForceRefresh)
-            {
-                var cached = await db.StringGetAsync(cacheKey);
-                if (cached.HasValue)
+                var positions = await adapter.GetPositionsAsync();
+                return new BrokerResponse
                 {
-                    positions = JsonSerializer.Deserialize<List<Position>>(cached.ToString());
-                }
+                    RequestId = request.Id,
+                    Success = true,
+                    Payload = JsonSerializer.Serialize(positions)
+                };
             }
-
-            // Fetch if missing
-            if (positions == null)
+            catch (Exception ex)
             {
-                positions = await adapter.GetPositionsAsync();
-                // Cache Store (5 min)
-                await db.StringSetAsync(cacheKey, JsonSerializer.Serialize(positions), TimeSpan.FromMinutes(5));
+                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Positions Error: {ex.Message}" };
             }
-
-            var filtered = positions.Where(p => IsCountryMatch(p, country)).ToList();
-
-            return new BrokerResponse { RequestId = request.Id, Success = true, Payload = JsonSerializer.Serialize(filtered) };
-        }
-
-        private bool IsCountryMatch(Position p, CountryCode country)
-        {
-            return country switch
-            {
-                CountryCode.KR => p.Currency == CurrencyType.KRW,
-                CountryCode.US => p.Currency == CurrencyType.USD,
-                CountryCode.VN => p.Currency == CurrencyType.VND,
-                CountryCode.HK => p.Currency == CurrencyType.HKD,
-                CountryCode.CN => p.Currency == CurrencyType.CNY,
-                CountryCode.JP => p.Currency == CurrencyType.JPY,
-                _ => false
-            };
         }
 
         private async Task<BrokerResponse> HandlePlaceOrderAsync(IBrokerAdapter adapter, BrokerRequest request)
@@ -246,10 +216,6 @@ namespace yQuant.App.BrokerGateway
             var order = JsonSerializer.Deserialize<Order>(request.Payload);
             if (order == null) return new BrokerResponse { RequestId = request.Id, Success = false, Message = "Invalid Order payload." };
 
-            // Log to Discord (via _tradingLoggers) - Pre-execution? Or Post?
-            // User said: "BrokerGateway의 로깅은 discord 채널을 활용한다."
-            // Existing logic logged result.
-            
             try
             {
                 var result = await adapter.PlaceOrderAsync(order);

@@ -9,9 +9,9 @@ namespace yQuant.Infra.Notification.Discord.Services
     public class DiscordTemplateService
     {
         private readonly string _templateDirectory;
-        private Dictionary<string, DiscordEmbed> _discordTemplates;
+        private Dictionary<string, DiscordEmbed> _discordTemplates = new();
 
-        public DiscordTemplateService(string templateDirectory = null)
+        public DiscordTemplateService(string? templateDirectory = null)
         {
             _templateDirectory = templateDirectory ?? Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "Templates");
             LoadTemplates();
@@ -23,7 +23,7 @@ namespace yQuant.Infra.Notification.Discord.Services
             if (File.Exists(discordPath))
             {
                 var json = File.ReadAllText(discordPath);
-                _discordTemplates = JsonSerializer.Deserialize<Dictionary<string, DiscordEmbed>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+                _discordTemplates = JsonSerializer.Deserialize<Dictionary<string, DiscordEmbed>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? new Dictionary<string, DiscordEmbed>();
             }
             else
             {
@@ -31,12 +31,12 @@ namespace yQuant.Infra.Notification.Discord.Services
             }
         }
 
-        public DiscordEmbed GetTemplate(string templateName)
+        public DiscordEmbed? GetTemplate(string templateName)
         {
             return _discordTemplates.TryGetValue(templateName, out var template) ? Clone(template) : null;
         }
 
-        public DiscordEmbed ProcessTemplate(string templateName, Dictionary<string, string> values)
+        public DiscordEmbed? ProcessTemplate(string templateName, Dictionary<string, string> values)
         {
             var template = GetTemplate(templateName);
             if (template == null) return null;
@@ -72,7 +72,7 @@ namespace yQuant.Infra.Notification.Discord.Services
             return text;
         }
 
-        private DiscordEmbed Clone(DiscordEmbed source)
+        private DiscordEmbed? Clone(DiscordEmbed source)
         {
             var json = JsonSerializer.Serialize(source);
             return JsonSerializer.Deserialize<DiscordEmbed>(json);

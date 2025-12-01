@@ -8,7 +8,7 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Middleware.Redis.Models;
 using Order = yQuant.Core.Models.Order;
 
-namespace yQuant.App.Console.Services
+namespace yQuant.App.Dashboard.Services
 {
     public class RedisBrokerClient : IBrokerAdapter
     {
@@ -135,37 +135,38 @@ namespace yQuant.App.Console.Services
 
         public async Task<Account> GetDepositAsync(CurrencyType? currency = null)
         {
-            if (currency == null) throw new NotSupportedException("RedisBrokerClient requires a specific currency for GetDepositAsync.");
-            return await GetDepositAsync(currency.Value, false);
-        }
-
-        public async Task<Account> GetDepositAsync(CurrencyType currency, bool forceRefresh = false)
-        {
-            // Gateway returns the full Account object (serialized)
-            var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, currency.ToString(), forceRefresh);
-            
-            if (account == null)
+            if (currency == null)
             {
-                // Fallback if null
-                return new Account 
-                { 
-                    Number = "N/A", 
-                    Alias = _account,
-                    Broker = "Redis",
-                    Deposits = new Dictionary<CurrencyType, decimal>(),
-                    Active = true
-                };
+                // Fetch full account state
+                var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, "", false);
+                return account ?? new Account { Alias = _account, Deposits = new Dictionary<CurrencyType, decimal>() };
             }
-
-            // If the gateway filtered it, good. If not, we have the whole account.
-            // The interface requires returning an Account object.
-            // We can just return the account object we got.
-            return account;
+            else
+            {
+                // Fetch specific currency
+                // Gateway returns the full Account object (serialized) even if we ask for specific currency
+                var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, currency.ToString(), false);
+                
+                if (account == null)
+                {
+                     return new Account 
+                    { 
+                        Number = "N/A", 
+                        Alias = _account,
+                        Broker = "Redis",
+                        Deposits = new Dictionary<CurrencyType, decimal>(),
+                        Active = true
+                    };
+                }
+                return account;
+            }
         }
 
         public async Task<List<Position>> GetPositionsAsync()
         {
-             throw new NotSupportedException("Use GetPositionsAsync(CountryCode) instead.");
+             // Fetch all positions
+             var result = await ExecuteRequestAsync<List<Position>>(BrokerRequestType.GetPositions, "", false);
+             return result ?? new List<Position>();
         }
 
         public async Task<List<Position>> GetPositionsAsync(CountryCode country, bool forceRefresh = false)
