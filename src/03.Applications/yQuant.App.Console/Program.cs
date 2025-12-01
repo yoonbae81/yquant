@@ -39,15 +39,14 @@ class Program
         var host = Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration((context, config) =>
             {
-                config.AddEnvironmentVariables();
-                config.AddUserSecrets<Program>(optional: true);
+                config.AddEnvironmentVariables("yQuant__");
             })
             .ConfigureServices((context, services) =>
             {
                 // Redis Connection
                 services.AddSingleton<IConnectionMultiplexer>(sp =>
                 {
-                    var redisConn = Environment.GetEnvironmentVariable("Redis");
+                    var redisConn = context.Configuration["Redis"];
                     if (string.IsNullOrEmpty(redisConn))
                     {
                         throw new InvalidOperationException("Redis connection string is missing.");

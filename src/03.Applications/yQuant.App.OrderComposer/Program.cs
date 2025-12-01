@@ -10,8 +10,9 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Core.Ports.Output.Policies;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Configuration.AddEnvironmentVariables("yQuant__");
 
-var redisConn = Environment.GetEnvironmentVariable("Redis");
+var redisConn = builder.Configuration["Redis"];
 if (string.IsNullOrEmpty(redisConn))
 {
     throw new InvalidOperationException("Redis connection string is missing. Please set 'Redis' environment variable.");

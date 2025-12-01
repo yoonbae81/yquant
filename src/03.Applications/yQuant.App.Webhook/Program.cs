@@ -8,11 +8,12 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Notification.Discord;
 
 var builder = WebApplication.CreateBuilder(args);
+builder.Configuration.AddEnvironmentVariables("yQuant__");
 
 // Add services to the container.
 builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
 {
-    var redisConn = Environment.GetEnvironmentVariable("Redis");
+    var redisConn = builder.Configuration["Redis"];
     if (string.IsNullOrEmpty(redisConn))
     {
         throw new InvalidOperationException("Redis connection string is missing. Please set 'Redis' environment variable.");

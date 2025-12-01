@@ -13,6 +13,7 @@ using yQuant.Infra.Redis.Interfaces;
 using yQuant.Core.Models;
 
 var builder = Host.CreateApplicationBuilder(args);
+builder.Configuration.AddEnvironmentVariables("yQuant__");
 
 // Register Telegram Notification Service
 builder.Services.AddHttpClient<INotificationService, TelegramNotificationService>();

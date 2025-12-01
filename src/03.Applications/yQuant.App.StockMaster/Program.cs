@@ -8,13 +8,14 @@ IHost host = Host.CreateDefaultBuilder(args)
     {
         config.SetBasePath(AppContext.BaseDirectory);
         config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
+        config.AddEnvironmentVariables("yQuant__");
     })
     .ConfigureServices((hostContext, services) =>
     {
         var configuration = hostContext.Configuration;
 
         // Redis
-        var redisConn = Environment.GetEnvironmentVariable("Redis");
+        var redisConn = hostContext.Configuration["Redis"];
         if (string.IsNullOrEmpty(redisConn))
         {
             throw new InvalidOperationException("Redis connection string is missing. Please set 'Redis' environment variable.");
