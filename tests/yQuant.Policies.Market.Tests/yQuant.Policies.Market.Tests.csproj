@@ -13,15 +13,11 @@
     <PackageReference Include="MSTest.TestAdapter" Version="3.6.1" />
     <PackageReference Include="MSTest.TestFramework" Version="3.6.1" />
     <PackageReference Include="coverlet.collector" Version="6.0.2" />
+    <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.China\yQuant.Policies.Market.China.csproj" />
-    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.HongKong\yQuant.Policies.Market.HongKong.csproj" />
-    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.Japan\yQuant.Policies.Market.Japan.csproj" />
-    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.Korea\yQuant.Policies.Market.Korea.csproj" />
-    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.UnitedStates\yQuant.Policies.Market.UnitedStates.csproj" />
-    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market.Vietnam\yQuant.Policies.Market.Vietnam.csproj" />
+    <ProjectReference Include="..\..\src\04.Policies\yQuant.Policies.Market\yQuant.Policies.Market.csproj" />
   </ItemGroup>
 
 </Project>

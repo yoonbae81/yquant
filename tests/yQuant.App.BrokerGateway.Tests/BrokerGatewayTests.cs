@@ -8,6 +8,7 @@ using System.Threading.Tasks;
 using System.Threading;
 using yQuant.Infra.Notification.Telegram;
 using yQuant.Core.Ports.Output.Infrastructure;
+using System.Collections.Generic;
 
 namespace yQuant.App.BrokerGateway.Tests;
 
@@ -15,44 +16,22 @@ namespace yQuant.App.BrokerGateway.Tests;
 public class BrokerGatewayTests
 {
     private Mock<ILogger<Worker>>? _loggerMock;
-    private Mock<IConfiguration>? _configMock;
     private Mock<IConnectionMultiplexer>? _redisMock;
     private Mock<ISubscriber>? _subscriberMock;
-    private Mock<IServiceProvider>? _serviceProviderMock;
     private Mock<INotificationService>? _telegramNotifierMock;
     private Mock<ITradingLogger>? _tradingLoggerMock;
-    private Mock<ISystemLogger>? _systemLoggerMock;
 
     [TestInitialize]
     public void TestInitialize()
     {
         _loggerMock = new Mock<ILogger<Worker>>();
-        _configMock = new Mock<IConfiguration>();
         _redisMock = new Mock<IConnectionMultiplexer>();
         _subscriberMock = new Mock<ISubscriber>();
-        _serviceProviderMock = new Mock<IServiceProvider>();
         _telegramNotifierMock = new Mock<INotificationService>();
-        _tradingLoggerMock = new Mock<yQuant.Core.Ports.Output.Infrastructure.ITradingLogger>();
-        _systemLoggerMock = new Mock<yQuant.Core.Ports.Output.Infrastructure.ISystemLogger>();
+        _tradingLoggerMock = new Mock<ITradingLogger>();
 
         _redisMock.Setup(r => r.GetSubscriber(null)).Returns(_subscriberMock.Object);
-
-        // Setup KISAccountManager dependencies
-        var kisManagerLoggerMock = new Mock<ILogger<KISAccountManager>>();
-        var httpClientFactoryMock = new Mock<IHttpClientFactory>();
-        var redisServiceMock = new Mock<yQuant.Infra.Middleware.Redis.Interfaces.IRedisService>();
-
-        // Create KISAccountManager instance
-        var kisAccountManager = new KISAccountManager(
-            kisManagerLoggerMock.Object,
-            httpClientFactoryMock.Object,
-            _serviceProviderMock.Object,
-            redisServiceMock.Object
-        );
-
-        // Setup ServiceProvider to return KISAccountManager
-        _serviceProviderMock.Setup(x => x.GetService(typeof(KISAccountManager)))
-            .Returns(kisAccountManager);
+        _redisMock.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>())).Returns(new Mock<IDatabase>().Object);
     }
 
     [TestMethod]
@@ -61,7 +40,15 @@ public class BrokerGatewayTests
         // Arrange
         var templateService = new yQuant.Infra.Notification.Telegram.Services.TelegramTemplateService();
         var telegramBuilder = new TelegramMessageBuilder(templateService);
-        var worker = new Worker(_loggerMock!.Object, _configMock!.Object, _redisMock!.Object, _serviceProviderMock!.Object, _telegramNotifierMock!.Object, telegramBuilder, new[] { _tradingLoggerMock!.Object }, _systemLoggerMock!.Object);
+        var adapters = new Dictionary<string, IBrokerAdapter>();
+
+        var worker = new Worker(
+            _loggerMock!.Object,
+            _redisMock!.Object,
+            adapters,
+            _telegramNotifierMock!.Object,
+            telegramBuilder,
+            new[] { _tradingLoggerMock!.Object });
 
         // Act
         await worker.StartAsync(CancellationToken.None);

@@ -20,12 +20,7 @@
     <Project Path="src/03.Applications/yQuant.App.Webhook/yQuant.App.Webhook.csproj" />
   </Folder>
   <Folder Name="/src/04.Policies/">
-    <Project Path="src/04.Policies/yQuant.Policies.Market.China/yQuant.Policies.Market.China.csproj" />
-    <Project Path="src/04.Policies/yQuant.Policies.Market.HongKong/yQuant.Policies.Market.HongKong.csproj" />
-    <Project Path="src/04.Policies/yQuant.Policies.Market.Japan/yQuant.Policies.Market.Japan.csproj" />
-    <Project Path="src/04.Policies/yQuant.Policies.Market.Korea/yQuant.Policies.Market.Korea.csproj" />
-    <Project Path="src/04.Policies/yQuant.Policies.Market.UnitedStates/yQuant.Policies.Market.UnitedStates.csproj" />
-    <Project Path="src/04.Policies/yQuant.Policies.Market.Vietnam/yQuant.Policies.Market.Vietnam.csproj" />
+    <Project Path="src/04.Policies/yQuant.Policies.Market/yQuant.Policies.Market.csproj" />
     <Project Path="src/04.Policies/yQuant.Policies.Sizing.Basic/yQuant.Policies.Sizing.Basic.csproj" />
   </Folder>
   <Folder Name="/tests/">

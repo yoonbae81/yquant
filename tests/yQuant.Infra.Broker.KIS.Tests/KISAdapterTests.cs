@@ -21,12 +21,16 @@ public class KISAdapterTests
     {
         _mockKisClient = new Mock<IKISClient>();
         _mockLogger = new Mock<ILogger<KISBrokerAdapter>>();
-        
+
         var account = new Account
         {
             Alias = AccountAlias,
             Number = AccountNumber,
-            Broker = "KIS"
+            Broker = "KIS",
+            AppKey = "test_key",
+            AppSecret = "test_secret",
+            Deposits = new Dictionary<CurrencyType, decimal>(),
+            Active = true
         };
         _mockKisClient.Setup(c => c.Account).Returns(account);
 
@@ -55,11 +59,11 @@ public class KISAdapterTests
                 null,
                 null
             ))
-            .ReturnsAsync(new DomesticOrderResponse 
-            { 
-                RtCd = "0", 
-                Msg1 = "Order Placed", 
-                Output = new DomesticOrderOutput { Odno = "12345" } 
+            .ReturnsAsync(new DomesticOrderResponse
+            {
+                RtCd = "0",
+                Msg1 = "Order Placed",
+                Output = new DomesticOrderOutput { Odno = "12345" }
             });
 
         // Act
@@ -71,7 +75,7 @@ public class KISAdapterTests
         Assert.Equal("12345", result.BrokerOrderId);
         _mockKisClient.Verify(c => c.ExecuteAsync<DomesticOrderResponse>(
             "DomesticBuyOrder",
-            It.Is<object>(body => 
+            It.Is<object>(body =>
                 body.GetType().GetProperty("PDNO")!.GetValue(body)!.ToString() == "005930" &&
                 body.GetType().GetProperty("ORD_QTY")!.GetValue(body)!.ToString() == "10" &&
                 body.GetType().GetProperty("ORD_UNPR")!.GetValue(body)!.ToString() == "70000"
@@ -113,6 +117,7 @@ public class KISAdapterTests
         Assert.False(result.IsSuccess);
         Assert.Equal("Error (Code: 1)", result.Message);
     }
+
     [Fact]
     public async Task GetPriceAsync_ShouldReturnPrice_WhenDomestic()
     {

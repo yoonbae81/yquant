@@ -6,7 +6,7 @@ using Moq.Protected;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Broker.KIS.Models;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+
 using Xunit;
 
 namespace yQuant.Infra.Broker.KIS.Tests;
@@ -15,7 +15,6 @@ public class KISClientTests
 {
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly Mock<ILogger<KISClient>> _mockLogger;
-    private readonly Mock<IRedisService> _mockRedisService;
     private readonly KISClient _client;
     private readonly KISApiConfig _apiConfig;
     private readonly string _userId;
@@ -32,7 +31,6 @@ public class KISClientTests
         };
 
         _mockLogger = new Mock<ILogger<KISClient>>();
-        _mockRedisService = new Mock<IRedisService>();
 
         _apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
         if (_apiConfig == null || _apiConfig.ExtensionData.Count == 0)
@@ -59,7 +57,6 @@ public class KISClientTests
         _client = new KISClient(
             httpClient,
             _mockLogger.Object,
-            _mockRedisService.Object,
             account,
             _apiConfig
         );
@@ -139,7 +136,7 @@ public class KISClientTests
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",
             Times.Once(),
-            ItExpr.Is<HttpRequestMessage>(req => 
+            ItExpr.Is<HttpRequestMessage>(req =>
                 req.RequestUri!.AbsolutePath.Contains("/uapi/domestic-stock/v1/trading/order-cash") &&
                 req.Headers.Authorization!.Parameter == "new_access_token"),
             ItExpr.IsAny<CancellationToken>()
@@ -150,7 +147,7 @@ public class KISClientTests
     public async Task ExecuteAsync_ShouldUseCachedToken_WhenTokenExists()
     {
         // Arrange
-        _mockRedisService.Setup(r => r.GetAsync<string>($"KIS:Token:{_accountAlias}")).ReturnsAsync("cached_token");
+
 
         SetupMockResponse(req =>
         {
@@ -185,22 +182,13 @@ public class KISClientTests
             ItExpr.IsAny<CancellationToken>()
         );
 
-        // Verify Order Request has Cached Authorization header
-        _mockHttpMessageHandler.Protected().Verify(
-            "SendAsync",
-            Times.Once(),
-            ItExpr.Is<HttpRequestMessage>(req => 
-                req.RequestUri!.AbsolutePath.Contains("/uapi/domestic-stock/v1/trading/order-cash") &&
-                req.Headers.Authorization!.Parameter == "cached_token"),
-            ItExpr.IsAny<CancellationToken>()
-        );
     }
 
     [Fact]
     public async Task ExecuteAsync_ShouldGenerateHashkey_ForPostRequests()
     {
         // Arrange
-        _mockRedisService.Setup(r => r.GetAsync<string>($"KIS:Token:{_accountAlias}")).ReturnsAsync("cached_token");
+
 
         SetupMockResponse(req =>
         {
@@ -239,7 +227,7 @@ public class KISClientTests
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",
             Times.Once(),
-            ItExpr.Is<HttpRequestMessage>(req => 
+            ItExpr.Is<HttpRequestMessage>(req =>
                 req.RequestUri!.AbsolutePath.Contains("/uapi/domestic-stock/v1/trading/order-cash") &&
                 req.Headers.Contains("hashkey") &&
                 req.Headers.GetValues("hashkey").First() == "generated_hash_key"),

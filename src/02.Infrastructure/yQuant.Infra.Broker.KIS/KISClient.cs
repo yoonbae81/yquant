@@ -107,7 +107,7 @@ public class KISClient : IKISClient
         }
     }
 
-    public async Task InvalidateTokenAsync()
+    public Task InvalidateTokenAsync()
     {
         _accessToken = null;
         _accessTokenExpiration = DateTime.MinValue;
@@ -130,6 +130,7 @@ public class KISClient : IKISClient
         }
 
         _logger.LogInformation("Invalidated KIS access token for account {Alias}.", _account.Alias);
+        return Task.CompletedTask;
     }
 
     private async Task GetAccessTokenAsync()
@@ -162,7 +163,7 @@ public class KISClient : IKISClient
         {
             _accessToken = tokenResponse.AccessToken;
             _accessTokenExpiration = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn - 60);
-            
+
 
             // Store in local file cache
             await SaveTokenToFileAsync(_accessToken, _accessTokenExpiration);
@@ -237,15 +238,15 @@ public class KISClient : IKISClient
         }
 
         var response = await _httpClient.SendAsync(requestMessage);
-        
+
         // Log error details if request failed
         if (!response.IsSuccessStatusCode)
         {
             var errorContent = await response.Content.ReadAsStringAsync();
-            _logger.LogError("KIS API Error - Endpoint: {Endpoint}, Status: {Status}, Response: {Response}", 
+            _logger.LogError("KIS API Error - Endpoint: {Endpoint}, Status: {Status}, Response: {Response}",
                 endpointName, response.StatusCode, errorContent);
         }
-        
+
         response.EnsureSuccessStatusCode();
 
         // Handle string response for PlaceOrderAsync which returns string in original code
@@ -258,7 +259,7 @@ public class KISClient : IKISClient
         return await response.Content.ReadFromJsonAsync<TResponse>();
     }
 
-    private string BuildUrl(string path, Dictionary<string, string>? queryParams)
+    private static string BuildUrl(string path, Dictionary<string, string>? queryParams)
     {
         if (queryParams == null || queryParams.Count == 0)
         {

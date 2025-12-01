@@ -3,11 +3,11 @@ using Moq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Configuration;
 using yQuant.Core.Models;
-using yQuant.Policies.Market.UnitedStates;
+using yQuant.Policies.Market;
 using System;
 using System.Collections.Generic;
 
-namespace yQuant.Policies.Market.UnitedStates.Tests;
+namespace yQuant.Policies.Market.Tests;
 
 [TestClass]
 public class USMarketRuleTests
@@ -64,7 +64,7 @@ public class USMarketRuleTests
         // Assert
         Assert.IsTrue(result);
     }
-    
+
     [TestMethod]
     public void IsMarketOpen_DuringPreMarket_WhenAllowed_ReturnsTrue()
     {

@@ -1,4 +1,4 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
@@ -15,7 +15,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="9.0.0" />
     <ProjectReference Include="..\..\src\02.Infrastructure\yQuant.Infra.Notification.Telegram\yQuant.Infra.Notification.Telegram.csproj" />
-    <ProjectReference Include="..\..\src\02.Infrastructure\yQuant.Infra.Middleware.Redis\yQuant.Infra.Middleware.Redis.csproj" />
+    <ProjectReference Include="..\..\src\02.Infrastructure\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj" />
   </ItemGroup>
 
   <ItemGroup>

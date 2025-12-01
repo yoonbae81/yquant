@@ -18,7 +18,7 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
     {
         throw new InvalidOperationException("Redis connection string is missing. Please set 'Redis' environment variable.");
     }
-    
+
     var options = ConfigurationOptions.Parse(redisConn);
     options.AbortOnConnectFail = false;
     return ConnectionMultiplexer.Connect(options);
@@ -55,7 +55,7 @@ app.Use(async (context, next) =>
 {
     var logger = context.RequestServices.GetRequiredService<ILogger<Program>>();
     var sw = System.Diagnostics.Stopwatch.StartNew();
-    
+
     try
     {
         await next();
@@ -151,3 +151,5 @@ app.MapPost("/webhook", async (HttpContext context, TradingViewPayload payload, 
 
 
 app.Run();
+
+public partial class Program { }

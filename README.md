@@ -79,7 +79,7 @@
 ## **4. 설치 및 설정 (Installation & Configuration)**
 
 ### **4.1. 요구사항 (Prerequisites)**
-* .NET 10.0 SDK 이상
+* .NET 8.0 SDK 이상
 * Redis Server (로컬 또는 원격)
 * 한국투자증권 Open API 계정 (AppKey, AppSecret)
 

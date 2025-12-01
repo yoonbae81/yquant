@@ -2,6 +2,8 @@ using StackExchange.Redis;
 using yQuant.App.StockMaster;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Master.KIS;
+using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Redis.Services;
 
 IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((hostingContext, config) =>
@@ -20,11 +22,11 @@ IHost host = Host.CreateDefaultBuilder(args)
         {
             throw new InvalidOperationException("Redis connection string is missing. Please set 'Redis' environment variable.");
         }
-        
+
         var options = ConfigurationOptions.Parse(redisConn);
         options.AbortOnConnectFail = false;
         services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(options));
-        services.AddSingleton<yQuant.Infra.Middleware.Redis.Interfaces.IRedisService, yQuant.Infra.Middleware.Redis.Services.RedisService>();
+        services.AddSingleton<IRedisService, RedisService>();
 
         // HttpClient
         services.AddHttpClient();

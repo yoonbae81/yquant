@@ -1,0 +1,113 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "yQuant.App.Console",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: Console",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.Console/bin/Debug/net10.0/yQuant.App.Console.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.Console",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "yQuant.App.BrokerGateway",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: BrokerGateway",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.BrokerGateway/bin/Debug/net10.0/yQuant.App.BrokerGateway.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.BrokerGateway",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "yQuant.App.Webhook",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: Webhook",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.Webhook/bin/Debug/net10.0/yQuant.App.Webhook.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.Webhook",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            }
+        },
+        {
+            "name": "yQuant.App.OrderComposer",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: OrderComposer",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.OrderComposer/bin/Debug/net10.0/yQuant.App.OrderComposer.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.OrderComposer",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        },
+        {
+            "name": "yQuant.App.Dashboard",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: Dashboard",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.Dashboard/bin/Debug/net10.0/yQuant.App.Dashboard.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.Dashboard",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "ASPNETCORE_ENVIRONMENT": "Development"
+            }
+        },
+        {
+            "name": "yQuant.App.StockMaster",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: StockMaster",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.StockMaster/bin/Debug/net10.0/yQuant.App.StockMaster.exe",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.StockMaster",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Console + Gateway",
+            "configurations": [
+                "yQuant.App.Console",
+                "yQuant.App.BrokerGateway"
+            ],
+            "stopAll": true
+        },
+        {
+            "name": "Dashboard + Gateway",
+            "configurations": [
+                "yQuant.App.Dashboard",
+                "yQuant.App.BrokerGateway"
+            ],
+            "stopAll": true
+        },
+        {
+            "name": "Webhook + Gateway + Composer",
+            "configurations": [
+                "yQuant.App.Webhook",
+                "yQuant.App.BrokerGateway",
+                "yQuant.App.OrderComposer"
+            ],
+            "stopAll": true
+        }
+    ]
+}

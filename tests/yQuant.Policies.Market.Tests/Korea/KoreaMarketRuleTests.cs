@@ -1,9 +1,9 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
 using yQuant.Core.Models;
-using yQuant.Policies.Market.Korea;
+using yQuant.Policies.Market;
 using System;
 
-namespace yQuant.Policies.Market.Korea.Tests;
+namespace yQuant.Policies.Market.Tests;
 
 [TestClass]
 public class KoreaMarketRuleTests

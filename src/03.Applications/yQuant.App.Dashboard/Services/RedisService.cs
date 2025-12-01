@@ -2,7 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Infra.Redis.Interfaces;
 
 namespace yQuant.App.Dashboard.Services;
 
@@ -64,7 +64,7 @@ public class RedisService : IHostedService, IDisposable
         // Note: This is a synchronous wrapper around an async method, which is not ideal for Blazor Server.
         // However, given the current architecture and interface constraints, we'll use .Result carefully.
         // Ideally, the Dashboard should be fully async.
-        try 
+        try
         {
             return adapter.GetPositionsAsync().GetAwaiter().GetResult();
         }

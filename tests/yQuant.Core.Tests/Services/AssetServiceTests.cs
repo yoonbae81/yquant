@@ -8,13 +8,15 @@ namespace yQuant.Core.Tests.Services;
 
 public class AssetServiceTests
 {
+    private readonly Mock<IBrokerAdapterFactory> _mockAdapterFactory;
     private readonly Mock<IBrokerAdapter> _mockBrokerAdapter;
     private readonly AssetService _assetService;
 
     public AssetServiceTests()
     {
+        _mockAdapterFactory = new Mock<IBrokerAdapterFactory>();
         _mockBrokerAdapter = new Mock<IBrokerAdapter>();
-        _assetService = new AssetService(_mockBrokerAdapter.Object);
+        _assetService = new AssetService(_mockAdapterFactory.Object);
     }
 
     [Fact]
@@ -22,9 +24,10 @@ public class AssetServiceTests
     {
         // Arrange
         var accountNumber = "12345678-01";
+        var accountAlias = "user1";
         var expectedAccount = new Account
         {
-            Alias = "user1",
+            Alias = accountAlias,
             Number = accountNumber,
             Broker = "TestBroker",
             AppKey = "test_key",
@@ -41,7 +44,7 @@ public class AssetServiceTests
         {
             new Position
             {
-                AccountAlias = "TestAccount",
+                AccountAlias = accountAlias,
                 Ticker = "005930",
                 Currency = CurrencyType.KRW,
                 Qty = 10,
@@ -51,7 +54,7 @@ public class AssetServiceTests
             },
             new Position
             {
-                AccountAlias = "TestAccount",
+                AccountAlias = accountAlias,
                 Ticker = "AAPL",
                 Currency = CurrencyType.USD,
                 Qty = 5,
@@ -61,14 +64,17 @@ public class AssetServiceTests
             }
         };
 
-        _mockBrokerAdapter.Setup(x => x.GetAccountStateAsync(accountNumber))
+        _mockAdapterFactory.Setup(x => x.GetAdapter(accountAlias))
+            .Returns(_mockBrokerAdapter.Object);
+
+        _mockBrokerAdapter.Setup(x => x.GetDepositAsync(null, false))
             .ReturnsAsync(expectedAccount);
 
-        _mockBrokerAdapter.Setup(x => x.GetPositionsAsync(accountNumber))
+        _mockBrokerAdapter.Setup(x => x.GetPositionsAsync())
             .ReturnsAsync(expectedPositions);
 
         // Act
-        var result = await _assetService.GetAccountOverviewAsync(accountNumber);
+        var result = await _assetService.GetAccountOverviewAsync(accountAlias);
 
         // Assert
         Assert.NotNull(result);
@@ -76,13 +82,14 @@ public class AssetServiceTests
         Assert.Equal(2, result.Deposits.Count);
         Assert.Equal(1000000, result.Deposits[CurrencyType.KRW]);
         Assert.Equal(1000, result.Deposits[CurrencyType.USD]);
-        
+
         Assert.NotNull(result.Positions);
         Assert.Equal(2, result.Positions.Count);
         Assert.Contains(result.Positions, p => p.Ticker == "005930" && p.Qty == 10);
         Assert.Contains(result.Positions, p => p.Ticker == "AAPL" && p.Qty == 5);
 
-        _mockBrokerAdapter.Verify(x => x.GetAccountStateAsync(accountNumber), Times.Once);
-        _mockBrokerAdapter.Verify(x => x.GetPositionsAsync(accountNumber), Times.Once);
+        _mockAdapterFactory.Verify(x => x.GetAdapter(accountAlias), Times.Once);
+        _mockBrokerAdapter.Verify(x => x.GetDepositAsync(null, false), Times.Once);
+        _mockBrokerAdapter.Verify(x => x.GetPositionsAsync(), Times.Once);
     }
 }

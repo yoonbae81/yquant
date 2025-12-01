@@ -4,7 +4,7 @@ using Moq;
 using StackExchange.Redis;
 using yQuant.Core.Models;
 using yQuant.Infra.Master.KIS;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Infra.Redis.Interfaces;
 
 namespace yQuant.Infra.Master.KIS.Tests;
 
@@ -27,11 +27,11 @@ public class RedisMasterDataRepositoryTests
         _mockRedisService = new Mock<IRedisService>();
         _mockLogger = new Mock<ILogger<RedisMasterDataRepository>>();
 
-        _mockRedis.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
+        _mockRedis.Setup(r => r.GetDatabase(It.IsAny<int>(), null))
             .Returns(_mockDatabase.Object);
-        _mockDatabase.Setup(db => db.CreateBatch())
+        _mockDatabase.Setup(db => db.CreateBatch(null))
             .Returns(_mockBatch.Object);
-        
+
         _mockRedisService.Setup(s => s.Connection).Returns(_mockRedis.Object);
 
         _repository = new RedisMasterDataRepository(_mockRedisService.Object, _mockLogger.Object);
@@ -43,19 +43,19 @@ public class RedisMasterDataRepositoryTests
         // Arrange
         var stocks = new List<StockMaster>
         {
-            new StockMaster 
-            { 
-                Ticker = "005930", 
-                Name = "?�성?�자", 
-                Exchange = "KOSPI", 
-                Currency = CurrencyType.KRW 
+            new()
+            {
+                Ticker = "005930",
+                Name = "?�성?�자",
+                Exchange = "KOSPI",
+                Currency = CurrencyType.KRW
             },
-            new StockMaster 
-            { 
-                Ticker = "AAPL", 
-                Name = "Apple Inc.", 
-                Exchange = "NASDAQ", 
-                Currency = CurrencyType.USD 
+            new()
+            {
+                Ticker = "AAPL",
+                Name = "Apple Inc.",
+                Exchange = "NASDAQ",
+                Currency = CurrencyType.USD
             }
         };
 
@@ -79,7 +79,7 @@ public class RedisMasterDataRepositoryTests
         // _mockBatch.Verify(b => b.Execute(), Times.Once);
         _mockBatch.Verify(b => b.HashSetAsync(
             It.Is<RedisKey>(k => k.ToString().Contains("cache:master:")),
-            It.Is<HashEntry[]>(entries => 
+            It.Is<HashEntry[]>(entries =>
                 entries.Any(e => e.Name == "name") &&
                 entries.Any(e => e.Name == "exchange") &&
                 entries.Any(e => e.Name == "currency")),
@@ -115,9 +115,9 @@ public class RedisMasterDataRepositoryTests
         var ticker = "005930";
         var hashEntries = new HashEntry[]
         {
-            new HashEntry("name", "?�성?�자"),
-            new HashEntry("exchange", "KOSPI"),
-            new HashEntry("currency", "KRW")
+            new("name", "삼성전자"),
+            new("exchange", "KOSPI"),
+            new("currency", "KRW")
         };
 
         _mockDatabase.Setup(db => db.HashGetAllAsync(
@@ -131,7 +131,7 @@ public class RedisMasterDataRepositoryTests
         // Assert
         Assert.IsNotNull(result);
         Assert.AreEqual(ticker, result.Ticker);
-        Assert.AreEqual("?�성?�자", result.Name);
+        Assert.AreEqual("삼성전자", result.Name);
         Assert.AreEqual("KOSPI", result.Exchange);
         Assert.AreEqual(CurrencyType.KRW, result.Currency);
     }
@@ -144,7 +144,7 @@ public class RedisMasterDataRepositoryTests
         _mockDatabase.Setup(db => db.HashGetAllAsync(
             It.IsAny<RedisKey>(),
             It.IsAny<CommandFlags>()))
-            .ReturnsAsync(Array.Empty<HashEntry>());
+            .ReturnsAsync([]);
 
         // Act
         var result = await _repository.GetByTickerAsync(ticker);
@@ -160,9 +160,9 @@ public class RedisMasterDataRepositoryTests
         var ticker = "TEST";
         var hashEntries = new HashEntry[]
         {
-            new HashEntry("name", "Test Stock"),
-            new HashEntry("exchange", "TEST"),
-            new HashEntry("currency", "INVALID_CURRENCY")
+            new("name", "Test Stock"),
+            new("exchange", "TEST"),
+            new("currency", "INVALID_CURRENCY")
         };
 
         _mockDatabase.Setup(db => db.HashGetAllAsync(

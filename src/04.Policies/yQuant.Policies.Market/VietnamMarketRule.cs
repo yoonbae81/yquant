@@ -1,7 +1,7 @@
 using yQuant.Core.Ports.Output.Policies;
 using yQuant.Core.Models;
 
-namespace yQuant.Policies.Market.Vietnam;
+namespace yQuant.Policies.Market;
 
 public class VietnamMarketRule : IMarketRule
 {

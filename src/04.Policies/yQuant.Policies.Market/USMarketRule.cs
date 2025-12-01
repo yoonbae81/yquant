@@ -1,10 +1,9 @@
 using yQuant.Core.Ports.Output.Policies;
 using yQuant.Core.Models;
-using System.Linq;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 
-namespace yQuant.Policies.Market.UnitedStates;
+namespace yQuant.Policies.Market;
 
 public class USMarketRule : IMarketRule
 {

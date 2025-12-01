@@ -4,7 +4,7 @@ using Moq;
 using Moq.Protected;
 using System.Net;
 using Xunit;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Infra.Redis.Interfaces;
 using yQuant.Infra.Notification.Telegram;
 
 namespace yQuant.Infra.Notification.Telegram.Tests;
@@ -42,7 +42,7 @@ public class TelegramNotificationServiceTests
         // Arrange
         var message = "Test Message";
         _mockRedis.Setup(r => r.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
-        
+
         _mockHttpMessageHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
                 "SendAsync",
@@ -60,7 +60,7 @@ public class TelegramNotificationServiceTests
 
         // Assert
         _mockRedis.Verify(r => r.SetAsync(It.IsAny<string>(), "1", It.IsAny<TimeSpan?>()), Times.Once);
-        
+
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",
             Times.Once(),
@@ -81,7 +81,7 @@ public class TelegramNotificationServiceTests
 
         // Assert
         _mockRedis.Verify(r => r.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>()), Times.Never);
-        
+
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",
             Times.Never(),
