@@ -1,10 +1,10 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
-using yQuant.Infra.Middleware.Redis.Interfaces;
-using yQuant.Infra.Middleware.Redis.Services;
+using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Redis.Services;
 
-namespace yQuant.Infra.Middleware.Redis.Extensions;
+namespace yQuant.Infra.Redis.Extensions;
 
 public static class RedisServiceExtensions
 {

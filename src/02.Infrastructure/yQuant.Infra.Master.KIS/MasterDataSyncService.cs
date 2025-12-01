@@ -26,7 +26,7 @@ namespace yQuant.Infra.Master.KIS
             _logger = logger;
         }
 
-        public async Task SyncCountryAsync(string country, Dictionary<string, string> exchangeUrls, CancellationToken cancellationToken = default)
+        public async Task SyncCountryAsync(CountryCode country, Dictionary<string, string> exchangeUrls, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Starting StockMaster Sync Job for {Country}...", country);
 
@@ -102,7 +102,7 @@ namespace yQuant.Infra.Master.KIS
             }
         }
 
-        public async Task SyncAllAsync(Dictionary<string, Dictionary<string, string>> countries, CancellationToken cancellationToken = default)
+        public async Task SyncAllAsync(Dictionary<CountryCode, Dictionary<string, string>> countries, CancellationToken cancellationToken = default)
         {
             _logger.LogInformation("Starting sync for all {Count} countries", countries.Count);
 

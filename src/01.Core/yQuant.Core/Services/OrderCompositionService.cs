@@ -80,7 +80,16 @@ public class OrderCompositionService : IOrderCompositionUseCase
             return;
         }
 
-        order.Exchange = signal.Exchange;
+        if (Enum.TryParse<ExchangeCode>(signal.Exchange, true, out var exchangeCode))
+        {
+            order.Exchange = exchangeCode;
+        }
+        else
+        {
+             _logger.LogWarning("Invalid Exchange Code in Signal: {Exchange}", signal.Exchange);
+             // Default or return? Let's default to NASDAQ for now or handle error.
+             order.Exchange = ExchangeCode.NASDAQ; 
+        }
         order.Currency = signal.Currency ?? CurrencyType.USD;
 
         // 6. Validate Order

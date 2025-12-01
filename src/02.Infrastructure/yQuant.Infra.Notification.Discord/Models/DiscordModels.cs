@@ -6,43 +6,43 @@ namespace yQuant.Infra.Notification.Discord.Models
     public class DiscordWebhookPayload
     {
         [JsonPropertyName("content")]
-        public string Content { get; set; }
+        public string? Content { get; set; }
 
         [JsonPropertyName("embeds")]
-        public List<DiscordEmbed> Embeds { get; set; }
+        public List<DiscordEmbed>? Embeds { get; set; }
     }
 
     public class DiscordEmbed
     {
         [JsonPropertyName("title")]
-        public string Title { get; set; }
+        public string? Title { get; set; }
 
         [JsonPropertyName("description")]
-        public string Description { get; set; }
+        public string? Description { get; set; }
 
         [JsonPropertyName("url")]
-        public string Url { get; set; }
+        public string? Url { get; set; }
 
         [JsonPropertyName("color")]
         public int? Color { get; set; }
 
         [JsonPropertyName("fields")]
-        public List<DiscordField> Fields { get; set; }
+        public List<DiscordField>? Fields { get; set; }
 
         [JsonPropertyName("footer")]
-        public DiscordFooter Footer { get; set; }
+        public DiscordFooter? Footer { get; set; }
 
         [JsonPropertyName("timestamp")]
-        public string Timestamp { get; set; }
+        public string? Timestamp { get; set; }
     }
 
     public class DiscordField
     {
         [JsonPropertyName("name")]
-        public string Name { get; set; }
+        public string? Name { get; set; }
 
         [JsonPropertyName("value")]
-        public string Value { get; set; }
+        public string? Value { get; set; }
 
         [JsonPropertyName("inline")]
         public bool? Inline { get; set; }
@@ -51,9 +51,9 @@ namespace yQuant.Infra.Notification.Discord.Models
     public class DiscordFooter
     {
         [JsonPropertyName("text")]
-        public string Text { get; set; }
+        public string? Text { get; set; }
 
         [JsonPropertyName("icon_url")]
-        public string IconUrl { get; set; }
+        public string? IconUrl { get; set; }
     }
 }

@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Infra.Redis.Interfaces;
 
 namespace yQuant.App.Dashboard.Services;
 
@@ -59,7 +59,7 @@ public class AssetService
         try 
         {
             // Get Account State (Deposits)
-            account = await adapter.GetAccountStateAsync();
+            account = await adapter.GetDepositAsync(null);
 
             // Get Positions
             var positions = await adapter.GetPositionsAsync();

@@ -1,27 +1,27 @@
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
-using yQuant.Infra.Broker.KIS;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.App.Dashboard.Services;
 
 public class OrderPublisher
 {
     private readonly ILogger<OrderPublisher> _logger;
-    private readonly KISAdapterFactory _kisAdapterFactory;
+    private readonly IBrokerAdapterFactory _adapterFactory;
 
     public OrderPublisher(
         ILogger<OrderPublisher> logger,
-        KISAdapterFactory kisAdapterFactory)
+        IBrokerAdapterFactory adapterFactory)
     {
         _logger = logger;
-        _kisAdapterFactory = kisAdapterFactory;
+        _adapterFactory = adapterFactory;
     }
 
     public async Task PublishOrderAsync(Order order)
     {
         _logger.LogInformation("Publishing order: {Ticker} {Action} {Qty}", order.Ticker, order.Action, order.Qty);
 
-        var adapter = _kisAdapterFactory.GetAdapter(order.AccountAlias);
+        var adapter = _adapterFactory.GetAdapter(order.AccountAlias);
         if (adapter == null)
         {
             throw new InvalidOperationException($"Broker adapter not found for account: {order.AccountAlias}");

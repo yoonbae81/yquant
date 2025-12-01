@@ -106,14 +106,17 @@ public class KISBrokerAdapter : IBrokerAdapter
         var (cano, acntPrdtCd) = ParseAccountNumber(accountNumber);
         
         string exchangeCode = GetKisExchangeCode(order.Exchange);
-        string countryCode = GetCountryCode(order.Exchange);
+        CountryCode country = GetCountryCode(order.Exchange);
+        string trIdKey = GetTrIdKey(country, order.Exchange);
         
         string ordDvsn = order.Type == OrderType.Market ? "01" : "00";
         string ordUnpr = order.Type == OrderType.Market ? "0" : (order.Price ?? 0).ToString("F2");
 
         // KIS API Limitation: US Market Orders ("01") are not supported.
         // Emulate using Limit Order with buffer.
-        if (countryCode == "US" && order.Type == OrderType.Market)
+        // KIS API Limitation: US Market Orders ("01") are not supported.
+        // Emulate using Limit Order with buffer.
+        if (country == CountryCode.US && order.Type == OrderType.Market)
         {
             _logger.LogInformation("Emulating Market Order for US stock {Ticker} using Limit Order with buffer.", order.Ticker);
             var limitPrice = await EmulateUsMarketOrderAsync(order.Ticker, order.Action);
@@ -149,7 +152,7 @@ public class KISBrokerAdapter : IBrokerAdapter
             // Log the request body for debugging "Input Classification Error"
             _logger.LogInformation("Sending KIS Overseas Order Request: {RequestBody}", System.Text.Json.JsonSerializer.Serialize(requestBody));
 
-            var response = await _client.ExecuteAsync<OverseasOrderResponse>(endpoint, requestBody, trIdVariant: countryCode);
+            var response = await _client.ExecuteAsync<OverseasOrderResponse>(endpoint, requestBody, trIdVariant: trIdKey);
             _logger.LogInformation("KIS Overseas order response: {Response}", response);
             
             if (response == null) return OrderResult.Failure("No response from KIS");
@@ -183,49 +186,51 @@ public class KISBrokerAdapter : IBrokerAdapter
         return Math.Round(limitPrice, 2);
     }
 
-    private string GetKisExchangeCode(string exchange)
+    private string GetKisExchangeCode(ExchangeCode exchange)
     {
-        if (string.IsNullOrEmpty(exchange)) return "NASD"; // Default
-
-        return exchange.ToUpper() switch
+        return exchange switch
         {
-            "NASDAQ" => "NASD",
-            "NYSE" => "NYS",
-            "AMEX" => "AMS",
-            "HKEX" => "SEHK",
-            "SSE" => "SHAA",
-            "SZSE" => "SZAA",
-            "TSE" => "TKSE",
-            "HNX" => "HASE",
-            "HOSE" => "VNSE",
+            ExchangeCode.NASDAQ => "NASD",
+            ExchangeCode.NYSE => "NYS",
+            ExchangeCode.AMEX => "AMS",
+            ExchangeCode.HKEX => "SEHK",
+            ExchangeCode.SSE => "SHAA",
+            ExchangeCode.SZSE => "SZAA",
+            ExchangeCode.TSE => "TKSE",
+            ExchangeCode.HNX => "HASE",
+            ExchangeCode.HOSE => "VNSE",
             _ => "NASD"
         };
     }
 
-    private string GetCountryCode(string exchange)
+    private CountryCode GetCountryCode(ExchangeCode exchange)
     {
-        if (string.IsNullOrEmpty(exchange)) return "US"; // Default US
-
-        return exchange.ToUpper() switch
+        return exchange switch
         {
-            "NASDAQ" => "US",
-            "NYSE" => "US",
-            "AMEX" => "US",
-            "HKEX" => "HK",
-            "SSE" => "SH",
-            "SZSE" => "SZ",
-            "TSE" => "JP",
-            "HNX" => "VN",
-            "HOSE" => "VN",
-            _ => "US"
+            ExchangeCode.KRX or ExchangeCode.KOSDAQ or ExchangeCode.KOSPI => CountryCode.KR,
+            ExchangeCode.NASDAQ or ExchangeCode.NYSE or ExchangeCode.AMEX => CountryCode.US,
+            ExchangeCode.HKEX => CountryCode.HK,
+            ExchangeCode.SSE or ExchangeCode.SZSE => CountryCode.CN,
+            ExchangeCode.TSE => CountryCode.JP,
+            ExchangeCode.HNX or ExchangeCode.HOSE => CountryCode.VN,
+            _ => CountryCode.US
         };
     }
 
-    public async Task<Account> GetAccountStateAsync()
+    private string GetTrIdKey(CountryCode country, ExchangeCode exchange)
+    {
+        if (country == CountryCode.CN)
+        {
+            return exchange == ExchangeCode.SSE ? "SH" : "SZ";
+        }
+        return country.ToString();
+    }
+
+    public async Task<Account> GetDepositAsync(CurrencyType? currency = null, bool forceRefresh = false)
     {
         await EnsureConnectedAsync();
         var accountNumber = _client.Account.Number;
-        _logger.LogInformation("Getting account state for account {AccountNumber} via KIS.", accountNumber);
+        _logger.LogInformation("Getting account state for account {AccountNumber} via KIS. Currency: {Currency}", accountNumber, currency);
 
         // Use the account from the client directly
         var account = _client.Account;
@@ -242,60 +247,82 @@ public class KISBrokerAdapter : IBrokerAdapter
             account.Deposits = new Dictionary<CurrencyType, decimal>();
         }
 
-        // Get Domestic Balance (KRW)
-        try
+        // 1. Get Domestic Balance (KRW)
+        if (currency == null || currency == CurrencyType.KRW)
         {
-            var (cano, acntPrdtCd) = ParseAccountNumber(accountNumber);
-            
-            var domesticQueryParams = new Dictionary<string, string>
+            try
             {
-                { "CANO", cano },
-                { "ACNT_PRDT_CD", acntPrdtCd },
-                { "AFHR_FLPR_YN", "N" },
-                { "OFL_YN", "N" },
-                { "INQR_DVSN", "02" },
-                { "UNPR_DVSN", "01" },
-                { "FUND_STTL_ICLD_YN", "N" },
-                { "FNCG_AMT_AUTO_RDPT_YN", "N" },
-                { "PRCS_DVSN", "00" },
-                { "CTX_AREA_FK100", "" },
-                { "CTX_AREA_NK100", "" }
-            };
+                var (cano, acntPrdtCd) = ParseAccountNumber(accountNumber);
+                
+                var domesticQueryParams = new Dictionary<string, string>
+                {
+                    { "CANO", cano },
+                    { "ACNT_PRDT_CD", acntPrdtCd },
+                    { "AFHR_FLPR_YN", "N" },
+                    { "OFL_YN", "N" },
+                    { "INQR_DVSN", "02" },
+                    { "UNPR_DVSN", "01" },
+                    { "FUND_STTL_ICLD_YN", "N" },
+                    { "FNCG_AMT_AUTO_RDPT_YN", "N" },
+                    { "PRCS_DVSN", "00" },
+                    { "CTX_AREA_FK100", "" },
+                    { "CTX_AREA_NK100", "" }
+                };
 
-            _logger.LogInformation("Calling DomesticBalance API:");
-            _logger.LogInformation("  BaseUrl: {BaseUrl}", _client.GetType().GetProperty("BaseUrl")?.GetValue(_client) ?? "N/A");
-            _logger.LogInformation("  Endpoint: /uapi/domestic-stock/v1/trading/inquire-balance");
-            _logger.LogInformation("  Query Parameters:");
-            foreach (var param in domesticQueryParams)
-            {
-                _logger.LogInformation("    {Key} = {Value}", param.Key, param.Value);
+                _logger.LogInformation("Calling DomesticBalance API (KRW)");
+
+                var domesticHeaders = new Dictionary<string, string>
+                {
+                    { "custtype", "P" }
+                };
+
+                var domesticResponse = await _client.ExecuteAsync<DomesticBalanceResponse>("DomesticBalance", null, domesticQueryParams, domesticHeaders);
+                if (domesticResponse?.Output2 != null && domesticResponse.Output2.Count > 0)
+                {
+                    if (account.Deposits.ContainsKey(CurrencyType.KRW))
+                        account.Deposits[CurrencyType.KRW] = domesticResponse.Output2[0].DncaTotAmt;
+                    else
+                        account.Deposits.Add(CurrencyType.KRW, domesticResponse.Output2[0].DncaTotAmt);
+                }
             }
-
-            var domesticHeaders = new Dictionary<string, string>
+            catch (Exception ex)
             {
-                { "custtype", "P" }  // P = 媛쒖씤, B = 踰뺤씤
-            };
-
-            var domesticResponse = await _client.ExecuteAsync<DomesticBalanceResponse>("DomesticBalance", null, domesticQueryParams, domesticHeaders);
-            if (domesticResponse?.Output2 != null && domesticResponse.Output2.Count > 0)
-            {
-                account.Deposits.Add(CurrencyType.KRW, domesticResponse.Output2[0].DncaTotAmt);
+                _logger.LogError(ex, "Failed to get domestic account balance.");
             }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get domestic account balance.");
-        }
 
-        // Get Overseas Balance (USD, HKD, CNY, JPY, VND)
-        var overseasCurrencies = new[] 
-        { 
-            (Ex: "NAS", Curr: "USD"), 
-            (Ex: "SEHK", Curr: "HKD"), 
-            (Ex: "SHAA", Curr: "CNY"), 
-            (Ex: "TKSE", Curr: "JPY"), 
-            (Ex: "HASE", Curr: "VND") 
-        };
+        // 2. Get Overseas Balance
+        var overseasCurrencies = new List<(ExchangeCode Ex, CurrencyType Curr)>();
+        
+        if (currency == null)
+        {
+            overseasCurrencies.AddRange(new[] 
+            { 
+                (ExchangeCode.NASDAQ, CurrencyType.USD), 
+                (ExchangeCode.HKEX, CurrencyType.HKD), 
+                (ExchangeCode.SSE, CurrencyType.CNY), 
+                (ExchangeCode.TSE, CurrencyType.JPY), 
+                (ExchangeCode.HNX, CurrencyType.VND) 
+            });
+        }
+        else if (currency != CurrencyType.KRW)
+        {
+            // Map requested currency to a representative exchange
+            var targetEx = currency switch
+            {
+                CurrencyType.USD => ExchangeCode.NASDAQ,
+                CurrencyType.HKD => ExchangeCode.HKEX,
+                CurrencyType.CNY => ExchangeCode.SSE,
+                CurrencyType.JPY => ExchangeCode.TSE,
+                CurrencyType.VND => ExchangeCode.HNX,
+                _ => ExchangeCode.Unknown
+            };
+
+            if (targetEx != ExchangeCode.Unknown)
+            {
+                overseasCurrencies.Add((targetEx, currency.Value));
+            }
+        }
 
         foreach (var (exch, curr) in overseasCurrencies)
         {
@@ -307,8 +334,8 @@ public class KISBrokerAdapter : IBrokerAdapter
                 {
                     { "CANO", cano },
                     { "ACNT_PRDT_CD", acntPrdtCd },
-                    { "OVRS_EXCG_CD", exch },
-                    { "TR_CRCY_CD", curr },
+                    { "OVRS_EXCG_CD", GetKisExchangeCode(exch) },
+                    { "TR_CRCY_CD", curr.ToString() },
                     { "CTX_AREA_FK200", "" },
                     { "CTX_AREA_NK200", "" },
                     { "WCRC_FRCR_DVSN_CD", "02" },
@@ -316,6 +343,8 @@ public class KISBrokerAdapter : IBrokerAdapter
                     { "NATN_CD", GetNationCode(exch) },
                     { "INQR_DVSN_CD", "00" }
                 };
+
+                _logger.LogInformation("Calling OverseasBalance API for {Currency}", curr);
 
                 var overseasHeaders = new Dictionary<string, string>
                 {
@@ -328,31 +357,26 @@ public class KISBrokerAdapter : IBrokerAdapter
                 {
                     foreach (var summary in overseasResponse.Output2)
                     {
-                        // If we have a currency code in the response, use it to match
                         var responseCurrency = summary.CrcyCd ?? summary.OvrsCrcyCd;
                         
-                        if (!string.IsNullOrEmpty(responseCurrency))
+                        if (!string.IsNullOrEmpty(responseCurrency) && Enum.TryParse<CurrencyType>(responseCurrency, out var currencyType))
                         {
-                            if (Enum.TryParse<CurrencyType>(responseCurrency, out var currencyType))
+                            if (summary.FrcrDnclAmt2 > 0)
                             {
-                                if (!account.Deposits.ContainsKey(currencyType))
-                                {
+                                if (account.Deposits.ContainsKey(currencyType))
+                                    account.Deposits[currencyType] = summary.FrcrDnclAmt2;
+                                else
                                     account.Deposits.Add(currencyType, summary.FrcrDnclAmt2);
-                                }
                             }
                         }
                         else 
                         {
-                            // Fallback to previous logic if no currency code found (but log warning)
                             if (summary.FrcrDnclAmt2 > 0)
                             {
-                                if (Enum.TryParse<CurrencyType>(curr, out var currencyType))
-                                {
-                                    if (!account.Deposits.ContainsKey(currencyType))
-                                    {
-                                        account.Deposits.Add(currencyType, summary.FrcrDnclAmt2);
-                                    }
-                                }
+                                if (account.Deposits.ContainsKey(curr))
+                                    account.Deposits[curr] = summary.FrcrDnclAmt2;
+                                else
+                                    account.Deposits.Add(curr, summary.FrcrDnclAmt2);
                             }
                         }
                     }
@@ -417,7 +441,11 @@ public class KISBrokerAdapter : IBrokerAdapter
 
         // Get Overseas Positions
         // Get Overseas Positions (Iterate over major exchanges)
-        var overseasExchanges = new[] { "NAS", "SEHK", "SHAA", "SZAA", "TKSE", "HASE", "VNSE" };
+        var overseasExchanges = new[] 
+        { 
+            ExchangeCode.NASDAQ, ExchangeCode.HKEX, ExchangeCode.SSE, ExchangeCode.SZSE, 
+            ExchangeCode.TSE, ExchangeCode.HNX, ExchangeCode.HOSE 
+        };
         
         foreach (var exch in overseasExchanges)
         {
@@ -429,7 +457,7 @@ public class KISBrokerAdapter : IBrokerAdapter
                 {
                     { "CANO", cano },
                     { "ACNT_PRDT_CD", acntPrdtCd },
-                    { "OVRS_EXCH_CD", exch }
+                    { "OVRS_EXCH_CD", GetKisExchangeCode(exch) }
                 };
 
                 var overseasResponse = await _client.ExecuteAsync<OverseasPositionsResponse>("OverseasPositions", null, overseasQueryParams);
@@ -478,29 +506,29 @@ public class KISBrokerAdapter : IBrokerAdapter
         return positions;
     }
 
-    private CurrencyType GetCurrencyFromExchangeCode(string exchangeCode)
+    private CurrencyType GetCurrencyFromExchangeCode(ExchangeCode exchangeCode)
     {
         return exchangeCode switch
         {
-            "NAS" or "NASD" or "NYS" or "AMS" => CurrencyType.USD,
+            ExchangeCode.NASDAQ or ExchangeCode.NYSE or ExchangeCode.AMEX => CurrencyType.USD,
 
-            "SEHK" => CurrencyType.HKD,
-            "SHAA" or "SZAA" => CurrencyType.CNY,
-            "TKSE" => CurrencyType.JPY,
-            "HASE" or "VNSE" => CurrencyType.VND,
+            ExchangeCode.HKEX => CurrencyType.HKD,
+            ExchangeCode.SSE or ExchangeCode.SZSE => CurrencyType.CNY,
+            ExchangeCode.TSE => CurrencyType.JPY,
+            ExchangeCode.HNX or ExchangeCode.HOSE => CurrencyType.VND,
             _ => CurrencyType.USD
         };
     }
 
-    private string GetNationCode(string exchangeCode)
+    private string GetNationCode(ExchangeCode exchangeCode)
     {
         return exchangeCode switch
         {
-            "NAS" or "NYS" or "AMS" => "840", // USA
-            "SEHK" => "344", // Hong Kong
-            "SHAA" or "SZAA" => "156", // China
-            "TKSE" => "392", // Japan
-            "HASE" or "VNSE" => "704", // Vietnam
+            ExchangeCode.NASDAQ or ExchangeCode.NYSE or ExchangeCode.AMEX => "840", // USA
+            ExchangeCode.HKEX => "344", // Hong Kong
+            ExchangeCode.SSE or ExchangeCode.SZSE => "156", // China
+            ExchangeCode.TSE => "392", // Japan
+            ExchangeCode.HNX or ExchangeCode.HOSE => "704", // Vietnam
             _ => "000"
         };
     }
@@ -637,14 +665,14 @@ public class KISBrokerAdapter : IBrokerAdapter
             // Heuristic: Alphabetic -> US (NASD, NYS, AMS)
             // Numeric -> HK (SEHK), JP (TKSE), CN (SHAA, SZAA)
             
-            var exchanges = new List<string>();
+            var exchanges = new List<ExchangeCode>();
             if (ticker.All(char.IsLetter))
             {
-                exchanges.AddRange(new[] { "NAS", "NYS", "AMS" });
+                exchanges.AddRange(new[] { ExchangeCode.NASDAQ, ExchangeCode.NYSE, ExchangeCode.AMEX });
             }
             else
             {
-                exchanges.AddRange(new[] { "SEHK", "TKSE", "SHAA", "SZAA", "HASE", "VNSE" });
+                exchanges.AddRange(new[] { ExchangeCode.HKEX, ExchangeCode.TSE, ExchangeCode.SSE, ExchangeCode.SZSE, ExchangeCode.HNX, ExchangeCode.HOSE });
             }
 
             foreach (var exch in exchanges)
@@ -654,7 +682,7 @@ public class KISBrokerAdapter : IBrokerAdapter
                     var queryParams = new Dictionary<string, string>
                     {
                         { "AUTH", "" },
-                        { "EXCD", exch },
+                        { "EXCD", GetKisExchangeCode(exch) },
                         { "SYMB", ticker }
                     };
 

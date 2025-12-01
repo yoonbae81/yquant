@@ -12,7 +12,7 @@
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\yQuant.Infra.Middleware.Redis\yQuant.Infra.Middleware.Redis.csproj" />
+    <ProjectReference Include="..\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj" />
   </ItemGroup>
 
   <ItemGroup>

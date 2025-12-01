@@ -4,238 +4,243 @@ using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Notification.Telegram;
-using System.Reflection;
+using yQuant.Infra.Redis.Models;
+using Order = yQuant.Core.Models.Order;
 
 namespace yQuant.App.BrokerGateway
 {
     public class Worker : BackgroundService
     {
         private readonly ILogger<Worker> _logger;
-        private readonly IConfiguration _configuration;
         private readonly IConnectionMultiplexer _redis;
-        private readonly IServiceProvider _serviceProvider;
+        private readonly Dictionary<string, IBrokerAdapter> _adapters;
         private readonly INotificationService _telegramNotifier;
         private readonly TelegramMessageBuilder _telegramBuilder;
-
         private readonly IEnumerable<ITradingLogger> _tradingLoggers;
-        private readonly ISystemLogger _systemLogger;
 
-        private readonly Dictionary<string, IBrokerAdapter> _adapters;
-        private TimeSpan _syncInterval;
-
-        public Worker(ILogger<Worker> logger, IConfiguration configuration,
+        public Worker(ILogger<Worker> logger,
             IConnectionMultiplexer redis,
-            IServiceProvider serviceProvider,
+            Dictionary<string, IBrokerAdapter> adapters,
             INotificationService telegramNotifier,
             TelegramMessageBuilder telegramBuilder,
-            IEnumerable<ITradingLogger> tradingLoggers,
-            ISystemLogger systemLogger,
-            Dictionary<string, IBrokerAdapter> adapters)
+            IEnumerable<ITradingLogger> tradingLoggers)
         {
             _logger = logger;
-            _configuration = configuration;
             _redis = redis;
-            _serviceProvider = serviceProvider;
+            _adapters = adapters;
             _telegramNotifier = telegramNotifier;
             _telegramBuilder = telegramBuilder;
             _tradingLoggers = tradingLoggers;
-            _systemLogger = systemLogger;
-            _adapters = adapters;
-        }
-
-        public override async Task StartAsync(CancellationToken cancellationToken)
-        {
-            var syncIntervalSeconds = _configuration.GetValue<int>("SyncIntervalSeconds");
-            _syncInterval = TimeSpan.FromSeconds(syncIntervalSeconds > 0 ? syncIntervalSeconds : 1);
-
-            await base.StartAsync(cancellationToken);
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            _logger.LogInformation("BrokerGateway Worker started at: {time}", DateTimeOffset.Now);
-
+            _logger.LogInformation("BrokerGateway Worker started.");
             var subscriber = _redis.GetSubscriber();
 
-            // Order Subscriber
-            await subscriber.SubscribeAsync(RedisChannel.Literal("order"), async (channel, message) =>
+            await subscriber.SubscribeAsync(RedisChannel.Literal("broker:requests"), (channel, message) =>
             {
-                _logger.LogInformation("Received order: {Message}", message);
+                // Handle concurrently
+                _ = HandleRequestAsync(message);
+            });
+
+            // Keep alive
+            await Task.Delay(Timeout.Infinite, stoppingToken);
+        }
+
+        private async Task HandleRequestAsync(RedisValue message)
+        {
+            try
+            {
+                var request = JsonSerializer.Deserialize<BrokerRequest>(message.ToString());
+                if (request == null) return;
+
+                _logger.LogInformation("Received request {RequestId} of type {Type} for {Account}", request.Id, request.Type, request.Account);
+
+                BrokerResponse response;
                 try
                 {
-                    var order = JsonSerializer.Deserialize<yQuant.Core.Models.Order>(message.ToString());
-                    if (order == null)
-                    {
-                        _logger.LogWarning("Failed to deserialize order: {Message}", message);
-                        return;
-                    }
-
-                    await ProcessOrder(order);
+                    response = await ProcessRequestAsync(request);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error processing order: {Message}", message);
+                    _logger.LogError(ex, "Error processing request {RequestId}", request.Id);
+                    response = new BrokerResponse
+                    {
+                        RequestId = request.Id,
+                        Success = false,
+                        Message = $"Internal Error: {ex.Message}"
+                    };
                 }
-            });
 
-            // State Syncer
-            using var timer = new PeriodicTimer(_syncInterval);
-            try
-            {
-                while (await timer.WaitForNextTickAsync(stoppingToken))
+                if (!string.IsNullOrEmpty(request.ResponseChannel))
                 {
-                    await SyncAccountStates();
+                    var db = _redis.GetDatabase();
+                    await db.PublishAsync(RedisChannel.Literal(request.ResponseChannel), JsonSerializer.Serialize(response));
                 }
-            }
-            catch (OperationCanceledException)
-            {
-                _logger.LogInformation("StateSyncer stopped due to cancellation.");
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "StateSyncer encountered an error.");
+                _logger.LogError(ex, "Failed to deserialize or handle request wrapper.");
             }
-
-            _logger.LogInformation("BrokerGateway Worker stopped at: {time}", DateTimeOffset.Now);
         }
 
-        private async Task ProcessOrder(yQuant.Core.Models.Order order)
+        private async Task<BrokerResponse> ProcessRequestAsync(BrokerRequest request)
         {
-            if (string.IsNullOrEmpty(order.AccountAlias))
+            // 1. Validate Adapter
+            if (!_adapters.TryGetValue(request.Account, out var adapter))
             {
-                _logger.LogWarning("Order {OrderId} has no AccountAlias. Cannot process.", order.Id);
-                return;
+                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Account '{request.Account}' not found." };
             }
 
-            // Look up adapter directly
-            if (!_adapters.TryGetValue(order.AccountAlias, out var brokerAdapter))
+            // 2. Dispatch
+            switch (request.Type)
             {
-                _logger.LogWarning("No broker adapter found for account {AccountAlias}.", order.AccountAlias);
-                var msg = _telegramBuilder.BuildNoBrokerAdapterMessage(order.AccountAlias, order.Ticker);
-                await _telegramNotifier.SendNotificationAsync(msg);
-                return;
+                case BrokerRequestType.Ping:
+                    return await HandlePingAsync(adapter);
+                case BrokerRequestType.GetPrice:
+                    return await HandleGetPriceAsync(adapter, request);
+                case BrokerRequestType.GetDeposit:
+                    return await HandleGetDepositAsync(adapter, request);
+                case BrokerRequestType.GetPositions:
+                    return await HandleGetPositionsAsync(adapter, request);
+                case BrokerRequestType.PlaceOrder:
+                    return await HandlePlaceOrderAsync(adapter, request);
+                default:
+                    return new BrokerResponse { RequestId = request.Id, Success = false, Message = "Unknown request type." };
+            }
+        }
+
+        private async Task<BrokerResponse> HandlePingAsync(IBrokerAdapter adapter)
+        {
+            try
+            {
+                await adapter.EnsureConnectedAsync();
+                return new BrokerResponse { Success = true, Message = "Pong" };
+            }
+            catch (Exception ex)
+            {
+                return new BrokerResponse { Success = false, Message = $"Token Error: {ex.Message}" };
+            }
+        }
+
+        private async Task<BrokerResponse> HandleGetPriceAsync(IBrokerAdapter adapter, BrokerRequest request)
+        {
+            var ticker = request.Payload;
+            if (string.IsNullOrEmpty(ticker)) return new BrokerResponse { RequestId = request.Id, Success = false, Message = "Ticker missing." };
+
+            var db = _redis.GetDatabase();
+            var cacheKey = $"cache:price:{ticker}";
+
+            // Cache Lookup
+            if (!request.ForceRefresh)
+            {
+                var cached = await db.StringGetAsync(cacheKey);
+                if (cached.HasValue)
+                {
+                    return new BrokerResponse
+                    {
+                        RequestId = request.Id,
+                        Success = true,
+                        Payload = cached.ToString()
+                    };
+                }
             }
 
-            var account = brokerAdapter.Account;
+            // Fetch from Broker
+            try
+            {
+                var priceInfo = await adapter.GetPriceAsync(ticker);
+                var json = JsonSerializer.Serialize(priceInfo);
+
+                // Cache Result (TTL 5s)
+                await db.StringSetAsync(cacheKey, json, TimeSpan.FromSeconds(5));
+
+                return new BrokerResponse
+                {
+                    RequestId = request.Id,
+                    Success = true,
+                    Payload = json
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Price Error: {ex.Message}" };
+            }
+        }
+
+        private async Task<BrokerResponse> HandleGetDepositAsync(IBrokerAdapter adapter, BrokerRequest request)
+        {
+            try
+            {
+                CurrencyType? currencyType = null;
+                if (!string.IsNullOrEmpty(request.Payload) && Enum.TryParse<CurrencyType>(request.Payload, true, out var parsed))
+                {
+                    currencyType = parsed;
+                }
+
+                var account = await adapter.GetDepositAsync(currencyType);
+                return new BrokerResponse
+                {
+                    RequestId = request.Id,
+                    Success = true,
+                    Payload = JsonSerializer.Serialize(account)
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Deposit Error: {ex.Message}" };
+            }
+        }
+
+        private async Task<BrokerResponse> HandleGetPositionsAsync(IBrokerAdapter adapter, BrokerRequest request)
+        {
+            try
+            {
+                var positions = await adapter.GetPositionsAsync();
+                return new BrokerResponse
+                {
+                    RequestId = request.Id,
+                    Success = true,
+                    Payload = JsonSerializer.Serialize(positions)
+                };
+            }
+            catch (Exception ex)
+            {
+                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Positions Error: {ex.Message}" };
+            }
+        }
+
+        private async Task<BrokerResponse> HandlePlaceOrderAsync(IBrokerAdapter adapter, BrokerRequest request)
+        {
+            var order = JsonSerializer.Deserialize<Order>(request.Payload);
+            if (order == null) return new BrokerResponse { RequestId = request.Id, Success = false, Message = "Invalid Order payload." };
 
             try
             {
-                // Ensure connection is established before sending order
-                await brokerAdapter.EnsureConnectedAsync();
-
-                var orderResult = await brokerAdapter.PlaceOrderAsync(order);
-                _logger.LogInformation("Order {OrderId} placed via {Broker}. Result: {IsSuccess} - {Message}", order.Id, account.Broker, orderResult.IsSuccess, orderResult.Message);
-
-                // Publish execution result to Redis
-                var db = _redis.GetDatabase();
-                var status = orderResult.IsSuccess ? "Filled" : "Rejected"; // Or "Submitted" if we want to distinguish
-                var executionPayload = new { OrderId = order.Id, Status = status, Result = orderResult.Message, BrokerOrderId = orderResult.BrokerOrderId, Timestamp = DateTime.UtcNow };
-                await db.PublishAsync(RedisChannel.Literal("execution"), JsonSerializer.Serialize(executionPayload));
+                var result = await adapter.PlaceOrderAsync(order);
                 
-                if (orderResult.IsSuccess)
+                // Log Result
+                if (result.IsSuccess)
                 {
-                    // Success: Discord ONLY (via _tradingLoggers)
-                    // Telegram: None (as per user request)
-                    
-                    // Logging (Discord)
-                    foreach (var logger in _tradingLoggers)
-                    {
-                        await logger.LogOrderAsync(order);
-                    }
+                     foreach (var logger in _tradingLoggers) await logger.LogOrderAsync(order);
                 }
                 else
                 {
-                    // Failure: Telegram AND Discord
-                    
-                    // Telegram
-                    var msg = _telegramBuilder.BuildOrderFailureMessage(order, orderResult.Message);
-                    await _telegramNotifier.SendNotificationAsync(msg);
-                    
-                    // Discord (via _tradingLoggers)
-                    foreach (var logger in _tradingLoggers)
-                    {
-                        await logger.LogOrderFailureAsync(order, orderResult.Message);
-                    }
-
-                    _logger.LogWarning("Order {OrderId} rejected: {Message}", order.Id, orderResult.Message);
+                     foreach (var logger in _tradingLoggers) await logger.LogOrderFailureAsync(order, result.Message);
                 }
+
+                return new BrokerResponse 
+                { 
+                    RequestId = request.Id, 
+                    Success = true, // Request processed successfully (even if order rejected by broker)
+                    Payload = JsonSerializer.Serialize(result) 
+                };
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to place order {OrderId} via {Broker}.");
-                
-                // Exception: Telegram AND Discord
-                
-                var msg = _telegramBuilder.BuildOrderFailureMessage(order, ex.Message);
-                await _telegramNotifier.SendNotificationAsync(msg);
-                
-                // Logging
-                foreach (var logger in _tradingLoggers)
-                {
-                    await logger.LogAccountErrorAsync(order.AccountAlias, ex, $"PlaceOrder: {order.Ticker}");
-                }
-            }
-        }
-
-        private async Task SyncAccountStates()
-        {
-            var db = _redis.GetDatabase();
-            foreach (var alias in _adapters.Keys)
-            {
-                var brokerAdapter = _adapters[alias];
-                var account = brokerAdapter.Account;
-
-                try
-                {
-                    // Ensure connection is established before syncing
-                    await brokerAdapter.EnsureConnectedAsync();
-
-                    // Sync Account State
-                    var accountState = await brokerAdapter.GetAccountStateAsync();
-                    if (accountState != null)
-                    {
-                        // Map AccountState to yQuant.Core.Models.Account
-                        // We can reuse the existing account object but it's safer to create a DTO or update the existing one carefully
-                        // For now, let's update the deposits on the existing account object and serialize it
-                        
-                        account.Deposits.Clear(); // Clear old deposits
-                        if (accountState.Deposits.TryGetValue(CurrencyType.KRW, out var krwDeposit))
-                        {
-                            account.Deposits.Add(CurrencyType.KRW, krwDeposit);
-                        }
-                        if (accountState.Deposits.TryGetValue(CurrencyType.USD, out var usdDeposit))
-                        {
-                            account.Deposits.Add(CurrencyType.USD, usdDeposit);
-                        }
-
-                        await db.StringSetAsync($"cache:account:{alias}", JsonSerializer.Serialize(account), TimeSpan.FromSeconds(5));
-                        _logger.LogDebug("Synced account state for {AccountId}", alias);
-                    }
-
-                    // Sync Positions
-                    var positions = await brokerAdapter.GetPositionsAsync();
-                    if (positions != null)
-                    {
-                        foreach (var pos in positions)
-                        {
-                            // KISAdapter returns yQuant.Core.Models.Position directly
-                            await db.StringSetAsync($"cache:position:{alias}:{pos.Ticker}", JsonSerializer.Serialize(pos), TimeSpan.FromSeconds(5));
-                            _logger.LogDebug("Synced position for {AccountId}: {Ticker}", alias, pos.Ticker);
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to sync state for account {AccountId} with broker {Broker}.", alias, account.Broker);
-                    var msg = _telegramBuilder.BuildAccountSyncFailureMessage(alias, ex.Message);
-                    await _telegramNotifier.SendNotificationAsync(msg);
-                    
-                    // Logging
-                    foreach (var logger in _tradingLoggers)
-                    {
-                        await logger.LogAccountErrorAsync(alias, ex, "SyncAccountStates");
-                    }
-                }
+                foreach (var logger in _tradingLoggers) await logger.LogAccountErrorAsync(request.Account, ex, "PlaceOrder");
+                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Order Exception: {ex.Message}" };
             }
         }
     }

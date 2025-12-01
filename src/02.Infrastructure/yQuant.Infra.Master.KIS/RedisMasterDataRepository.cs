@@ -2,7 +2,7 @@ using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Infra.Redis.Interfaces;
 
 namespace yQuant.Infra.Master.KIS
 {

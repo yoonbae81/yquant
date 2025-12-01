@@ -12,7 +12,7 @@ public interface IBrokerAdapter
     Task<OrderResult> PlaceOrderAsync(Order order);
 
     // 계좌 잔고 조회 (예수금, 총자산 등)
-    Task<Account> GetAccountStateAsync();
+    Task<Account> GetDepositAsync(CurrencyType? currency = null, bool forceRefresh = false);
 
     // 보유 종목 리스트 조회
     Task<List<Position>> GetPositionsAsync();

@@ -1,38 +1,54 @@
 using System;
 using System.Threading.Tasks;
-using yQuant.Core.Services;
-using yQuant.Infra.Broker.KIS;
+using yQuant.Infra.Redis.Adapters;
+using yQuant.Core.Models;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.App.Console.Commands
 {
     public class DepositCommand : ICommand
     {
-        private readonly AssetService _assetService;
-        private readonly string _accountAlias;
+        private readonly RedisBrokerClient _client;
 
-        public DepositCommand(AssetService assetService, string accountAlias)
+        public DepositCommand(RedisBrokerClient client)
         {
-            _assetService = assetService;
-            _accountAlias = accountAlias;
+            _client = client;
         }
 
         public string Name => "deposit";
-        public string Description => "Show deposits for KRW, USD, VND, etc.";
+        public string Description => "Show deposits for specific currency. Usage: deposit <currency> [-r]";
 
         public async Task ExecuteAsync(string[] args)
         {
-            var account = await _assetService.GetAccountOverviewAsync(_accountAlias);
-
-            if (account == null)
+            if (args.Length < 3)
             {
-                System.Console.WriteLine($"Account '{_accountAlias}' not found or failed to load.");
+                System.Console.WriteLine("Usage: deposit <currency> [-r]");
                 return;
             }
 
-            System.Console.WriteLine("\n[Deposits]");
-            foreach (var deposit in account.Deposits)
+            if (!Enum.TryParse<CurrencyType>(args[2], true, out var currency))
             {
-                System.Console.WriteLine($"- {deposit.Key}: {deposit.Value:N2}");
+                System.Console.WriteLine($"Invalid currency: {args[2]}. Available: KRW, USD, CNY, JPY, HKD, VND");
+                return;
+            }
+
+            bool forceRefresh = args.Length > 3 && args[3] == "-r";
+
+            try
+            {
+                var account = await _client.GetDepositAsync(currency, forceRefresh);
+                if (account != null && account.Deposits.TryGetValue(currency, out var amount))
+                {
+                    System.Console.WriteLine($"[{currency}] Deposit: {amount:N2}");
+                }
+                else
+                {
+                    System.Console.WriteLine($"[{currency}] Deposit: 0");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error: {ex.Message}");
             }
         }
     }
