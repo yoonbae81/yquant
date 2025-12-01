@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using yQuant.App.Console.Services;
+using yQuant.Infra.Redis.Adapters;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 

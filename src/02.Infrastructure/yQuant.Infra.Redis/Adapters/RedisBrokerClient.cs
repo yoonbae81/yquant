@@ -5,10 +5,10 @@ using System.Threading.Tasks;
 using StackExchange.Redis;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Middleware.Redis.Models;
+using yQuant.Infra.Redis.Models;
 using Order = yQuant.Core.Models.Order;
 
-namespace yQuant.App.Dashboard.Services
+namespace yQuant.Infra.Redis.Adapters
 {
     public class RedisBrokerClient : IBrokerAdapter
     {
@@ -133,19 +133,28 @@ namespace yQuant.App.Dashboard.Services
             }
         }
 
-        public async Task<Account> GetDepositAsync(CurrencyType? currency = null)
+        public async Task<Account> GetDepositAsync(CurrencyType? currency = null, bool forceRefresh = false)
         {
             if (currency == null)
             {
                 // Fetch full account state
-                var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, "", false);
-                return account ?? new Account { Alias = _account, Deposits = new Dictionary<CurrencyType, decimal>() };
+                var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, "", forceRefresh);
+                return account ?? new Account 
+                { 
+                    Alias = _account, 
+                    Number = "N/A",
+                    Broker = "Redis",
+                    AppKey = "N/A",
+                    AppSecret = "N/A",
+                    Deposits = new Dictionary<CurrencyType, decimal>(),
+                    Active = true
+                };
             }
             else
             {
                 // Fetch specific currency
                 // Gateway returns the full Account object (serialized) even if we ask for specific currency
-                var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, currency.ToString(), false);
+                var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, currency.ToString(), forceRefresh);
                 
                 if (account == null)
                 {
@@ -154,6 +163,8 @@ namespace yQuant.App.Dashboard.Services
                         Number = "N/A", 
                         Alias = _account,
                         Broker = "Redis",
+                        AppKey = "N/A",
+                        AppSecret = "N/A",
                         Deposits = new Dictionary<CurrencyType, decimal>(),
                         Active = true
                     };

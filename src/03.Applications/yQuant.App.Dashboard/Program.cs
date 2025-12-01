@@ -1,19 +1,13 @@
+using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor.Services;
 using StackExchange.Redis;
 using yQuant.App.Dashboard.Components;
 using yQuant.App.Dashboard.Services;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Reporting.Performance.Interfaces;
+using yQuant.Infra.Redis.Interfaces;
 using yQuant.Infra.Reporting.Performance.Repositories;
 using yQuant.Infra.Reporting.Performance.Services;
-using yQuant.Infra.Middleware.Redis.Interfaces;
-using yQuant.Infra.Broker.KIS;
-using System.Linq;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -34,15 +28,20 @@ builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
     
     var options = ConfigurationOptions.Parse(redisConn);
     options.AbortOnConnectFail = false;
+    return ConnectionMultiplexer.Connect(options);
+});
+
 // Register Infra RedisService
-builder.Services.AddSingleton<IRedisService, yQuant.Infra.Middleware.Redis.Services.RedisService>();
+builder.Services.AddSingleton<IRedisService, yQuant.Infra.Redis.Services.RedisService>();
 
 builder.Services.AddHostedService<SchedulerService>();
 builder.Services.AddSingleton(sp => (SchedulerService)sp.GetServices<IHostedService>().First(s => s is SchedulerService));
 
 builder.Services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
-builder.Services.AddSingleton<IQuantStatsService, QuantStatsService>();
 
+// Register Broker Adapter Factory and Order Publisher
+builder.Services.AddSingleton<IBrokerAdapterFactory, RedisBrokerAdapterFactory>();
+builder.Services.AddSingleton<OrderPublisher>();
 
 var app = builder.Build();
 

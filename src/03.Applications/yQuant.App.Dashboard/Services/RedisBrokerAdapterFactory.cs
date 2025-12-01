@@ -1,36 +1,26 @@
-using Microsoft.Extensions.Configuration;
 using StackExchange.Redis;
 using yQuant.Core.Ports.Output.Infrastructure;
+using yQuant.Infra.Redis.Adapters;
 
 namespace yQuant.App.Dashboard.Services;
 
 public class RedisBrokerAdapterFactory : IBrokerAdapterFactory
 {
     private readonly IConnectionMultiplexer _redis;
-    private readonly IConfiguration _configuration;
 
-    public RedisBrokerAdapterFactory(IConnectionMultiplexer redis, IConfiguration configuration)
+    public RedisBrokerAdapterFactory(IConnectionMultiplexer redis)
     {
         _redis = redis;
-        _configuration = configuration;
-    }
-
-    public IEnumerable<string> GetAvailableAccounts()
-    {
-        var accountsSection = _configuration.GetSection("Accounts");
-        foreach (var section in accountsSection.GetChildren())
-        {
-            var alias = section["Alias"];
-            if (!string.IsNullOrEmpty(alias))
-            {
-                yield return alias;
-            }
-        }
     }
 
     public IBrokerAdapter? GetAdapter(string alias)
     {
-        // We assume all accounts are accessible via Redis
         return new RedisBrokerClient(_redis, alias);
+    }
+
+    public IEnumerable<string> GetAvailableAccounts()
+    {
+        // In a real scenario, we might fetch this from Redis or Config
+        return Enumerable.Empty<string>();
     }
 }

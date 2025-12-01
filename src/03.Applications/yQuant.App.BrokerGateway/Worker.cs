@@ -4,7 +4,7 @@ using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Notification.Telegram;
-using yQuant.Infra.Middleware.Redis.Models;
+using yQuant.Infra.Redis.Models;
 using Order = yQuant.Core.Models.Order;
 
 namespace yQuant.App.BrokerGateway
@@ -142,7 +142,7 @@ namespace yQuant.App.BrokerGateway
                     {
                         RequestId = request.Id,
                         Success = true,
-                        Payload = cached
+                        Payload = cached.ToString()
                     };
                 }
             }

@@ -6,14 +6,14 @@ using Microsoft.Extensions.Logging;
 using yQuant.App.Console.Commands;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS;
-using yQuant.Infra.Middleware.Redis;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Infra.Redis.Extensions;
+using yQuant.Infra.Redis.Interfaces;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Reporting.Performance.Interfaces;
 using yQuant.Infra.Reporting.Performance.Repositories;
 using yQuant.Infra.Reporting.Performance.Services;
 using StackExchange.Redis;
-using yQuant.App.Console.Services;
+using yQuant.Infra.Redis.Adapters;
 
 namespace yQuant.App.Console;
 

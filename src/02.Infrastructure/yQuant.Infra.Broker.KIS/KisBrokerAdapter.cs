@@ -226,7 +226,7 @@ public class KISBrokerAdapter : IBrokerAdapter
         return country.ToString();
     }
 
-    public async Task<Account> GetDepositAsync(CurrencyType? currency = null)
+    public async Task<Account> GetDepositAsync(CurrencyType? currency = null, bool forceRefresh = false)
     {
         await EnsureConnectedAsync();
         var accountNumber = _client.Account.Number;

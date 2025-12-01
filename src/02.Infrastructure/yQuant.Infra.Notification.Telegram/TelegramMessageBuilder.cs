@@ -22,7 +22,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Qty", order.Qty.ToString() },
                 { "Price", order.Price?.ToString() ?? "Market" }
             };
-            return _templateService.ProcessTemplate("OrderSuccess", values);
+            return _templateService.ProcessTemplate("OrderSuccess", values) ?? string.Empty;
         }
 
         public string BuildOrderFailureMessage(Order order, string message)
@@ -32,7 +32,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Ticker", order.Ticker },
                 { "Message", message }
             };
-            return _templateService.ProcessTemplate("OrderFailure", values);
+            return _templateService.ProcessTemplate("OrderFailure", values) ?? string.Empty;
         }
 
         public string BuildAccountSyncFailureMessage(string alias, string message)
@@ -42,7 +42,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Alias", alias },
                 { "Message", message }
             };
-            return _templateService.ProcessTemplate("AccountSyncFailure", values);
+            return _templateService.ProcessTemplate("AccountSyncFailure", values) ?? string.Empty;
         }
 
         public string BuildNoAccountConfigMessage(string alias, string ticker)
@@ -52,7 +52,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Alias", alias },
                 { "Ticker", ticker }
             };
-            return _templateService.ProcessTemplate("NoAccountConfig", values);
+            return _templateService.ProcessTemplate("NoAccountConfig", values) ?? string.Empty;
         }
 
         public string BuildNoBrokerAdapterMessage(string alias, string ticker)
@@ -62,7 +62,7 @@ namespace yQuant.Infra.Notification.Telegram
                 { "Alias", alias },
                 { "Ticker", ticker }
             };
-            return _templateService.ProcessTemplate("NoBrokerAdapter", values);
+            return _templateService.ProcessTemplate("NoBrokerAdapter", values) ?? string.Empty;
         }
     }
 }

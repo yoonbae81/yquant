@@ -1,5 +1,5 @@
 using yQuant.App.BrokerGateway;
-using yQuant.Infra.Middleware.Redis.Extensions;
+using yQuant.Infra.Redis.Extensions;
 using StackExchange.Redis;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
@@ -9,7 +9,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Infra.Redis.Interfaces;
 using yQuant.Core.Models;
 
 var builder = Host.CreateApplicationBuilder(args);

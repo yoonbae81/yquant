@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Middleware.Redis.Interfaces;
+using yQuant.Infra.Redis.Interfaces;
 using System.Security.Cryptography;
 
 namespace yQuant.Infra.Notification.Telegram;
