@@ -181,8 +181,15 @@ namespace yQuant.App.Console.Services
 
         public async Task<OrderResult> PlaceOrderAsync(Order order)
         {
-            var result = await ExecuteRequestAsync<OrderResult>(BrokerRequestType.PlaceOrder, JsonSerializer.Serialize(order));
-            return result ?? OrderResult.Failure("Gateway did not respond.");
+            try
+            {
+                var result = await ExecuteRequestAsync<OrderResult>(BrokerRequestType.PlaceOrder, JsonSerializer.Serialize(order));
+                return result ?? OrderResult.Failure("Gateway did not respond.");
+            }
+            catch (Exception ex)
+            {
+                return OrderResult.Failure(ex.Message);
+            }
         }
 
         // Unused methods from interface
