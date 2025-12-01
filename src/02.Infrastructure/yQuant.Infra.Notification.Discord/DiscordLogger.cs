@@ -37,7 +37,7 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = GetSignalWebhookUrl(signal);
+                string? webhookUrl = GetSignalWebhookUrl(signal);
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
                 var payload = _messageBuilder.BuildSignalMessage(signal, timeframe);
@@ -55,7 +55,9 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = GetAccountWebhookUrl(order.AccountAlias);
+                string? webhookUrl = GetAccountWebhookUrl(order.AccountAlias);
+                if (string.IsNullOrEmpty(webhookUrl)) return;
+
                 var payload = _messageBuilder.BuildExecutionMessage(order);
                 await SendAsync(webhookUrl, payload);
             }
@@ -71,7 +73,9 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = GetAccountWebhookUrl(order.AccountAlias); // Use execution channel for failures too? Or Error? Let's use Execution for now as it's order related.
+                string? webhookUrl = GetAccountWebhookUrl(order.AccountAlias); // Use execution channel for failures too? Or Error? Let's use Execution for now as it's order related.
+                if (string.IsNullOrEmpty(webhookUrl)) return;
+
                 var payload = _messageBuilder.BuildOrderFailureMessage(order, reason);
                 await SendAsync(webhookUrl, payload);
             }
@@ -87,7 +91,9 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = GetAccountWebhookUrl(accountAlias);
+                string? webhookUrl = GetAccountWebhookUrl(accountAlias);
+                if (string.IsNullOrEmpty(webhookUrl)) return;
+
                 var payload = _messageBuilder.BuildErrorMessage($"Account Error: {accountAlias}", ex, context);
                 await SendAsync(webhookUrl, payload);
             }
@@ -103,7 +109,9 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = GetAccountWebhookUrl(accountAlias);
+                string? webhookUrl = GetAccountWebhookUrl(accountAlias);
+                if (string.IsNullOrEmpty(webhookUrl)) return;
+
                 var payload = _messageBuilder.BuildSummaryMessage(accountAlias, summary);
                 await SendAsync(webhookUrl, payload);
             }
@@ -119,7 +127,7 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = _config.System?.Status ?? _config.DefaultWebhookUrl;
+                string webhookUrl = _config.System?.Status ?? _config.DefaultWebhookUrl ?? string.Empty;
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
                 var payload = _messageBuilder.BuildStartupMessage(appName, version);
@@ -137,7 +145,7 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = _config.System?.Error ?? _config.DefaultWebhookUrl;
+                string webhookUrl = _config.System?.Error ?? _config.DefaultWebhookUrl ?? string.Empty;
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
                 var payload = _messageBuilder.BuildErrorMessage("System Error", ex, context);
@@ -155,7 +163,7 @@ namespace yQuant.Infra.Notification.Discord
 
             try
             {
-                string webhookUrl = _config.System?.Status ?? _config.DefaultWebhookUrl;
+                string webhookUrl = _config.System?.Status ?? _config.DefaultWebhookUrl ?? string.Empty;
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
                 // Reuse Startup message builder or create a new one for generic status
@@ -168,7 +176,7 @@ namespace yQuant.Infra.Notification.Discord
             }
         }
 
-        private string GetSignalWebhookUrl(Signal signal)
+        private string? GetSignalWebhookUrl(Signal signal)
         {
             // 1. Check Strategy mapping
             if (_config.Signal != null && _config.Signal.TryGetValue(signal.Source, out var strategyUrl))
@@ -185,7 +193,7 @@ namespace yQuant.Infra.Notification.Discord
             return _config.DefaultWebhookUrl;
         }
 
-        private string GetAccountWebhookUrl(string accountAlias)
+        private string? GetAccountWebhookUrl(string accountAlias)
         {
             if (_config.Accounts != null && _config.Accounts.TryGetValue(accountAlias, out var url))
             {
@@ -205,7 +213,7 @@ namespace yQuant.Infra.Notification.Discord
             // The spec says: "logSignal() 호출 (단, Await 하지 않음)" in Webhook app.
             // But also "비동기 처리 정책: 모든 메서드는 async로 구현하되, 호출부에서 Wait()를 하지 않도록 설계 가이드 제공".
             // So I will just await the HTTP call here. The try-catch block handles exceptions so it won't crash the caller.
-            
+
             using var response = await _httpClient.PostAsJsonAsync(url, payload);
             response.EnsureSuccessStatusCode();
         }

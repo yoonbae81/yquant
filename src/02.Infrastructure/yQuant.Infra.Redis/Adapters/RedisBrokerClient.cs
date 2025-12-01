@@ -10,19 +10,13 @@ using Order = yQuant.Core.Models.Order;
 
 namespace yQuant.Infra.Redis.Adapters
 {
-    public class RedisBrokerClient : IBrokerAdapter
+    public class RedisBrokerClient(IConnectionMultiplexer redis, string account) : IBrokerAdapter
     {
-        private readonly IConnectionMultiplexer _redis;
-        private readonly string _account;
+        private readonly IConnectionMultiplexer _redis = redis;
+        private readonly string _account = account;
         private readonly TimeSpan _timeout = TimeSpan.FromSeconds(5);
 
         public Account Account => throw new NotImplementedException("Account object is not fully available in RedisClient. Use specific methods.");
-
-        public RedisBrokerClient(IConnectionMultiplexer redis, string account)
-        {
-            _redis = redis;
-            _account = account;
-        }
 
         private async Task<T?> ExecuteRequestAsync<T>(BrokerRequestType type, string payload = "", bool forceRefresh = false)
         {
@@ -139,14 +133,14 @@ namespace yQuant.Infra.Redis.Adapters
             {
                 // Fetch full account state
                 var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, "", forceRefresh);
-                return account ?? new Account 
-                { 
-                    Alias = _account, 
+                return account ?? new Account
+                {
+                    Alias = _account,
                     Number = "N/A",
                     Broker = "Redis",
                     AppKey = "N/A",
                     AppSecret = "N/A",
-                    Deposits = new Dictionary<CurrencyType, decimal>(),
+                    Deposits = [],
                     Active = true
                 };
             }
@@ -154,18 +148,18 @@ namespace yQuant.Infra.Redis.Adapters
             {
                 // Fetch specific currency
                 // Gateway returns the full Account object (serialized) even if we ask for specific currency
-                var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, currency.ToString(), forceRefresh);
-                
+                var account = await ExecuteRequestAsync<Account>(BrokerRequestType.GetDeposit, currency.ToString()!, forceRefresh);
+
                 if (account == null)
                 {
-                     return new Account 
-                    { 
-                        Number = "N/A", 
+                    return new Account
+                    {
+                        Number = "N/A",
                         Alias = _account,
                         Broker = "Redis",
                         AppKey = "N/A",
                         AppSecret = "N/A",
-                        Deposits = new Dictionary<CurrencyType, decimal>(),
+                        Deposits = [],
                         Active = true
                     };
                 }
@@ -175,15 +169,15 @@ namespace yQuant.Infra.Redis.Adapters
 
         public async Task<List<Position>> GetPositionsAsync()
         {
-             // Fetch all positions
-             var result = await ExecuteRequestAsync<List<Position>>(BrokerRequestType.GetPositions, "", false);
-             return result ?? new List<Position>();
+            // Fetch all positions
+            var result = await ExecuteRequestAsync<List<Position>>(BrokerRequestType.GetPositions, "", false);
+            return result ?? [];
         }
 
         public async Task<List<Position>> GetPositionsAsync(CountryCode country, bool forceRefresh = false)
         {
             var result = await ExecuteRequestAsync<List<Position>>(BrokerRequestType.GetPositions, country.ToString(), forceRefresh);
-            return result ?? new List<Position>();
+            return result ?? [];
         }
 
         public async Task<PriceInfo> GetPriceAsync(string ticker)

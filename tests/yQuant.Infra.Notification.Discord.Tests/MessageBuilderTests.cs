@@ -39,16 +39,16 @@ namespace yQuant.Infra.Notification.Discord.Tests
             var payload = _builder.BuildSignalMessage(signal, "1h");
 
             // Assert
-            Assert.Single(payload.Embeds);
-            var embed = payload.Embeds.First();
+            Assert.Single(payload.Embeds!);
+            var embed = payload.Embeds!.First();
             Assert.Equal("Signal: TrendFollow_A", embed.Title);
             Assert.Equal(3447003, embed.Color); // Blue
-            Assert.Equal("Timeframe: 1h", embed.Footer.Text);
-            
-            Assert.Contains(embed.Fields, f => f.Name == "Ticker" && f.Value == "AAPL");
-            Assert.Contains(embed.Fields, f => f.Name == "Action" && f.Value == "Buy");
-            Assert.Contains(embed.Fields, f => f.Name == "Price" && f.Value == "150.00");
-            Assert.Contains(embed.Fields, f => f.Name == "Strength" && f.Value == "80");
+            Assert.Equal("Timeframe: 1h", embed.Footer!.Text);
+
+            Assert.Contains(embed.Fields!, f => f.Name == "Ticker" && f.Value == "AAPL");
+            Assert.Contains(embed.Fields!, f => f.Name == "Action" && f.Value == "Buy");
+            Assert.Contains(embed.Fields!, f => f.Name == "Price" && f.Value == "150.00");
+            Assert.Contains(embed.Fields!, f => f.Name == "Strength" && f.Value == "80");
         }
 
         [Fact]
@@ -70,10 +70,10 @@ namespace yQuant.Infra.Notification.Discord.Tests
             var payload = _builder.BuildExecutionMessage(order);
 
             // Assert
-            var embed = payload.Embeds.First();
+            var embed = payload.Embeds!.First();
             Assert.Equal("Order Executed: Buy", embed.Title);
             Assert.Equal(5763719, embed.Color); // Green
-            Assert.Contains(embed.Fields, f => f.Name == "Ticker" && f.Value == "TSLA");
+            Assert.Contains(embed.Fields!, f => f.Name == "Ticker" && f.Value == "TSLA");
         }
 
         [Fact]
@@ -94,7 +94,7 @@ namespace yQuant.Infra.Notification.Discord.Tests
             var payload = _builder.BuildExecutionMessage(order);
 
             // Assert
-            var embed = payload.Embeds.First();
+            var embed = payload.Embeds!.First();
             Assert.Equal("Order Executed: Sell", embed.Title);
             Assert.Equal(15548997, embed.Color); // Red
         }
@@ -119,10 +119,10 @@ namespace yQuant.Infra.Notification.Discord.Tests
             var payload = _builder.BuildOrderFailureMessage(order, reason);
 
             // Assert
-            var embed = payload.Embeds.First();
+            var embed = payload.Embeds!.First();
             Assert.Equal("Order Rejected", embed.Title);
             Assert.Equal(15548997, embed.Color); // Red
-            Assert.Contains(embed.Fields, f => f.Name == "Ticker" && f.Value == "TSLA");
+            Assert.Contains(embed.Fields!, f => f.Name == "Ticker" && f.Value == "TSLA");
             Assert.Contains("Insufficient Funds", embed.Description);
         }
 
@@ -137,7 +137,7 @@ namespace yQuant.Infra.Notification.Discord.Tests
             var payload = _builder.BuildErrorMessage("Test Error Title", ex, "TestContext");
 
             // Assert
-            var embed = payload.Embeds.First();
+            var embed = payload.Embeds!.First();
             Assert.Equal("Test Error Title", embed.Title);
             Assert.Contains("TestContext", embed.Description);
             Assert.Contains("Test Error", embed.Description);

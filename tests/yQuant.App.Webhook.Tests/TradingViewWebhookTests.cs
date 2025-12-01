@@ -20,9 +20,9 @@ namespace yQuant.App.TradingViewWebhook.Tests;
 [TestClass]
 public class TradingViewWebhookTests
 {
-    private WebApplicationFactory<Program> _factory;
-    private Mock<IConnectionMultiplexer> _redisMock;
-    private Mock<IDatabase> _dbMock;
+    private WebApplicationFactory<Program>? _factory;
+    private Mock<IConnectionMultiplexer>? _redisMock;
+    private Mock<IDatabase>? _dbMock;
 
     [TestInitialize]
     public void TestInitialize()
@@ -44,7 +44,7 @@ public class TradingViewWebhookTests
                     config.AddInMemoryCollection(new Dictionary<string, string?>
                     {
                         {"Security:AllowedIps:0", "127.0.0.1"},
-                        {"Security:WebhookSecret", "giC3CNMLMsQ0JlPDUreQ"} 
+                        {"Security:WebhookSecret", "giC3CNMLMsQ0JlPDUreQ"}
                     });
                 });
             });
@@ -54,7 +54,7 @@ public class TradingViewWebhookTests
     public async Task Webhook_WithValidPayload_ReturnsOkAndPublishesToRedis()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = _factory!.CreateClient();
         var payload = new TradingViewPayload
         {
             Ticker = "AAPL",
@@ -74,7 +74,7 @@ public class TradingViewWebhookTests
         // Assert
         Assert.AreEqual(HttpStatusCode.OK, response.StatusCode);
 
-        _dbMock.Verify(
+        _dbMock!.Verify(
             db => db.PublishAsync(
                 It.Is<RedisChannel>(c => c == "signal"),
                 It.IsAny<RedisValue>(),
@@ -86,7 +86,7 @@ public class TradingViewWebhookTests
     public async Task Webhook_WithInvalidSecret_ReturnsUnauthorized()
     {
         // Arrange
-        var client = _factory.CreateClient();
+        var client = _factory!.CreateClient();
         var payload = new TradingViewPayload
         {
             Ticker = "AAPL",

@@ -71,14 +71,14 @@ public class KISClientTests
                 ItExpr.IsAny<HttpRequestMessage>(),
                 ItExpr.IsAny<CancellationToken>()
             )
-            .Returns(async (HttpRequestMessage req, CancellationToken token) =>
+            .Returns((HttpRequestMessage req, CancellationToken token) =>
             {
                 var response = responseProvider(req);
                 if (response != null)
                 {
-                    return response;
+                    return Task.FromResult(response);
                 }
-                return new HttpResponseMessage(HttpStatusCode.NotFound) { RequestMessage = req };
+                return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NotFound) { RequestMessage = req });
             });
     }
 

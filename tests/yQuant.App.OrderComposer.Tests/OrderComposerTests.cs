@@ -17,14 +17,14 @@ namespace yQuant.App.OrderComposer.Tests;
 [TestClass]
 public class OrderComposerTests
 {
-    private Mock<ILogger<Worker>> _loggerMock;
-    private Mock<IConfiguration> _configMock;
-    private Mock<IConnectionMultiplexer> _redisMock;
-    private Mock<ISubscriber> _subscriberMock;
-    private Mock<IDatabase> _dbMock;
-    private Mock<IServiceProvider> _serviceProviderMock;
-    private Mock<IPositionSizer> _positionSizerMock;
-    private Mock<IMarketRule> _marketRuleMock;
+    private Mock<ILogger<Worker>>? _loggerMock;
+    private Mock<IConfiguration>? _configMock;
+    private Mock<IConnectionMultiplexer>? _redisMock;
+    private Mock<ISubscriber>? _subscriberMock;
+    private Mock<IDatabase>? _dbMock;
+    private Mock<IServiceProvider>? _serviceProviderMock;
+    private Mock<IPositionSizer>? _positionSizerMock;
+    private Mock<IMarketRule>? _marketRuleMock;
 
     [TestInitialize]
     public void TestInitialize()
@@ -43,7 +43,7 @@ public class OrderComposerTests
 
         _serviceProviderMock.Setup(s => s.GetService(typeof(IPositionSizer))).Returns(_positionSizerMock.Object);
         _serviceProviderMock.Setup(s => s.GetService(typeof(IMarketRule))).Returns(_marketRuleMock.Object);
-        
+
         var loggerFactory = new Mock<ILoggerFactory>();
         loggerFactory.Setup(x => x.CreateLogger(It.IsAny<string>())).Returns(_loggerMock.Object);
         _serviceProviderMock.Setup(s => s.GetService(typeof(ILoggerFactory))).Returns(loggerFactory.Object);
@@ -54,7 +54,7 @@ public class OrderComposerTests
     {
         // Arrange
         var orderCompositionUseCaseMock = new Mock<yQuant.Core.Ports.Input.IOrderCompositionUseCase>();
-        var worker = new Worker(_loggerMock.Object, _redisMock.Object, orderCompositionUseCaseMock.Object);
+        var worker = new Worker(_loggerMock!.Object, _redisMock!.Object, orderCompositionUseCaseMock.Object);
 
         // Act
         await worker.StartAsync(CancellationToken.None);

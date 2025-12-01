@@ -29,7 +29,7 @@ namespace yQuant.Infra.Notification.Discord
             };
 
             var embed = _templateService.ProcessTemplate("Signal", values);
-            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
+            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
         public DiscordWebhookPayload BuildExecutionMessage(Order order)
@@ -47,7 +47,7 @@ namespace yQuant.Infra.Notification.Discord
             };
 
             var embed = _templateService.ProcessTemplate(templateName, values);
-            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
+            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
         public DiscordWebhookPayload BuildOrderFailureMessage(Order order, string reason)
@@ -65,7 +65,7 @@ namespace yQuant.Infra.Notification.Discord
             };
 
             var embed = _templateService.ProcessTemplate("Execution_Failure", values);
-            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
+            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
         public DiscordWebhookPayload BuildErrorMessage(string title, Exception ex, string context)
@@ -86,7 +86,7 @@ namespace yQuant.Infra.Notification.Discord
             };
 
             var embed = _templateService.ProcessTemplate("Error", values);
-            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
+            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
         public DiscordWebhookPayload BuildSummaryMessage(string accountAlias, PerformanceLog summary)
@@ -103,7 +103,7 @@ namespace yQuant.Infra.Notification.Discord
             };
 
             var embed = _templateService.ProcessTemplate("Summary", values);
-            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
+            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
         public DiscordWebhookPayload BuildStartupMessage(string appName, string version)
@@ -116,7 +116,7 @@ namespace yQuant.Infra.Notification.Discord
             };
 
             var embed = _templateService.ProcessTemplate("Startup", values);
-            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
+            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
         public DiscordWebhookPayload BuildStatusMessage(string context, string message)
@@ -129,7 +129,7 @@ namespace yQuant.Infra.Notification.Discord
             };
 
             var embed = _templateService.ProcessTemplate("Status", values);
-            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed } };
+            return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
     }
 }
