@@ -1,5 +1,15 @@
 namespace yQuant.Core.Models;
 
+public enum CountryCode
+{
+    KR,
+    US,
+    VN,
+    HK,
+    CN,
+    JP
+}
+
 public enum CurrencyType
 {
     KRW,
@@ -8,6 +18,22 @@ public enum CurrencyType
     JPY,
     HKD,
     VND
+}
+
+public enum ExchangeCode
+{
+    NASDAQ,
+    NYSE,
+    AMEX,
+    HKEX,
+    SSE,
+    SZSE,
+    TSE,
+    HNX,
+    HOSE,
+    KRX,
+    KOSDAQ,
+    KOSPI
 }
 
 public enum OrderAction

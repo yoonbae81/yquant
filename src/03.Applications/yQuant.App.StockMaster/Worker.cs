@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Options;
+using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.App.StockMaster
@@ -45,10 +46,15 @@ namespace yQuant.App.StockMaster
             {
                 var now = DateTime.Now;
                 var nextRun = DateTime.MaxValue;
-                string? nextCountry = null;
+                CountryCode? nextCountry = null;
 
                 foreach (var country in _settings.Countries)
                 {
+                    if (!Enum.TryParse<CountryCode>(country.Key, true, out var countryCode))
+                    {
+                        _logger.LogWarning("Invalid country code in settings: {Country}", country.Key);
+                        continue;
+                    }
                     if (!TimeSpan.TryParse(country.Value.RunTime, out var runTime))
                     {
                         _logger.LogWarning("Invalid RunTime format for {Country}: {RunTime}", country.Key, country.Value.RunTime);
@@ -65,7 +71,7 @@ namespace yQuant.App.StockMaster
                     if (countryNextRun < nextRun)
                     {
                         nextRun = countryNextRun;
-                        nextCountry = country.Key;
+                        nextCountry = countryCode;
                     }
                 }
 
@@ -90,7 +96,7 @@ namespace yQuant.App.StockMaster
 
                 if (stoppingToken.IsCancellationRequested) break;
 
-                await RunJobAsync(nextCountry, _settings.Countries[nextCountry], stoppingToken);
+                await RunJobAsync(nextCountry.Value, _settings.Countries[nextCountry.Value.ToString()], stoppingToken);
             }
         }
 
@@ -104,10 +110,14 @@ namespace yQuant.App.StockMaster
                 {
                     _logger.LogInformation("No arguments provided. Updating ALL countries.");
                     
-                    var allCountries = _settings.Countries.ToDictionary(
-                        c => c.Key,
-                        c => c.Value.Exchanges
-                    );
+                    var allCountries = new Dictionary<CountryCode, Dictionary<string, string>>();
+                    foreach (var c in _settings.Countries)
+                    {
+                        if (Enum.TryParse<CountryCode>(c.Key, true, out var code))
+                        {
+                            allCountries[code] = c.Value.Exchanges;
+                        }
+                    }
                     
                     await _syncService.SyncAllAsync(allCountries, stoppingToken);
                 }
@@ -118,9 +128,9 @@ namespace yQuant.App.StockMaster
 
                     var countryEntry = _settings.Countries.FirstOrDefault(c => c.Key.Equals(targetCountry, StringComparison.OrdinalIgnoreCase));
 
-                    if (!string.IsNullOrEmpty(countryEntry.Key))
+                    if (!string.IsNullOrEmpty(countryEntry.Key) && Enum.TryParse<CountryCode>(countryEntry.Key, true, out var targetCode))
                     {
-                        await RunJobAsync(countryEntry.Key, countryEntry.Value, stoppingToken);
+                        await RunJobAsync(targetCode, countryEntry.Value, stoppingToken);
                     }
                     else
                     {
@@ -140,7 +150,7 @@ namespace yQuant.App.StockMaster
             }
         }
 
-        private async Task RunJobAsync(string countryName, CountrySetting setting, CancellationToken stoppingToken)
+        private async Task RunJobAsync(CountryCode countryName, CountrySetting setting, CancellationToken stoppingToken)
         {
             await _syncService.SyncCountryAsync(countryName, setting.Exchanges, stoppingToken);
         }

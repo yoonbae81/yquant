@@ -5,7 +5,7 @@ public class Order
     public Guid Id { get; set; }
     public required string AccountAlias { get; set; }
     public required string Ticker { get; set; }
-    public string Exchange { get; set; } = string.Empty;
+    public ExchangeCode Exchange { get; set; } = ExchangeCode.NASDAQ;
     public CurrencyType Currency { get; set; } = CurrencyType.USD;
     public required OrderAction Action { get; set; }
     public required OrderType Type { get; set; }

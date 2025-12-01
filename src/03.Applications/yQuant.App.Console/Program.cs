@@ -40,7 +40,7 @@ class Program
             .ConfigureAppConfiguration((context, config) =>
             {
                 config.AddEnvironmentVariables();
-                config.AddUserSecrets<Program>(optional: true);
+                config.AddJsonFile("env.local", optional: true, reloadOnChange: true);
             })
             .ConfigureServices((context, services) =>
             {
