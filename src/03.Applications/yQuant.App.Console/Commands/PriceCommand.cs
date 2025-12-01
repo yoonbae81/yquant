@@ -1,14 +1,14 @@
 using System;
 using System.Threading.Tasks;
-using yQuant.Infra.Broker.KIS;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.App.Console.Commands
 {
     public class InfoCommand : ICommand
     {
-        private readonly KISBrokerAdapter _adapter;
+        private readonly IBrokerAdapter _adapter;
 
-        public InfoCommand(KISBrokerAdapter adapter)
+        public InfoCommand(IBrokerAdapter adapter)
         {
             _adapter = adapter;
         }
@@ -25,10 +25,24 @@ namespace yQuant.App.Console.Commands
             }
 
             var ticker = args[2];
-            var priceInfo = await _adapter.GetPriceAsync(ticker);
-            System.Console.WriteLine($"Ticker: {ticker}");
-            System.Console.WriteLine($"Price: {priceInfo.CurrentPrice:N2}");
-            System.Console.WriteLine($"Change: {priceInfo.ChangeRate:N2}%");
+            try 
+            {
+                var priceInfo = await _adapter.GetPriceAsync(ticker);
+                if (priceInfo != null)
+                {
+                    System.Console.WriteLine($"Ticker: {ticker}");
+                    System.Console.WriteLine($"Price: {priceInfo.CurrentPrice:N2}");
+                    System.Console.WriteLine($"Change: {priceInfo.ChangeRate:N2}%");
+                }
+                else
+                {
+                    System.Console.WriteLine($"Failed to get price for {ticker}");
+                }
+            }
+            catch (Exception ex)
+            {
+                System.Console.WriteLine($"Error: {ex.Message}");
+            }
         }
     }
 }

@@ -33,7 +33,8 @@ public enum ExchangeCode
     HOSE,
     KRX,
     KOSDAQ,
-    KOSPI
+    KOSPI,
+    Unknown
 }
 
 public enum OrderAction

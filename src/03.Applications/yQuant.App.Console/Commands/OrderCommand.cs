@@ -2,19 +2,19 @@ using System;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
-using yQuant.Infra.Broker.KIS;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.App.Console.Commands
 {
     public class OrderCommand : ICommand
     {
-        private readonly KISBrokerAdapter _adapter;
+        private readonly IBrokerAdapter _adapter;
         private readonly ILogger<OrderCommand> _logger;
         private readonly string _accountAlias;
         private readonly string _accountNumber;
         private readonly OrderAction _action;
 
-        public OrderCommand(KISBrokerAdapter adapter, ILogger<OrderCommand> logger, string accountAlias, string accountNumber, OrderAction action)
+        public OrderCommand(IBrokerAdapter adapter, ILogger<OrderCommand> logger, string accountAlias, string accountNumber, OrderAction action)
         {
             _adapter = adapter;
             _logger = logger;

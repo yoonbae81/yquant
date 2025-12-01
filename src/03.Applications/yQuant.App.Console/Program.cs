@@ -1,3 +1,4 @@
+
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
@@ -11,6 +12,8 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Reporting.Performance.Interfaces;
 using yQuant.Infra.Reporting.Performance.Repositories;
 using yQuant.Infra.Reporting.Performance.Services;
+using StackExchange.Redis;
+using yQuant.App.Console.Services;
 
 namespace yQuant.App.Console;
 
@@ -20,95 +23,68 @@ class Program
     {
         if (args.Length < 2)
         {
-            System.Console.WriteLine("Usage: yquant <accountAlias> <command> [args...]");
+            System.Console.WriteLine("Usage: yquant <account> <command> [args...]");
             System.Console.WriteLine("Commands:");
-            System.Console.WriteLine("  auth [-r]");
-            System.Console.WriteLine("  deposit");
-            System.Console.WriteLine("  positions");
+            System.Console.WriteLine("  deposit <currency> [-r]");
+            System.Console.WriteLine("  positions <country> [-r]");
             System.Console.WriteLine("  info <ticker>");
             System.Console.WriteLine("  buy <ticker> <qty> [price]");
             System.Console.WriteLine("  sell <ticker> <qty> [price]");
-            System.Console.WriteLine("  report");
-            System.Console.WriteLine("  test [-r]");
             return;
         }
 
-        var targetAlias = args[0];
+        var targetAccount = args[0];
         var cmdName = args[1];
 
         var host = Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration((context, config) =>
             {
                 config.AddEnvironmentVariables();
-                config.AddJsonFile("env.local", optional: true, reloadOnChange: true);
+                config.AddUserSecrets<Program>(optional: true);
             })
             .ConfigureServices((context, services) =>
             {
-                services.AddHttpClient();
-                
-                // Register KISAdapterFactory
-                services.AddSingleton<KISAdapterFactory>();
-                services.AddSingleton<IBrokerAdapterFactory>(sp => sp.GetRequiredService<KISAdapterFactory>());
-
-                // Register Account object (using Factory)
-                services.AddSingleton<Account>(sp =>
+                // Redis Connection
+                services.AddSingleton<IConnectionMultiplexer>(sp =>
                 {
-                    var factory = sp.GetRequiredService<KISAdapterFactory>();
-                    var account = factory.GetAccount(targetAlias);
-                    if (account == null)
+                    var redisConn = Environment.GetEnvironmentVariable("Redis");
+                    if (string.IsNullOrEmpty(redisConn))
                     {
-                        throw new InvalidOperationException($"Account '{targetAlias}' not found or invalid.");
+                        throw new InvalidOperationException("Redis connection string is missing.");
                     }
-                    return account;
+                    return ConnectionMultiplexer.Connect(redisConn);
                 });
 
-                // Register IBrokerAdapter (using Factory for target alias)
-                services.AddSingleton<IBrokerAdapter>(sp =>
-                {
-                    var factory = sp.GetRequiredService<KISAdapterFactory>();
-                    var adapter = factory.GetAdapter(targetAlias);
-                    if (adapter == null)
-                    {
-                        throw new InvalidOperationException($"Failed to create adapter for '{targetAlias}'.");
-                    }
-                    return adapter;
-                });
+                // Register RedisBrokerClient
+                services.AddSingleton<RedisBrokerClient>(sp => 
+                    new RedisBrokerClient(sp.GetRequiredService<IConnectionMultiplexer>(), targetAccount));
                 
-                services.AddSingleton<KISBrokerAdapter>(sp => 
-                {
-                    var adapter = sp.GetRequiredService<IBrokerAdapter>();
-                    return (KISBrokerAdapter)adapter;
-                });
-
-
-                services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
-                services.AddSingleton<IQuantStatsService, QuantStatsService>();
-                services.AddSingleton<yQuant.Core.Services.AssetService>();
+                services.AddSingleton<IBrokerAdapter>(sp => sp.GetRequiredService<RedisBrokerClient>());
 
                 // Register Commands
-                services.AddTransient<ICommand>(sp => new AuthCommand(sp.GetRequiredService<KISAdapterFactory>(), sp.GetRequiredService<ILogger<AuthCommand>>(), targetAlias));
-                
                 services.AddTransient<ICommand>(sp => 
                 {
-                    return new DepositCommand(sp.GetRequiredService<yQuant.Core.Services.AssetService>(), targetAlias);
+                    return new DepositCommand(sp.GetRequiredService<RedisBrokerClient>());
                 });
                 services.AddTransient<ICommand>(sp => 
                 {
-                    return new PositionsCommand(sp.GetRequiredService<yQuant.Core.Services.AssetService>(), targetAlias);
+                    return new PositionsCommand(sp.GetRequiredService<RedisBrokerClient>());
                 });
-                services.AddTransient<ICommand>(sp => new InfoCommand(sp.GetRequiredService<KISBrokerAdapter>()));
+                services.AddTransient<ICommand>(sp => new InfoCommand(sp.GetRequiredService<IBrokerAdapter>())); // InfoCommand needs update? It uses IBrokerAdapter.
                 services.AddTransient<ICommand>(sp => 
                 {
-                    var account = sp.GetRequiredService<Account>();
-                    return new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, account.Number, OrderAction.Buy);
+                    // OrderCommand needs Account Number? 
+                    // RedisBrokerClient doesn't have Account Number. 
+                    // But OrderCommand only needs it to pass to Order object.
+                    // The Gateway will look up the real account.
+                    // So we can pass a dummy or the alias as number for now, or update OrderCommand.
+                    // Let's check OrderCommand.
+                    return new OrderCommand(sp.GetRequiredService<IBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAccount, targetAccount, OrderAction.Buy);
                 });
                 services.AddTransient<ICommand>(sp => 
                 {
-                    var account = sp.GetRequiredService<Account>();
-                    return new OrderCommand(sp.GetRequiredService<KISBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAlias, account.Number, OrderAction.Sell);
+                    return new OrderCommand(sp.GetRequiredService<IBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAccount, targetAccount, OrderAction.Sell);
                 });
-                services.AddTransient<ICommand>(sp => new ReportCommand(sp.GetRequiredService<IPerformanceRepository>(), sp.GetRequiredService<IQuantStatsService>(), targetAlias));
-                services.AddTransient<ICommand>(sp => new TestCommand(sp.GetRequiredService<KISAdapterFactory>(), sp.GetRequiredService<ILogger<TestCommand>>(), targetAlias));
 
                 services.AddSingleton<CommandRouter>();
             })
@@ -116,7 +92,14 @@ class Program
 
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
         
-        System.Console.WriteLine($"DEBUG: targetAlias = '{targetAlias}'");
+        // Startup Check
+        var client = host.Services.GetRequiredService<RedisBrokerClient>();
+        var pingResult = await client.PingAsync();
+        if (!pingResult.Success)
+        {
+            System.Console.WriteLine($"Error: {pingResult.Message}");
+            return;
+        }
 
         try
         {

@@ -226,11 +226,11 @@ public class KISBrokerAdapter : IBrokerAdapter
         return country.ToString();
     }
 
-    public async Task<Account> GetAccountStateAsync()
+    public async Task<Account> GetDepositAsync(CurrencyType? currency = null)
     {
         await EnsureConnectedAsync();
         var accountNumber = _client.Account.Number;
-        _logger.LogInformation("Getting account state for account {AccountNumber} via KIS.", accountNumber);
+        _logger.LogInformation("Getting account state for account {AccountNumber} via KIS. Currency: {Currency}", accountNumber, currency);
 
         // Use the account from the client directly
         var account = _client.Account;
@@ -247,63 +247,82 @@ public class KISBrokerAdapter : IBrokerAdapter
             account.Deposits = new Dictionary<CurrencyType, decimal>();
         }
 
-        // Get Domestic Balance (KRW)
-        try
+        // 1. Get Domestic Balance (KRW)
+        if (currency == null || currency == CurrencyType.KRW)
         {
-            var (cano, acntPrdtCd) = ParseAccountNumber(accountNumber);
-            
-            var domesticQueryParams = new Dictionary<string, string>
+            try
             {
-                { "CANO", cano },
-                { "ACNT_PRDT_CD", acntPrdtCd },
-                { "AFHR_FLPR_YN", "N" },
-                { "OFL_YN", "N" },
-                { "INQR_DVSN", "02" },
-                { "UNPR_DVSN", "01" },
-                { "FUND_STTL_ICLD_YN", "N" },
-                { "FNCG_AMT_AUTO_RDPT_YN", "N" },
-                { "PRCS_DVSN", "00" },
-                { "CTX_AREA_FK100", "" },
-                { "CTX_AREA_NK100", "" }
-            };
+                var (cano, acntPrdtCd) = ParseAccountNumber(accountNumber);
+                
+                var domesticQueryParams = new Dictionary<string, string>
+                {
+                    { "CANO", cano },
+                    { "ACNT_PRDT_CD", acntPrdtCd },
+                    { "AFHR_FLPR_YN", "N" },
+                    { "OFL_YN", "N" },
+                    { "INQR_DVSN", "02" },
+                    { "UNPR_DVSN", "01" },
+                    { "FUND_STTL_ICLD_YN", "N" },
+                    { "FNCG_AMT_AUTO_RDPT_YN", "N" },
+                    { "PRCS_DVSN", "00" },
+                    { "CTX_AREA_FK100", "" },
+                    { "CTX_AREA_NK100", "" }
+                };
 
-            _logger.LogInformation("Calling DomesticBalance API:");
-            _logger.LogInformation("  BaseUrl: {BaseUrl}", _client.GetType().GetProperty("BaseUrl")?.GetValue(_client) ?? "N/A");
-            _logger.LogInformation("  Endpoint: /uapi/domestic-stock/v1/trading/inquire-balance");
-            _logger.LogInformation("  Query Parameters:");
-            foreach (var param in domesticQueryParams)
-            {
-                _logger.LogInformation("    {Key} = {Value}", param.Key, param.Value);
+                _logger.LogInformation("Calling DomesticBalance API (KRW)");
+
+                var domesticHeaders = new Dictionary<string, string>
+                {
+                    { "custtype", "P" }
+                };
+
+                var domesticResponse = await _client.ExecuteAsync<DomesticBalanceResponse>("DomesticBalance", null, domesticQueryParams, domesticHeaders);
+                if (domesticResponse?.Output2 != null && domesticResponse.Output2.Count > 0)
+                {
+                    if (account.Deposits.ContainsKey(CurrencyType.KRW))
+                        account.Deposits[CurrencyType.KRW] = domesticResponse.Output2[0].DncaTotAmt;
+                    else
+                        account.Deposits.Add(CurrencyType.KRW, domesticResponse.Output2[0].DncaTotAmt);
+                }
             }
-
-            var domesticHeaders = new Dictionary<string, string>
+            catch (Exception ex)
             {
-                { "custtype", "P" }  // P = 媛쒖씤, B = 踰뺤씤
-            };
-
-            var domesticResponse = await _client.ExecuteAsync<DomesticBalanceResponse>("DomesticBalance", null, domesticQueryParams, domesticHeaders);
-            if (domesticResponse?.Output2 != null && domesticResponse.Output2.Count > 0)
-            {
-                account.Deposits.Add(CurrencyType.KRW, domesticResponse.Output2[0].DncaTotAmt);
+                _logger.LogError(ex, "Failed to get domestic account balance.");
             }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to get domestic account balance.");
-        }
 
-        // Get Overseas Balance (USD, HKD, CNY, JPY, VND)
-        var overseasCurrencies = new[] 
-        { 
-        // Get Overseas Balance (USD, HKD, CNY, JPY, VND)
-        var overseasCurrencies = new[] 
-        { 
-            (Ex: ExchangeCode.NASDAQ, Curr: CurrencyType.USD), 
-            (Ex: ExchangeCode.HKEX, Curr: CurrencyType.HKD), 
-            (Ex: ExchangeCode.SSE, Curr: CurrencyType.CNY), 
-            (Ex: ExchangeCode.TSE, Curr: CurrencyType.JPY), 
-            (Ex: ExchangeCode.HNX, Curr: CurrencyType.VND) 
-        };
+        // 2. Get Overseas Balance
+        var overseasCurrencies = new List<(ExchangeCode Ex, CurrencyType Curr)>();
+        
+        if (currency == null)
+        {
+            overseasCurrencies.AddRange(new[] 
+            { 
+                (ExchangeCode.NASDAQ, CurrencyType.USD), 
+                (ExchangeCode.HKEX, CurrencyType.HKD), 
+                (ExchangeCode.SSE, CurrencyType.CNY), 
+                (ExchangeCode.TSE, CurrencyType.JPY), 
+                (ExchangeCode.HNX, CurrencyType.VND) 
+            });
+        }
+        else if (currency != CurrencyType.KRW)
+        {
+            // Map requested currency to a representative exchange
+            var targetEx = currency switch
+            {
+                CurrencyType.USD => ExchangeCode.NASDAQ,
+                CurrencyType.HKD => ExchangeCode.HKEX,
+                CurrencyType.CNY => ExchangeCode.SSE,
+                CurrencyType.JPY => ExchangeCode.TSE,
+                CurrencyType.VND => ExchangeCode.HNX,
+                _ => ExchangeCode.Unknown
+            };
+
+            if (targetEx != ExchangeCode.Unknown)
+            {
+                overseasCurrencies.Add((targetEx, currency.Value));
+            }
+        }
 
         foreach (var (exch, curr) in overseasCurrencies)
         {
@@ -311,11 +330,6 @@ public class KISBrokerAdapter : IBrokerAdapter
             {
                 var (cano, acntPrdtCd) = ParseAccountNumber(accountNumber);
                 
-                var overseasQueryParams = new Dictionary<string, string>
-                {
-                    { "CANO", cano },
-                    { "ACNT_PRDT_CD", acntPrdtCd },
-                    { "OVRS_EXCG_CD", exch },
                 var overseasQueryParams = new Dictionary<string, string>
                 {
                     { "CANO", cano },
@@ -330,6 +344,8 @@ public class KISBrokerAdapter : IBrokerAdapter
                     { "INQR_DVSN_CD", "00" }
                 };
 
+                _logger.LogInformation("Calling OverseasBalance API for {Currency}", curr);
+
                 var overseasHeaders = new Dictionary<string, string>
                 {
                     { "custtype", "P" }
@@ -341,32 +357,26 @@ public class KISBrokerAdapter : IBrokerAdapter
                 {
                     foreach (var summary in overseasResponse.Output2)
                     {
-                        // If we have a currency code in the response, use it to match
                         var responseCurrency = summary.CrcyCd ?? summary.OvrsCrcyCd;
                         
-                        if (!string.IsNullOrEmpty(responseCurrency))
+                        if (!string.IsNullOrEmpty(responseCurrency) && Enum.TryParse<CurrencyType>(responseCurrency, out var currencyType))
                         {
-                            if (Enum.TryParse<CurrencyType>(responseCurrency, out var currencyType))
+                            if (summary.FrcrDnclAmt2 > 0)
                             {
-                                if (!account.Deposits.ContainsKey(currencyType))
-                                {
+                                if (account.Deposits.ContainsKey(currencyType))
+                                    account.Deposits[currencyType] = summary.FrcrDnclAmt2;
+                                else
                                     account.Deposits.Add(currencyType, summary.FrcrDnclAmt2);
-                                }
                             }
                         }
                         else 
                         {
-                            // Fallback to previous logic if no currency code found (but log warning)
                             if (summary.FrcrDnclAmt2 > 0)
                             {
-                                if (Enum.TryParse<CurrencyType>(curr, out var currencyType))
-                                {
-                            if (summary.FrcrDnclAmt2 > 0)
-                            {
-                                if (!account.Deposits.ContainsKey(curr))
-                                {
+                                if (account.Deposits.ContainsKey(curr))
+                                    account.Deposits[curr] = summary.FrcrDnclAmt2;
+                                else
                                     account.Deposits.Add(curr, summary.FrcrDnclAmt2);
-                                }
                             }
                         }
                     }
