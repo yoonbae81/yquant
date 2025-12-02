@@ -14,8 +14,7 @@
             ],
             "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.Console",
             "stopAtEntry": false,
-            "console": "internalConsole",
-            "envFile": "${workspaceFolder}/.env.local"
+            "console": "internalConsole"
         },
         {
             "name": "yQuant.App.BrokerGateway",
@@ -26,8 +25,7 @@
             "args": [],
             "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.BrokerGateway",
             "stopAtEntry": false,
-            "console": "internalConsole",
-            "envFile": "${workspaceFolder}/.env.local"
+            "console": "internalConsole"
         },
         {
             "name": "yQuant.App.Webhook",
@@ -48,8 +46,7 @@
             "sourceFileMap": {
                 "/Views": "${workspaceFolder}/Views"
             },
-            "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env.local"
+            "console": "integratedTerminal"
         },
         {
             "name": "yQuant.App.OrderComposer",
@@ -60,8 +57,7 @@
             "args": [],
             "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.OrderComposer",
             "stopAtEntry": false,
-            "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env.local"
+            "console": "integratedTerminal"
         },
         {
             "name": "yQuant.App.Dashboard",
@@ -79,8 +75,7 @@
             "env": {
                 "ASPNETCORE_ENVIRONMENT": "Development"
             },
-            "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env.local"
+            "console": "integratedTerminal"
         },
         {
             "name": "yQuant.App.StockMaster",
@@ -91,8 +86,7 @@
             "args": [],
             "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.StockMaster",
             "stopAtEntry": false,
-            "console": "integratedTerminal",
-            "envFile": "${workspaceFolder}/.env.local"
+            "console": "integratedTerminal"
         }
     ],
     "compounds": [
