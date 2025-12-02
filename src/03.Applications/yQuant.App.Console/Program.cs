@@ -39,8 +39,9 @@ class Program
         var host = Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration((context, config) =>
             {
-                config.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
-                      .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                config.SetBasePath(AppContext.BaseDirectory);
+                config.AddJsonFile("sharedsettings.json", optional: true, reloadOnChange: true)
+                      .AddJsonFile("appsettings.json", optional: true, reloadOnChange: true)
                       .AddJsonFile($"sharedsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true)
                       .AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
             })

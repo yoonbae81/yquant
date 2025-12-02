@@ -1,18 +1,16 @@
 using yQuant.App.BrokerGateway;
 using yQuant.Infra.Redis.Extensions;
-using StackExchange.Redis;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Notification.Telegram;
-using yQuant.Infra.Notification.Discord;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using yQuant.Infra.Redis.Interfaces;
-using yQuant.Core.Models;
 
-var builder = Host.CreateApplicationBuilder(args);
+var settings = new HostApplicationBuilderSettings
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+};
+
+var builder = Host.CreateApplicationBuilder(settings);
 builder.Configuration.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile($"sharedsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)

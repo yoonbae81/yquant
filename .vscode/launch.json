@@ -10,7 +10,7 @@
             "args": [],
             "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.BrokerGateway",
             "stopAtEntry": false,
-            "console": "integratedTerminal"
+            "console": "externalTerminal"
         },
         {
             "name": "yQuant.App.Console",
@@ -25,7 +25,7 @@
             ],
             "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.Console",
             "stopAtEntry": false,
-            "console": "integratedTerminal"
+            "console": "externalTerminal"
         },
         {
             "name": "yQuant.App.Webhook",

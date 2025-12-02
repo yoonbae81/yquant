@@ -10,7 +10,12 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Core.Ports.Output.Policies;
 using yQuant.Infra.Redis.Extensions;
 
-var builder = Host.CreateApplicationBuilder(args);
+var settings = new HostApplicationBuilderSettings
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+};
+var builder = Host.CreateApplicationBuilder(settings);
 builder.Configuration.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile($"sharedsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)

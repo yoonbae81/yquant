@@ -10,7 +10,7 @@ public static class RedisServiceExtensions
 {
     public static IServiceCollection AddRedisMiddleware(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration["Redis"];
+        var connectionString = configuration["ConnectionStrings:Redis"];
 
         if (string.IsNullOrEmpty(connectionString))
         {

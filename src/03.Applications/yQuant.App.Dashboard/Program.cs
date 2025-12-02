@@ -9,7 +9,12 @@ using yQuant.Infra.Redis.Interfaces;
 using yQuant.Infra.Reporting.Performance.Repositories;
 using yQuant.Infra.Reporting.Performance.Services;
 
-var builder = WebApplication.CreateBuilder(args);
+
+var builder = WebApplication.CreateBuilder(new WebApplicationOptions
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+});
 builder.Configuration.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile($"sharedsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)

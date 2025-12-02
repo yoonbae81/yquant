@@ -4,43 +4,42 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Master.KIS;
 using yQuant.Infra.Redis.Extensions;
 
-IHost host = Host.CreateDefaultBuilder(args)
-    .ConfigureAppConfiguration((hostingContext, config) =>
-    {
-        config.SetBasePath(AppContext.BaseDirectory);
-        config.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true);
-        config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-        config.AddJsonFile($"sharedsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
-        config.AddJsonFile($"appsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
-    })
-    .ConfigureServices((hostContext, services) =>
-    {
-        var configuration = hostContext.Configuration;
+var settings = new HostApplicationBuilderSettings
+{
+    Args = args,
+    ContentRootPath = AppContext.BaseDirectory
+};
+var builder = Host.CreateApplicationBuilder(settings);
 
-        // Redis
-        services.AddRedisMiddleware(hostContext.Configuration);
+builder.Configuration.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile($"sharedsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+                     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 
-        // HttpClient
-        services.AddHttpClient();
+// Redis
+builder.Services.AddRedisMiddleware(builder.Configuration);
 
-        // Core Services - Ports
-        services.AddSingleton<IMasterDataLoader, KISMasterDataLoader>();
-        services.AddSingleton<IMasterDataRepository, RedisMasterDataRepository>();
-        services.AddSingleton<IMasterDataSyncService, MasterDataSyncService>();
+// HttpClient
+builder.Services.AddHttpClient();
 
-        // Register Notification Services
-        services.Configure<yQuant.Infra.Notification.Discord.DiscordConfiguration>(hostContext.Configuration.GetSection("Discord"));
-        services.AddHttpClient("DiscordWebhook");
-        services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
-        services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.ISystemLogger, yQuant.Infra.Notification.Discord.DiscordLogger>();
+// Core Services - Ports
+builder.Services.AddSingleton<IMasterDataLoader, KISMasterDataLoader>();
+builder.Services.AddSingleton<IMasterDataRepository, RedisMasterDataRepository>();
+builder.Services.AddSingleton<IMasterDataSyncService, MasterDataSyncService>();
 
-        // Configuration
-        services.Configure<StockMasterSettings>(hostContext.Configuration.GetSection("StockMaster"));
-        services.AddSingleton(new CommandLineArgs(args));
+// Register Notification Services
+builder.Services.Configure<yQuant.Infra.Notification.Discord.DiscordConfiguration>(builder.Configuration.GetSection("Discord"));
+builder.Services.AddHttpClient("DiscordWebhook");
+builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
+builder.Services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.ISystemLogger, yQuant.Infra.Notification.Discord.DiscordLogger>();
 
-        // Worker
-        services.AddHostedService<Worker>();
-    })
-    .Build();
+// Configuration
+builder.Services.Configure<StockMasterSettings>(builder.Configuration.GetSection("StockMaster"));
+builder.Services.AddSingleton(new CommandLineArgs(args));
+
+// Worker
+builder.Services.AddHostedService<Worker>();
+
+var host = builder.Build();
 
 await host.RunAsync();

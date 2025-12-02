@@ -18,8 +18,9 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\..\sharedsettings.json" Link="sharedsettings.json">
+    <Content Include="..\..\..\sharedsettings*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>%(Filename)%(Extension)</Link>
     </Content>
   </ItemGroup>
 
