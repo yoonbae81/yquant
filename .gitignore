@@ -10,11 +10,12 @@
 *.userosscache
 *.sln.docstates
 *.env
+*.env.local
 
 # Sensitive configuration files - prevent accidental commits of production secrets
 sharedsettings.*.json
 appsettings.*.json
-.env.local
+SettingsBackup.zip
 
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
