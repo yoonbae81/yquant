@@ -4,6 +4,10 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Notification.Telegram;
 
+using yQuant.Core.Utils;
+
+EnvValidator.Validate();
+
 var settings = new HostApplicationBuilderSettings
 {
     Args = args,

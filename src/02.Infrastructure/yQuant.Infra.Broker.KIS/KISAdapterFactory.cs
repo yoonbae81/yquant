@@ -18,6 +18,8 @@ public class KISAdapterFactory : IBrokerAdapterFactory
     private readonly Dictionary<string, IBrokerAdapter> _adapters = new();
     private readonly object _lock = new();
 
+
+
     public KISAdapterFactory(
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory,

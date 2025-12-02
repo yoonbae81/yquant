@@ -1,5 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+using System.Text.Json;
 using yQuant.App.Dashboard.Models;
 using yQuant.Core.Models;
 
@@ -9,17 +11,107 @@ public class SchedulerService : BackgroundService
 {
     private readonly ILogger<SchedulerService> _logger;
     private readonly OrderPublisher _orderPublisher;
+    private readonly IConnectionMultiplexer _redis;
     private readonly List<ScheduledOrder> _scheduledOrders = new();
     private readonly object _lock = new();
+    private const string RedisKey = "dashboard:scheduled_orders";
 
     public event Action? OnChange;
 
     public SchedulerService(
         ILogger<SchedulerService> logger,
-        OrderPublisher orderPublisher)
+        OrderPublisher orderPublisher,
+        IConnectionMultiplexer redis)
     {
         _logger = logger;
         _orderPublisher = orderPublisher;
+        _redis = redis;
+        LoadFromRedis();
+    }
+
+    private void LoadFromRedis()
+    {
+        try
+        {
+            var db = _redis.GetDatabase();
+            var json = db.StringGet(RedisKey);
+            if (json.HasValue)
+            {
+                var orders = JsonSerializer.Deserialize<List<ScheduledOrder>>(json.ToString());
+                if (orders != null)
+                {
+                    lock (_lock)
+                    {
+                        _scheduledOrders.Clear();
+                        _scheduledOrders.AddRange(orders);
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to load scheduled orders from Redis");
+        }
+    }
+
+    private void SaveToRedis()
+    {
+        try
+        {
+            var db = _redis.GetDatabase();
+            string json;
+            lock (_lock)
+            {
+                json = JsonSerializer.Serialize(_scheduledOrders);
+            }
+            db.StringSet(RedisKey, json);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save scheduled orders to Redis");
+        }
+    }
+
+    public string ExportOrders()
+    {
+        lock (_lock)
+        {
+            return JsonSerializer.Serialize(_scheduledOrders);
+        }
+    }
+
+    public void ImportOrders(string json)
+    {
+        try
+        {
+            var importedOrders = JsonSerializer.Deserialize<List<ScheduledOrder>>(json);
+            if (importedOrders == null) return;
+
+            lock (_lock)
+            {
+                foreach (var order in importedOrders)
+                {
+                    // Overwrite if AccountAlias and Ticker match
+                    var existing = _scheduledOrders.Where(o => o.AccountAlias == order.AccountAlias && o.Ticker == order.Ticker).ToList();
+                    foreach (var item in existing)
+                    {
+                        _scheduledOrders.Remove(item);
+                    }
+
+                    // Ensure ID is set if missing (though import should have it)
+                    if (order.Id == Guid.Empty) order.Id = Guid.NewGuid();
+
+                    _scheduledOrders.Add(order);
+                }
+            }
+            SaveToRedis();
+            NotifyStateChanged();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to import orders");
+            throw;
+        }
     }
 
     public IEnumerable<ScheduledOrder> GetScheduledOrders()
@@ -39,8 +131,7 @@ public class SchedulerService : BackgroundService
             {
                 _scheduledOrders.Remove(existing);
             }
-            
-            // If it's a new order (Id might be empty if not set by caller, but usually caller sets it or we set it here)
+
             if (order.Id == Guid.Empty)
             {
                 order.Id = Guid.NewGuid();
@@ -48,6 +139,7 @@ public class SchedulerService : BackgroundService
 
             _scheduledOrders.Add(order);
         }
+        SaveToRedis();
         NotifyStateChanged();
     }
 
@@ -61,6 +153,7 @@ public class SchedulerService : BackgroundService
                 _scheduledOrders.Remove(order);
             }
         }
+        SaveToRedis();
         NotifyStateChanged();
     }
 
@@ -88,6 +181,8 @@ public class SchedulerService : BackgroundService
     private void ProcessScheduledOrders()
     {
         List<ScheduledOrder> ordersToExecute;
+        bool stateChanged = false;
+
         lock (_lock)
         {
             var now = DateTime.UtcNow;
@@ -99,37 +194,29 @@ public class SchedulerService : BackgroundService
         foreach (var order in ordersToExecute)
         {
             _logger.LogInformation("Executing scheduled order: {Ticker}", order.Ticker);
-            
-            // Create core Order object
-            var coreOrder = new Order
+
+            var coreOrder = new yQuant.Core.Models.Order
             {
                 AccountAlias = order.AccountAlias,
                 Ticker = order.Ticker,
                 Action = order.Action,
-                Qty = order.Quantity ?? 0, // Handle optional quantity
-                // Amount = order.TargetAmount // Order model might need Amount if Qty is missing
-                Type = OrderType.Market // Default to market for now
+                Qty = order.Quantity ?? 0,
+                Type = OrderType.Market
             };
 
-            // Fire and forget execution to not block scheduler? 
-            // Or await? Better to await to ensure it's done.
-            try 
+            try
             {
-                // We need to run this in a way that doesn't block the loop too long, 
-                // but for now simple await is fine.
-                 _orderPublisher.PublishOrderAsync(coreOrder).GetAwaiter().GetResult();
+                _orderPublisher.PublishOrderAsync(coreOrder).GetAwaiter().GetResult();
             }
-            catch(Exception ex)
+            catch (Exception ex)
             {
-                 _logger.LogError(ex, "Failed to execute scheduled order {Id}", order.Id);
+                _logger.LogError(ex, "Failed to execute scheduled order {Id}", order.Id);
             }
 
-            // Handle recurrence or remove
             lock (_lock)
             {
                 if (order.IsRecurring)
                 {
-                    // Update next run time
                     if (order.RecurrencePattern == "Daily")
                         order.ScheduledTime = order.ScheduledTime.AddDays(1);
                     else if (order.RecurrencePattern == "Weekly")
@@ -137,11 +224,16 @@ public class SchedulerService : BackgroundService
                 }
                 else
                 {
-                    order.IsActive = false; // Mark as done
-                    // Or remove?
-                    // _scheduledOrders.Remove(order);
+                    order.IsActive = false;
                 }
+                order.LastExecutedTime = DateTime.UtcNow;
             }
+            stateChanged = true;
+        }
+
+        if (stateChanged)
+        {
+            SaveToRedis();
             NotifyStateChanged();
         }
     }

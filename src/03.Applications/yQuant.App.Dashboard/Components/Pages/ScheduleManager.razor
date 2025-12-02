@@ -21,34 +21,44 @@
             </MudCardHeader>
             <MudCardContent>
                 <MudForm Model="@CurrentSchedule" @ref="@ScheduleForm" ValidationDelay="0">
-                    <MudSelect T="string" @bind-Value="CurrentSchedule.AccountAlias" Label="Account" Required="true" RequiredError="Account is required!" Variant="Variant.Outlined">
+                    <MudSelect T="string" @bind-Value="CurrentSchedule.AccountAlias" Label="Account" Required="true"
+                        RequiredError="Account is required!" Variant="Variant.Outlined">
                         @foreach (var account in AvailableAccounts)
                         {
-                            <MudSelectItem T="string" Value="@account.Alias">@account.Alias (@account.Broker)</MudSelectItem>
+                            <MudSelectItem T="string" Value="@account.Alias">@account.Alias (@account.Broker)
+                            </MudSelectItem>
                         }
                     </MudSelect>
-                    <MudTextField T="string" @bind-Value="CurrentSchedule.Ticker" Label="Ticker" Required="true" RequiredError="Ticker is required!" Class="mt-3" />
-                    <MudSelect T="OrderAction" @bind-Value="CurrentSchedule.Action" Label="Action" Required="true" RequiredError="Action is required!" Class="mt-3">
+                    <MudTextField T="string" @bind-Value="CurrentSchedule.Ticker" Label="Ticker" Required="true"
+                        RequiredError="Ticker is required!" Class="mt-3" />
+                    <MudSelect T="OrderAction" @bind-Value="CurrentSchedule.Action" Label="Action" Required="true"
+                        RequiredError="Action is required!" Class="mt-3">
                         <MudSelectItem T="OrderAction" Value="OrderAction.Buy">Buy</MudSelectItem>
                         <MudSelectItem T="OrderAction" Value="OrderAction.Sell">Sell</MudSelectItem>
                     </MudSelect>
-                    <MudNumericField T="decimal" @bind-Value="CurrentSchedule.TargetAmount" Label="Target Amount" Variant="Variant.Text" Min="0" Step="1000" Class="mt-3" />
-                    <MudNumericField T="int?" @bind-Value="CurrentSchedule.Quantity" Label="Quantity (Optional)" Variant="Variant.Text" Min="0" Class="mt-3" />
+                    <MudNumericField T="decimal" @bind-Value="CurrentSchedule.TargetAmount" Label="Target Amount"
+                        Variant="Variant.Text" Min="0" Step="1000" Class="mt-3" />
+                    <MudNumericField T="int?" @bind-Value="CurrentSchedule.Quantity" Label="Quantity (Optional)"
+                        Variant="Variant.Text" Min="0" Class="mt-3" />
                     <MudDatePicker @bind-Date="ScheduleDate" Label="Schedule Date" Class="mt-3" />
                     <MudTimePicker @bind-Time="ScheduleTime" Label="Schedule Time" Class="mt-3" />
                     <MudCheckBox T="bool" @bind-Value="CurrentSchedule.IsRecurring" Label="Recurring" Class="mt-3" />
                     @if (CurrentSchedule.IsRecurring)
                     {
-                        <MudSelect T="string" @bind-Value="CurrentSchedule.RecurrencePattern" Label="Recurrence Pattern" Class="mt-3">
+                        <MudSelect T="string" @bind-Value="CurrentSchedule.RecurrencePattern" Label="Recurrence Pattern"
+                            Class="mt-3">
                             <MudSelectItem T="string" Value="@("Daily")">Daily</MudSelectItem>
                             <MudSelectItem T="string" Value="@("Weekly")">Weekly</MudSelectItem>
                         </MudSelect>
                     }
-                    <MudTextField T="string" @bind-Value="CurrentSchedule.Notes" Label="Notes (Optional)" Lines="3" Class="mt-3" />
-                    <MudCheckBox T="bool" @bind-Value="CurrentSchedule.IsActive" Label="Active" Class="mt-3" />                </MudForm>
+                    <MudTextField T="string" @bind-Value="CurrentSchedule.Notes" Label="Notes (Optional)" Lines="3"
+                        Class="mt-3" />
+                    <MudCheckBox T="bool" @bind-Value="CurrentSchedule.IsActive" Label="Active" Class="mt-3" />
+                </MudForm>
             </MudCardContent>
             <MudCardActions Class="justify-end">
-                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSchedule" Disabled="@(!ScheduleForm?.IsValid ?? true)">Save Schedule</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSchedule"
+                    Disabled="@(!ScheduleForm?.IsValid ?? true)">Save Schedule</MudButton>
                 <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="ClearForm">Clear</MudButton>
             </MudCardActions>
         </MudCard>
@@ -58,7 +68,18 @@
         <MudCard Outlined="true" Class="pa-4">
             <MudCardHeader>
                 <CardHeaderContent>
-                    <MudText Typo="Typo.h6">Existing Schedules</MudText>
+                    <div class="d-flex justify-space-between align-center">
+                        <MudText Typo="Typo.h6">Existing Schedules</MudText>
+                        <div class="d-flex gap-2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                StartIcon="@Icons.Material.Filled.Download" OnClick="ExportOrders" Size="Size.Small">
+                                Export</MudButton>
+                            <InputFile id="importFile" OnChange="ImportOrders" hidden />
+                            <MudButton HtmlTag="label" Variant="Variant.Filled" Color="Color.Secondary"
+                                StartIcon="@Icons.Material.Filled.Upload" for="importFile" Size="Size.Small">Import
+                            </MudButton>
+                        </div>
+                    </div>
                 </CardHeaderContent>
             </MudCardHeader>
             <MudCardContent>
@@ -74,14 +95,17 @@
                             <MudListItem T="ScheduledOrder" OnClick="@(() => EditSchedule(schedule))">
                                 <div class="d-flex justify-space-between align-center">
                                     <div>
-                                        <MudText>@schedule.Ticker (@schedule.Action) - @schedule.ScheduledTime.ToLocalTime().ToString("g")</MudText>
-                                        <MudText Typo="Typo.caption">Account: @schedule.AccountAlias, Active: @schedule.IsActive @(schedule.IsRecurring ? $"({schedule.RecurrencePattern})" : "")</MudText>
+                                        <MudText>@schedule.Ticker (@schedule.Action) -
+                                            @schedule.ScheduledTime.ToLocalTime().ToString("g")</MudText>
+                                        <MudText Typo="Typo.caption">Account: @schedule.AccountAlias, Active: @schedule.IsActive
+                                            @(schedule.IsRecurring ? $"({schedule.RecurrencePattern})" : "")</MudText>
+                                        </div>
+                                        <span @onclick:stopPropagation="true">
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                Size="Size.Small" OnClick="@(() => DeleteSchedule(schedule.Id))" />
+                                        </span>
                                     </div>
-                                    <span @onclick:stopPropagation="true">
-                                        <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error" Size="Size.Small" OnClick="@(() => DeleteSchedule(schedule.Id))" />
-                                    </span>
-                                </div>
-                            </MudListItem>
+                                </MudListItem>
                         }
                     </MudList>
                 }
@@ -124,6 +148,7 @@
     {
         LoadData();
         SchedulerService.OnChange += OnSchedulerServiceChange;
+
     }
 
     private void LoadData()
@@ -155,9 +180,17 @@
         LoadData();
     }
 
+
+
     private void ClearForm()
     {
-        CurrentSchedule = new() { AccountAlias = AvailableAccounts.FirstOrDefault()?.Alias ?? "", Ticker = "", Action = OrderAction.Buy };
+        CurrentSchedule = new()
+            {
+                AccountAlias = AvailableAccounts.FirstOrDefault()?.Alias ?? "",
+                Ticker = "",
+                Action =
+            OrderAction.Buy
+            };
         ScheduleDate = null;
         ScheduleTime = null;
         if (AvailableAccounts.Any()) CurrentSchedule.AccountAlias = AvailableAccounts.First().Alias;
@@ -199,8 +232,40 @@
         ClearForm();
     }
 
+    @inject IJSRuntime JS
+
+    private async Task ExportOrders()
+    {
+        var json = SchedulerService.ExportOrders();
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+        var base64 = Convert.ToBase64String(bytes);
+        await JS.InvokeVoidAsync("downloadFile", "scheduled_orders.json", base64);
+    }
+
+    private async Task ImportOrders(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+        if (file != null)
+        {
+            // Limit size to 1MB to prevent issues
+            using var stream = file.OpenReadStream(1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+            try
+            {
+                SchedulerService.ImportOrders(json);
+                Snackbar.Add("Orders imported successfully!", Severity.Success);
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Import failed: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
     public void Dispose()
     {
         SchedulerService.OnChange -= OnSchedulerServiceChange;
+
     }
 }

@@ -1,0 +1,180 @@
+Building... 
+  Determining projects to restore...
+  Restored c:\Users\y\GitHub\yQuant\src\01.Core\yQuant.Core\yQuant.Core.csproj (in 1.26 sec).
+  Restored c:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Broker.KIS\yQuant.Infra.Broker.KIS.csproj (in 1.26 sec).
+  Restored C:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Reporting.Performance\yQuant.Infra.Reporting.Performance.csproj (in 1.26 sec).
+  Restored C:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj (in 1.26 sec).
+  Restored c:\Users\y\GitHub\yQuant\src\03.Applications\yQuant.App.Dashboard\yQuant.App.Dashboard.csproj (in 1.26 sec).
+  yQuant.Core -> C:\Users\y\GitHub\yQuant\src\01.Core\yQuant.Core\bin\Debug\net10.0\yQuant.Core.dll
+  yQuant.Infra.Reporting.Performance -> C:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Reporting.Performance\bin\Debug\net10.0\yQuant.Infra.Reporting.Performance.dll
+  yQuant.Infra.Redis -> c:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Redis\bin\Debug\net10.0\yQuant.Infra.Redis.dll
+c:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Broker.KIS\KISAdapterFactory.cs(21,26): warning CS0067: The event 'KISAdapterFactory.AccountsUpdated' is never used [c:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Broker.KIS\yQuant.Infra.Broker.KIS.csproj]
+  yQuant.Infra.Broker.KIS -> C:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Broker.KIS\bin\Debug\net10.0\yQuant.Infra.Broker.KIS.dll
+  yQuant.App.Dashboard -> C:\Users\y\GitHub\yQuant\src\03.Applications\yQuant.App.Dashboard\bin\Debug\net10.0\yQuant.App.Dashboard.dll
+
+Build succeeded.
+
+c:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Broker.KIS\KISAdapterFactory.cs(21,26): warning CS0067: The event 'KISAdapterFactory.AccountsUpdated' is never used [c:\Users\y\GitHub\yQuant\src\02.Infrastructure\yQuant.Infra.Broker.KIS\yQuant.Infra.Broker.KIS.csproj]
+    1 Warning(s)
+    0 Error(s)
+
+Time Elapsed 00:00:09.03
+Build success. Running... 
+info: yQuant.App.Dashboard.Services.SchedulerService[0]
+      SchedulerService started.
+info: Microsoft.Hosting.Lifetime[14]
+      Now listening on: http://localhost:5000
+info: Microsoft.Hosting.Lifetime[0]
+      Application started. Press Ctrl+C to shut down.
+info: Microsoft.Hosting.Lifetime[0]
+      Hosting environment: Development
+info: Microsoft.Hosting.Lifetime[0]
+      Content root path: c:\Users\y\GitHub\yQuant\src\03.Applications\yQuant.App.Dashboard\bin\Debug\net10.0\
+warn: Microsoft.AspNetCore.HttpsPolicy.HttpsRedirectionMiddleware[3]
+      Failed to determine the https port for redirect.
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Loaded 5 accounts from configuration: Trading, Pension, ISA, IRP, Yoonseo
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+warn: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      No accounts found in Redis Registry (key: broker:available_accounts). Using only configured accounts.
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5
+info: yQuant.App.Dashboard.Services.RedisBrokerAdapterFactory[0]
+      Refreshed accounts. Configured: 5, Redis: 5, Total: 5

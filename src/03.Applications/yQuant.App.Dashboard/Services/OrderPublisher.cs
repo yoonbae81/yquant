@@ -1,36 +1,41 @@
 using Microsoft.Extensions.Logging;
+using StackExchange.Redis;
+using System.Text.Json;
 using yQuant.Core.Models;
-using yQuant.Core.Ports.Output.Infrastructure;
+using yQuant.Infra.Broker.KIS;
+using yQuant.Infra.Redis.Models;
 
 namespace yQuant.App.Dashboard.Services;
 
 public class OrderPublisher
 {
     private readonly ILogger<OrderPublisher> _logger;
-    private readonly IBrokerAdapterFactory _adapterFactory;
+    private readonly IConnectionMultiplexer _redis;
 
     public OrderPublisher(
         ILogger<OrderPublisher> logger,
-        IBrokerAdapterFactory adapterFactory)
+        IConnectionMultiplexer redis)
     {
         _logger = logger;
-        _adapterFactory = adapterFactory;
+        _redis = redis;
     }
 
-    public async Task PublishOrderAsync(Order order)
+    public async Task PublishOrderAsync(yQuant.Core.Models.Order order)
     {
-        _logger.LogInformation("Publishing order: {Ticker} {Action} {Qty}", order.Ticker, order.Action, order.Qty);
+        _logger.LogInformation("Publishing order to Redis: {Ticker} {Action} {Qty}", order.Ticker, order.Action, order.Qty);
 
-        var adapter = _adapterFactory.GetAdapter(order.AccountAlias);
-        if (adapter == null)
+        var request = new BrokerRequest
         {
-            throw new InvalidOperationException($"Broker adapter not found for account: {order.AccountAlias}");
-        }
+            Id = Guid.NewGuid(),
+            Type = BrokerRequestType.PlaceOrder,
+            Account = order.AccountAlias,
+            Payload = JsonSerializer.Serialize(order),
+            ResponseChannel = string.Empty // Fire and forget
+        };
 
-        // Execute order directly for now
-        // In a real event-driven system, this might publish to a bus
-        await adapter.PlaceOrderAsync(order);
-        
-        _logger.LogInformation("Order executed successfully.");
+        var db = _redis.GetDatabase();
+        await db.PublishAsync(RedisChannel.Literal("broker:requests"), JsonSerializer.Serialize(request));
+
+        _logger.LogInformation("Order published to broker:requests");
     }
 }

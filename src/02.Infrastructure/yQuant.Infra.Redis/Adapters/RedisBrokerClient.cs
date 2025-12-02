@@ -16,7 +16,16 @@ namespace yQuant.Infra.Redis.Adapters
         private readonly string _account = account;
         private readonly TimeSpan _timeout = TimeSpan.FromSeconds(5);
 
-        public Account Account => throw new NotImplementedException("Account object is not fully available in RedisClient. Use specific methods.");
+        public Account Account => new Account
+        {
+            Alias = _account,
+            Broker = "Redis",
+            Number = "N/A",
+            AppKey = "N/A",
+            AppSecret = "N/A",
+            Deposits = [],
+            Active = true
+        };
 
         private async Task<T?> ExecuteRequestAsync<T>(BrokerRequestType type, string payload = "", bool forceRefresh = false)
         {

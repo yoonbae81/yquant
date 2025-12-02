@@ -10,6 +10,10 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Core.Ports.Output.Policies;
 using yQuant.Infra.Redis.Extensions;
 
+using yQuant.Core.Utils;
+
+EnvValidator.Validate();
+
 var settings = new HostApplicationBuilderSettings
 {
     Args = args,

@@ -1,7 +1,7 @@
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
-using yQuant.Infra.Broker.KIS;
+using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Redis.Interfaces;
 
 namespace yQuant.App.Dashboard.Services;
@@ -10,16 +10,16 @@ public class RedisService : IHostedService, IDisposable
 {
     private readonly ILogger<RedisService> _logger;
     private readonly IRedisService _redisService;
-    private readonly KISAdapterFactory _kisAdapterFactory;
+    private readonly IBrokerAdapterFactory _adapterFactory;
 
     public RedisService(
         ILogger<RedisService> logger,
         IRedisService redisService,
-        KISAdapterFactory kisAdapterFactory)
+        IBrokerAdapterFactory adapterFactory)
     {
         _logger = logger;
         _redisService = redisService;
-        _kisAdapterFactory = kisAdapterFactory;
+        _adapterFactory = adapterFactory;
     }
 
     public Task StartAsync(CancellationToken cancellationToken)
@@ -40,14 +40,16 @@ public class RedisService : IHostedService, IDisposable
 
     public IEnumerable<Account> GetAccounts()
     {
-        var aliases = _kisAdapterFactory.GetAvailableAccounts();
+        var aliases = _adapterFactory.GetAvailableAccounts();
         var accounts = new List<Account>();
         foreach (var alias in aliases)
         {
-            var account = _kisAdapterFactory.GetAccount(alias);
-            if (account != null)
+            var adapter = _adapterFactory.GetAdapter(alias);
+            if (adapter != null)
             {
-                accounts.Add(account);
+                // Assuming adapter.Account returns the Account object with at least the Alias populated
+                // If RedisBrokerClient doesn't implement Account property fully, we might need to check that.
+                accounts.Add(adapter.Account);
             }
         }
         return accounts;
@@ -55,7 +57,7 @@ public class RedisService : IHostedService, IDisposable
 
     public IEnumerable<Position> GetPositions(string accountAlias)
     {
-        var adapter = _kisAdapterFactory.GetAdapter(accountAlias);
+        var adapter = _adapterFactory.GetAdapter(accountAlias);
         if (adapter == null)
         {
             return Enumerable.Empty<Position>();

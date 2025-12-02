@@ -13,10 +13,12 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Content Include="..\..\..\sharedsettings.json" Link="sharedsettings.json">
+    <Content Include="..\..\..\sharedsettings*.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <Link>%(Filename)%(Extension)</Link>
     </Content>
   </ItemGroup>
+
   
   <ItemGroup>
     <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />

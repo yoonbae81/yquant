@@ -11,7 +11,8 @@ public enum BrokerRequestType
     GetPrice,
     GetDeposit,
     GetPositions,
-    PlaceOrder
+    PlaceOrder,
+    GetAccounts
 }
 
 public class BrokerRequest

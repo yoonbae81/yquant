@@ -10,6 +10,20 @@ using yQuant.Infra.Reporting.Performance.Repositories;
 using yQuant.Infra.Reporting.Performance.Services;
 
 
+using yQuant.Core.Utils;
+
+File.WriteAllText("startup_log.txt", "Starting application...\n");
+try
+{
+    EnvValidator.Validate();
+    File.AppendAllText("startup_log.txt", "EnvValidator passed.\n");
+}
+catch (Exception ex)
+{
+    File.AppendAllText("startup_log.txt", $"EnvValidator failed: {ex.Message}\n");
+    throw;
+}
+
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,

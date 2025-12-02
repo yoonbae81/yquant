@@ -1,5 +1,6 @@
 @page "/orderform"
 @page "/orderform/{Ticker?}"
+
 @using yQuant.App.Dashboard.Services
 @using yQuant.Core.Models
 @using yQuant.Core.Ports.Output.Infrastructure
@@ -15,7 +16,8 @@
 <MudForm Model="@OrderModel" @ref="@Form" ValidationDelay="0">
     <MudGrid>
         <MudItem xs="12" sm="6">
-            <MudSelect @bind-Value="OrderModel.AccountAlias" Label="Account" Required="true" RequiredError="Account is required!" Variant="Variant.Outlined">
+            <MudSelect @bind-Value="OrderModel.AccountAlias" Label="Account" Required="true"
+                RequiredError="Account is required!" Variant="Variant.Outlined">
                 @foreach (var account in AvailableAccounts)
                 {
                     <MudSelectItem Value="@account.Alias">@account.Alias (@account.Broker)</MudSelectItem>
@@ -23,19 +25,23 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudTextField @bind-Value="OrderModel.Ticker" Label="Ticker" Required="true" RequiredError="Ticker is required!" Variant="Variant.Outlined" />
+            <MudTextField @bind-Value="OrderModel.Ticker" Label="Ticker" Required="true"
+                RequiredError="Ticker is required!" Variant="Variant.Outlined" />
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudSelect @bind-Value="OrderModel.Action" Label="Action" Required="true" RequiredError="Action is required!" Variant="Variant.Outlined">
+            <MudSelect @bind-Value="OrderModel.Action" Label="Action" Required="true"
+                RequiredError="Action is required!" Variant="Variant.Outlined">
                 <MudSelectItem Value="OrderAction.Buy">Buy</MudSelectItem>
                 <MudSelectItem Value="OrderAction.Sell">Sell</MudSelectItem>
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudNumericField @bind-Value="OrderModel.Qty" Label="Quantity" Required="true" RequiredError="Quantity must be greater than 0" Min="1" Variant="Variant.Outlined" />
+            <MudNumericField @bind-Value="OrderModel.Qty" Label="Quantity" Required="true"
+                RequiredError="Quantity must be greater than 0" Min="1" Variant="Variant.Outlined" />
         </MudItem>
         <MudItem xs="12">
-            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto" OnClick="SubmitOrder" Disabled="@(!Form?.IsValid ?? true)">Place Order</MudButton>
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto" OnClick="SubmitOrder"
+                Disabled="@(!Form?.IsValid ?? true)">Place Order</MudButton>
         </MudItem>
     </MudGrid>
 </MudForm>
@@ -49,13 +55,28 @@
     public string? AccountAlias { get; set; } // From URL parameter
 
     private MudForm? Form;
-    private Order OrderModel = new() { AccountAlias = "", Ticker = "", Action = OrderAction.Buy, Type = OrderType.Market, Qty = 0 };
+    private Order OrderModel = new()
+        {
+            AccountAlias = "",
+            Ticker = "",
+            Action = OrderAction.Buy,
+            Type = OrderType.Market,
+            Qty = 0
+        };
     private IEnumerable<Account> AvailableAccounts = new List<Account>();
 
     protected override void OnInitialized()
     {
-        var aliases = BrokerAdapterFactory.GetAvailableAccounts();
+
+        LoadAccounts();
+    }
+
+
+
+    private void LoadAccounts()
+    {
         var accounts = new List<Account>();
+        var aliases = BrokerAdapterFactory.GetAvailableAccounts();
         foreach (var alias in aliases)
         {
             var adapter = BrokerAdapterFactory.GetAdapter(alias);
@@ -102,4 +123,6 @@
             }
         }
     }
+
+
 }

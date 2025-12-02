@@ -44,8 +44,30 @@ namespace yQuant.App.BrokerGateway
                 _ = HandleRequestAsync(message);
             });
 
-            // Keep alive
-            await Task.Delay(Timeout.Infinite, stoppingToken);
+            // Periodic Account Registration (Heartbeat)
+            while (!stoppingToken.IsCancellationRequested)
+            {
+                await RegisterAccountsAsync();
+                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+            }
+        }
+
+        private async Task RegisterAccountsAsync()
+        {
+            try
+            {
+                var db = _redis.GetDatabase();
+                var accounts = _adapters.Keys.ToList();
+                var json = JsonSerializer.Serialize(accounts);
+
+                // Set key with TTL (e.g., 60 seconds) to handle Gateway crash
+                await db.StringSetAsync("broker:available_accounts", json, TimeSpan.FromSeconds(60));
+                _logger.LogInformation("Registered available accounts in Redis: {Accounts}", string.Join(", ", accounts));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to register accounts in Redis.");
+            }
         }
 
         private async Task HandleRequestAsync(RedisValue message)
@@ -219,22 +241,22 @@ namespace yQuant.App.BrokerGateway
             try
             {
                 var result = await adapter.PlaceOrderAsync(order);
-                
+
                 // Log Result
                 if (result.IsSuccess)
                 {
-                     foreach (var logger in _tradingLoggers) await logger.LogOrderAsync(order);
+                    foreach (var logger in _tradingLoggers) await logger.LogOrderAsync(order);
                 }
                 else
                 {
-                     foreach (var logger in _tradingLoggers) await logger.LogOrderFailureAsync(order, result.Message);
+                    foreach (var logger in _tradingLoggers) await logger.LogOrderFailureAsync(order, result.Message);
                 }
 
-                return new BrokerResponse 
-                { 
-                    RequestId = request.Id, 
+                return new BrokerResponse
+                {
+                    RequestId = request.Id,
                     Success = true, // Request processed successfully (even if order rejected by broker)
-                    Payload = JsonSerializer.Serialize(result) 
+                    Payload = JsonSerializer.Serialize(result)
                 };
             }
             catch (Exception ex)

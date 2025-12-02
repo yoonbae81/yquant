@@ -1,5 +1,6 @@
 @page "/assets"
 @page "/assets/{AccountAlias}"
+
 @using yQuant.Core.Models
 
 @using yQuant.App.Dashboard.Services
@@ -10,7 +11,8 @@
 
 <MudText Typo="Typo.h4" GutterBottom="true">Asset Summary</MudText>
 
-<MudSelect T="string" Label="Select Account" Value="@AccountAlias" ValueChanged="OnAccountChanged" Variant="Variant.Outlined" Class="mb-4">
+<MudSelect T="string" Label="Select Account" Value="@AccountAlias" ValueChanged="OnAccountChanged"
+    Variant="Variant.Outlined" Class="mb-4">
     @foreach (var acc in _availableAccounts)
     {
         <MudSelectItem Value="@acc.Alias">@acc.Alias (@acc.Broker)</MudSelectItem>
@@ -89,8 +91,10 @@ else
                     <MudTd DataLabel="Qty">@context.Qty</MudTd>
                     <MudTd DataLabel="Avg Price">@context.AvgPrice.ToString("N2")</MudTd>
                     <MudTd DataLabel="Cur Price">@context.CurrentPrice.ToString("N2")</MudTd>
-                    <MudTd DataLabel="PnL" Style="@GetColorStyle(context.UnrealizedPnL)">@context.UnrealizedPnL.ToString("N2")</MudTd>
-                    <MudTd DataLabel="Return %" Style="@GetColorStyle(context.UnrealizedPnL)">@GetReturnRate(context).ToString("F2")%</MudTd>
+                    <MudTd DataLabel="PnL" Style="@GetColorStyle(context.UnrealizedPnL)">
+                        @context.UnrealizedPnL.ToString("N2")</MudTd>
+                    <MudTd DataLabel="Return %" Style="@GetColorStyle(context.UnrealizedPnL)">
+                        @GetReturnRate(context).ToString("F2")%</MudTd>
                 </RowTemplate>
             </MudTable>
         </MudItem>
@@ -106,6 +110,21 @@ else
 
     protected override async Task OnInitializedAsync()
     {
+        await LoadAccounts();
+
+        if (string.IsNullOrEmpty(AccountAlias) && _availableAccounts.Any())
+        {
+            AccountAlias = _availableAccounts.First().Alias;
+        }
+
+        if (!string.IsNullOrEmpty(AccountAlias))
+        {
+            await LoadAccountData(AccountAlias);
+        }
+    }
+
+    private async Task LoadAccounts()
+    {
         var aliases = BrokerAdapterFactory.GetAvailableAccounts();
         var accounts = new List<Account>();
         foreach (var alias in aliases)
@@ -117,14 +136,11 @@ else
             }
         }
         _availableAccounts = accounts;
-        
+
+        // Auto-select first account if none selected and list was empty before
         if (string.IsNullOrEmpty(AccountAlias) && _availableAccounts.Any())
         {
             AccountAlias = _availableAccounts.First().Alias;
-        }
-
-        if (!string.IsNullOrEmpty(AccountAlias))
-        {
             await LoadAccountData(AccountAlias);
         }
     }
