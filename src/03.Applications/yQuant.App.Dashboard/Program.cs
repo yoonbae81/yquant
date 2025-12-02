@@ -1,16 +1,19 @@
 using Microsoft.AspNetCore.Components;
 using Microsoft.AspNetCore.Components.Web;
 using MudBlazor.Services;
-using StackExchange.Redis;
 using yQuant.App.Dashboard.Components;
 using yQuant.App.Dashboard.Services;
 using yQuant.Core.Ports.Output.Infrastructure;
+using yQuant.Infra.Redis.Extensions;
 using yQuant.Infra.Redis.Interfaces;
 using yQuant.Infra.Reporting.Performance.Repositories;
 using yQuant.Infra.Reporting.Performance.Services;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddEnvironmentVariables("yQuant__");
+builder.Configuration.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile($"sharedsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+                     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 
 // Add services to the container.
 builder.Services.AddRazorComponents()
@@ -18,22 +21,8 @@ builder.Services.AddRazorComponents()
 
 builder.Services.AddMudServices();
 
-// Register Redis Connection Multiplexer
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-{
-    var redisConn = builder.Configuration["Redis"];
-    if (string.IsNullOrEmpty(redisConn))
-    {
-        throw new InvalidOperationException("Redis connection string is missing. Please set 'Redis' environment variable.");
-    }
-
-    var options = ConfigurationOptions.Parse(redisConn);
-    options.AbortOnConnectFail = false;
-    return ConnectionMultiplexer.Connect(options);
-});
-
-// Register Infra RedisService
-builder.Services.AddSingleton<IRedisService, yQuant.Infra.Redis.Services.RedisService>();
+// Register Redis Middleware
+builder.Services.AddRedisMiddleware(builder.Configuration);
 
 builder.Services.AddHostedService<SchedulerService>();
 builder.Services.AddSingleton(sp => (SchedulerService)sp.GetServices<IHostedService>().First(s => s is SchedulerService));

@@ -39,38 +39,33 @@ class Program
         var host = Host.CreateDefaultBuilder(args)
             .ConfigureAppConfiguration((context, config) =>
             {
-                config.AddEnvironmentVariables("yQuant__");
+                config.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
+                      .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                      .AddJsonFile($"sharedsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+                      .AddJsonFile($"appsettings.{context.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
             })
             .ConfigureServices((context, services) =>
             {
                 // Redis Connection
-                services.AddSingleton<IConnectionMultiplexer>(sp =>
-                {
-                    var redisConn = context.Configuration["Redis"];
-                    if (string.IsNullOrEmpty(redisConn))
-                    {
-                        throw new InvalidOperationException("Redis connection string is missing.");
-                    }
-                    return ConnectionMultiplexer.Connect(redisConn);
-                });
+                services.AddRedisMiddleware(context.Configuration);
 
                 // Register RedisBrokerClient
-                services.AddSingleton<RedisBrokerClient>(sp => 
+                services.AddSingleton<RedisBrokerClient>(sp =>
                     new RedisBrokerClient(sp.GetRequiredService<IConnectionMultiplexer>(), targetAccount));
-                
+
                 services.AddSingleton<IBrokerAdapter>(sp => sp.GetRequiredService<RedisBrokerClient>());
 
                 // Register Commands
-                services.AddTransient<ICommand>(sp => 
+                services.AddTransient<ICommand>(sp =>
                 {
                     return new DepositCommand(sp.GetRequiredService<RedisBrokerClient>());
                 });
-                services.AddTransient<ICommand>(sp => 
+                services.AddTransient<ICommand>(sp =>
                 {
                     return new PositionsCommand(sp.GetRequiredService<RedisBrokerClient>());
                 });
                 services.AddTransient<ICommand>(sp => new InfoCommand(sp.GetRequiredService<IBrokerAdapter>())); // InfoCommand needs update? It uses IBrokerAdapter.
-                services.AddTransient<ICommand>(sp => 
+                services.AddTransient<ICommand>(sp =>
                 {
                     // OrderCommand needs Account Number? 
                     // RedisBrokerClient doesn't have Account Number. 
@@ -80,7 +75,7 @@ class Program
                     // Let's check OrderCommand.
                     return new OrderCommand(sp.GetRequiredService<IBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAccount, targetAccount, OrderAction.Buy);
                 });
-                services.AddTransient<ICommand>(sp => 
+                services.AddTransient<ICommand>(sp =>
                 {
                     return new OrderCommand(sp.GetRequiredService<IBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAccount, targetAccount, OrderAction.Sell);
                 });
@@ -90,7 +85,7 @@ class Program
             .Build();
 
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
-        
+
         // Startup Check
         var client = host.Services.GetRequiredService<RedisBrokerClient>();
         var pingResult = await client.PingAsync();

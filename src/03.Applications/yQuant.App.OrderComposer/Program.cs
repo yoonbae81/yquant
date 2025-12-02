@@ -8,18 +8,15 @@ using yQuant.App.OrderComposer.Adapters;
 using yQuant.Core.Extensions;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Core.Ports.Output.Policies;
+using yQuant.Infra.Redis.Extensions;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Configuration.AddEnvironmentVariables("yQuant__");
+builder.Configuration.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile($"sharedsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+                     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 
-var redisConn = builder.Configuration["Redis"];
-if (string.IsNullOrEmpty(redisConn))
-{
-    throw new InvalidOperationException("Redis connection string is missing. Please set 'Redis' environment variable.");
-}
-
-redisConn += ",abortConnect=false";
-builder.Services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(redisConn));
+builder.Services.AddRedisMiddleware(builder.Configuration);
 
 // Register Core Services
 builder.Services.AddyQuantCore();
@@ -35,10 +32,10 @@ builder.Services.AddSingleton<IPositionSizer>(sp =>
     var config = sp.GetRequiredService<IConfiguration>();
     var logger = sp.GetRequiredService<ILogger<Program>>();
     var sizingConfig = config.GetSection("Policies:Sizing");
-    
+
     var path = sizingConfig["Path"];
     var className = sizingConfig["Class"];
-    
+
     if (string.IsNullOrEmpty(path) || string.IsNullOrEmpty(className))
     {
         throw new InvalidOperationException("Position Sizer policy is not configured correctly.");

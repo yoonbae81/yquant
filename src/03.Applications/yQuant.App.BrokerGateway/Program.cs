@@ -13,7 +13,10 @@ using yQuant.Infra.Redis.Interfaces;
 using yQuant.Core.Models;
 
 var builder = Host.CreateApplicationBuilder(args);
-builder.Configuration.AddEnvironmentVariables("yQuant__");
+builder.Configuration.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile($"sharedsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+                     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 
 // Register Telegram Notification Service
 builder.Services.AddHttpClient<INotificationService, TelegramNotificationService>();
@@ -32,7 +35,7 @@ builder.Services.AddSingleton<Dictionary<string, IBrokerAdapter>>(sp =>
 {
     var factory = sp.GetRequiredService<KISAdapterFactory>();
     var adapters = new Dictionary<string, IBrokerAdapter>(StringComparer.OrdinalIgnoreCase);
-    
+
     foreach (var alias in factory.GetAvailableAccounts())
     {
         var adapter = factory.GetAdapter(alias);

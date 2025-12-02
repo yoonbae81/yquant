@@ -12,9 +12,8 @@
 *.env
 
 # Sensitive configuration files - prevent accidental commits of production secrets
-appsettings.Production.json
-appsettings.Staging.json
-**/appsettings.*.local.json
+sharedsettings.*.json
+appsettings.*.json
 .env.local
 
 # User-specific files (MonoDevelop/Xamarin Studio)

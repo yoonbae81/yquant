@@ -8,6 +8,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Include="..\..\..\sharedsettings.json" Link="sharedsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Broker.KIS\yQuant.Infra.Broker.KIS.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj" />

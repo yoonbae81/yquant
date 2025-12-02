@@ -27,7 +27,7 @@ public class KISAdapterFactory : IBrokerAdapterFactory
         _httpClientFactory = httpClientFactory;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<KISAdapterFactory>();
-        
+
         // Load API Config internally
         var apiPath = Path.Combine(AppContext.BaseDirectory, "API");
         _apiConfig = KISApiConfig.Load(apiPath);
@@ -37,13 +37,17 @@ public class KISAdapterFactory : IBrokerAdapterFactory
     public IEnumerable<string> GetAvailableAccounts()
     {
         var accountsSection = _configuration.GetSection("Accounts");
-        System.Console.WriteLine($"DEBUG: GetAvailableAccounts found {accountsSection.GetChildren().Count()} children.");
         foreach (var section in accountsSection.GetChildren())
         {
             var alias = section["Alias"];
             var broker = section["Broker"];
-            System.Console.WriteLine($"DEBUG: Found account Alias='{alias}', Broker='{broker}'");
-            if (!string.IsNullOrEmpty(alias) && string.Equals(broker, "KIS", StringComparison.OrdinalIgnoreCase))
+
+            if (string.IsNullOrWhiteSpace(alias))
+            {
+                continue;
+            }
+
+            if (string.Equals(broker, "KIS", StringComparison.OrdinalIgnoreCase))
             {
                 yield return alias;
             }
@@ -68,7 +72,7 @@ public class KISAdapterFactory : IBrokerAdapterFactory
             var client = GetOrCreateClient(account);
             var adapterLogger = _loggerFactory.CreateLogger<KISBrokerAdapter>();
             adapter = new KISBrokerAdapter(client, adapterLogger);
-            
+
             _adapters[alias] = adapter;
             return adapter;
         }
@@ -106,7 +110,7 @@ public class KISAdapterFactory : IBrokerAdapterFactory
         KISClient? client;
         lock (_lock)
         {
-             if (!_clients.TryGetValue(alias, out client))
+            if (!_clients.TryGetValue(alias, out client))
             {
                 var account = CreateAccountFromConfig(alias);
                 if (account != null)
@@ -132,7 +136,7 @@ public class KISAdapterFactory : IBrokerAdapterFactory
         var clientLogger = _loggerFactory.CreateLogger<KISClient>();
         var httpClient = _httpClientFactory.CreateClient("KIS");
         client = new KISClient(httpClient, clientLogger, account, _apiConfig);
-        
+
         _clients[account.Alias] = client;
         return client;
     }
@@ -141,7 +145,7 @@ public class KISAdapterFactory : IBrokerAdapterFactory
     {
         var accountsSection = _configuration.GetSection("Accounts");
         System.Console.WriteLine($"DEBUG: CreateAccountFromConfig searching for '{alias}' in {accountsSection.GetChildren().Count()} accounts.");
-        
+
         var accountSection = accountsSection.GetChildren()
             .FirstOrDefault(a => a["Alias"]?.Equals(alias, StringComparison.OrdinalIgnoreCase) == true);
 

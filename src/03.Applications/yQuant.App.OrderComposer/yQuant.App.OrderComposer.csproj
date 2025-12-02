@@ -9,11 +9,16 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="StackExchange.Redis" Version="2.10.1" />
+  </ItemGroup>
+  <ItemGroup>
+    <Content Include="..\..\..\sharedsettings.json" Link="sharedsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj" />
     <ProjectReference Include="..\..\04.Policies\yQuant.Policies.Sizing.Basic\yQuant.Policies.Sizing.Basic.csproj" />
     <ProjectReference Include="..\..\04.Policies\yQuant.Policies.Market\yQuant.Policies.Market.csproj" />
   </ItemGroup>

@@ -10,9 +10,14 @@
 
   <ItemGroup>
     <PackageReference Include="MudBlazor" Version="8.15.0" />
-    <PackageReference Include="StackExchange.Redis" Version="2.10.1" />
   </ItemGroup>
 
+  <ItemGroup>
+    <Content Include="..\..\..\sharedsettings.json" Link="sharedsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </Content>
+  </ItemGroup>
+  
   <ItemGroup>
     <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Reporting.Performance\yQuant.Infra.Reporting.Performance.csproj" />

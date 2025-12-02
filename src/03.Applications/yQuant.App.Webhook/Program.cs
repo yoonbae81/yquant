@@ -3,26 +3,18 @@ using yQuant.Core.Models;
 using StackExchange.Redis;
 using System.Net;
 using System.Text.Json;
-using Microsoft.Extensions.Configuration;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Notification.Discord;
+using yQuant.Infra.Redis.Extensions;
 
 var builder = WebApplication.CreateBuilder(args);
-builder.Configuration.AddEnvironmentVariables("yQuant__");
+builder.Configuration.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+                     .AddJsonFile($"sharedsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true)
+                     .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 
 // Add services to the container.
-builder.Services.AddSingleton<IConnectionMultiplexer>(sp =>
-{
-    var redisConn = builder.Configuration["Redis"];
-    if (string.IsNullOrEmpty(redisConn))
-    {
-        throw new InvalidOperationException("Redis connection string is missing. Please set 'Redis' environment variable.");
-    }
-
-    var options = ConfigurationOptions.Parse(redisConn);
-    options.AbortOnConnectFail = false;
-    return ConnectionMultiplexer.Connect(options);
-});
+builder.Services.AddRedisMiddleware(builder.Configuration);
 
 // Register Discord Notification Services
 builder.Services.Configure<DiscordConfiguration>(builder.Configuration.GetSection("Discord"));
@@ -63,13 +55,16 @@ app.Use(async (context, next) =>
     finally
     {
         sw.Stop();
-        logger.LogInformation(
-            "Request {Method} {Path} responded {StatusCode} in {Elapsed:0.0000}ms. IP: {RemoteIpAddress}",
-            context.Request.Method,
-            context.Request.Path,
-            context.Response.StatusCode,
-            sw.Elapsed.TotalMilliseconds,
-            context.Connection.RemoteIpAddress);
+        if (logger.IsEnabled(LogLevel.Information))
+        {
+            logger.LogInformation(
+                "Request {Method} {Path} responded {StatusCode} in {Elapsed:0.0000}ms. IP: {RemoteIpAddress}",
+                context.Request.Method,
+                context.Request.Path,
+                context.Response.StatusCode,
+                sw.Elapsed.TotalMilliseconds,
+                context.Connection.RemoteIpAddress);
+        }
     }
 });
 
@@ -77,7 +72,7 @@ app.Use(async (context, next) =>
 app.Use(async (context, next) =>
 {
     var configuration = context.RequestServices.GetRequiredService<IConfiguration>();
-    var allowedIps = configuration.GetSection("Security:AllowedIps").Get<string[]>() ?? Array.Empty<string>();
+    var allowedIps = configuration.GetSection("Security:AllowedIps").Get<string[]>() ?? [];
     var remoteIpAddress = context.Connection.RemoteIpAddress;
 
     // Allow localhost for development/testing
@@ -149,7 +144,4 @@ app.MapPost("/webhook", async (HttpContext context, TradingViewPayload payload, 
     return Results.Ok("Signal received and published.");
 });
 
-
 app.Run();
-
-public partial class Program { }

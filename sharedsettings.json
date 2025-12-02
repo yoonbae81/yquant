@@ -1,0 +1,27 @@
+{
+  "ConnectionStrings": {
+    "Redis": "localhost:6379"
+  },
+  "Telegram": {
+    "Enabled": true,
+    "BotToken": "",
+    "ChatId": ""
+  },
+  "Discord": {
+    "Enabled": true,
+    "DefaultWebhookUrl": "https://discord.com/api/webhooks/fallback",
+    "TimeoutMs": 2000,
+    "System": {
+      "Status": "https://discord.com/api/webhooks/system_status_id/token",
+      "Error": "https://discord.com/api/webhooks/system_error_id/token"
+    },
+    "Signal": {
+      "Intraday": "https://discord.com/api/webhooks/intraday_id/token",
+      "General": "https://discord.com/api/webhooks/general_signal_id/token",
+      "TrendFollow_A": "https://discord.com/api/webhooks/strategy_a_id/token"
+    },
+    "Accounts": {
+      "Account1": "https://discord.com/api/webhooks/account1/token"
+    }
+  }
+}

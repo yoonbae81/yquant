@@ -10,10 +10,8 @@ public static class RedisServiceExtensions
 {
     public static IServiceCollection AddRedisMiddleware(this IServiceCollection services, IConfiguration configuration)
     {
-        var connectionString = configuration.GetConnectionString("Redis") 
-                               ?? configuration["Redis:ConnectionString"]
-                               ?? configuration["Redis"];
-        
+        var connectionString = configuration["Redis"];
+
         if (string.IsNullOrEmpty(connectionString))
         {
             // If no Redis config, we might want to warn or throw. 
@@ -22,7 +20,9 @@ public static class RedisServiceExtensions
             throw new InvalidOperationException("Redis connection string is not configured.");
         }
 
-        services.AddSingleton<IConnectionMultiplexer>(sp => ConnectionMultiplexer.Connect(connectionString));
+        var options = ConfigurationOptions.Parse(connectionString);
+        options.AbortOnConnectFail = false;
+        services.AddSingleton<IConnectionMultiplexer>(sp => ConnectionMultiplexer.Connect(options));
         services.AddSingleton<IRedisService, RedisService>();
 
         return services;

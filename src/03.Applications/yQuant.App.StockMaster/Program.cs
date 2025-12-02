@@ -2,31 +2,23 @@ using StackExchange.Redis;
 using yQuant.App.StockMaster;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Master.KIS;
-using yQuant.Infra.Redis.Interfaces;
-using yQuant.Infra.Redis.Services;
+using yQuant.Infra.Redis.Extensions;
 
 IHost host = Host.CreateDefaultBuilder(args)
     .ConfigureAppConfiguration((hostingContext, config) =>
     {
         config.SetBasePath(AppContext.BaseDirectory);
+        config.AddJsonFile("sharedsettings.json", optional: false, reloadOnChange: true);
         config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true);
-        config.AddEnvironmentVariables("yQuant__");
+        config.AddJsonFile($"sharedsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
+        config.AddJsonFile($"appsettings.{hostingContext.HostingEnvironment.EnvironmentName}.json", optional: true, reloadOnChange: true);
     })
     .ConfigureServices((hostContext, services) =>
     {
         var configuration = hostContext.Configuration;
 
         // Redis
-        var redisConn = hostContext.Configuration["Redis"];
-        if (string.IsNullOrEmpty(redisConn))
-        {
-            throw new InvalidOperationException("Redis connection string is missing. Please set 'Redis' environment variable.");
-        }
-
-        var options = ConfigurationOptions.Parse(redisConn);
-        options.AbortOnConnectFail = false;
-        services.AddSingleton<IConnectionMultiplexer>(ConnectionMultiplexer.Connect(options));
-        services.AddSingleton<IRedisService, RedisService>();
+        services.AddRedisMiddleware(hostContext.Configuration);
 
         // HttpClient
         services.AddHttpClient();
