@@ -49,7 +49,7 @@ builder.Services.AddSingleton(sp => (SchedulerService)sp.GetServices<IHostedServ
 builder.Services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
 
 // Register Broker Adapter Factory and Order Publisher
-builder.Services.AddSingleton<IBrokerAdapterFactory, RedisBrokerAdapterFactory>();
+
 builder.Services.AddSingleton<OrderPublisher>();
 builder.Services.AddSingleton<AssetService>();
 

@@ -17,6 +17,11 @@ sharedsettings.*.json
 appsettings.*.json
 SettingsBackup.*
 
+
+test*.txt
+debug*.txt
+build*.txt
+
 # User-specific files (MonoDevelop/Xamarin Studio)
 *.userprefs
 

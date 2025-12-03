@@ -6,7 +6,6 @@
 @using yQuant.App.Dashboard.Services
 @using yQuant.Core.Ports.Output.Infrastructure
 @inject AssetService AssetService
-@inject IBrokerAdapterFactory BrokerAdapterFactory
 @inject NavigationManager NavigationManager
 
 <MudText Typo="Typo.h4" GutterBottom="true">Asset Summary</MudText>
@@ -125,14 +124,14 @@ else
 
     private async Task LoadAccounts()
     {
-        var aliases = BrokerAdapterFactory.GetAvailableAccounts();
+        var aliases = await AssetService.GetAvailableAccountsAsync();
         var accounts = new List<Account>();
         foreach (var alias in aliases)
         {
-            var adapter = BrokerAdapterFactory.GetAdapter(alias);
-            if (adapter != null)
+            var account = AssetService.GetAccountBasicInfo(alias);
+            if (account != null)
             {
-                accounts.Add(adapter.Account);
+                accounts.Add(account);
             }
         }
         _availableAccounts = accounts;

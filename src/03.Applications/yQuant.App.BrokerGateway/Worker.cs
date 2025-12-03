@@ -9,29 +9,20 @@ using Order = yQuant.Core.Models.Order;
 
 namespace yQuant.App.BrokerGateway
 {
-    public class Worker : BackgroundService
+    public class Worker(
+        ILogger<Worker> logger,
+        IConnectionMultiplexer redis,
+        Dictionary<string, IBrokerAdapter> adapters,
+        INotificationService telegramNotifier,
+        TelegramMessageBuilder telegramBuilder,
+        IEnumerable<ITradingLogger> tradingLoggers) : BackgroundService
     {
-        private readonly ILogger<Worker> _logger;
-        private readonly IConnectionMultiplexer _redis;
-        private readonly Dictionary<string, IBrokerAdapter> _adapters;
-        private readonly INotificationService _telegramNotifier;
-        private readonly TelegramMessageBuilder _telegramBuilder;
-        private readonly IEnumerable<ITradingLogger> _tradingLoggers;
-
-        public Worker(ILogger<Worker> logger,
-            IConnectionMultiplexer redis,
-            Dictionary<string, IBrokerAdapter> adapters,
-            INotificationService telegramNotifier,
-            TelegramMessageBuilder telegramBuilder,
-            IEnumerable<ITradingLogger> tradingLoggers)
-        {
-            _logger = logger;
-            _redis = redis;
-            _adapters = adapters;
-            _telegramNotifier = telegramNotifier;
-            _telegramBuilder = telegramBuilder;
-            _tradingLoggers = tradingLoggers;
-        }
+        private readonly ILogger<Worker> _logger = logger;
+        private readonly IConnectionMultiplexer _redis = redis;
+        private readonly Dictionary<string, IBrokerAdapter> _adapters = adapters;
+        private readonly INotificationService _telegramNotifier = telegramNotifier;
+        private readonly TelegramMessageBuilder _telegramBuilder = telegramBuilder;
+        private readonly IEnumerable<ITradingLogger> _tradingLoggers = tradingLoggers;
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
@@ -60,9 +51,11 @@ namespace yQuant.App.BrokerGateway
                 var accounts = _adapters.Keys.ToList();
                 var json = JsonSerializer.Serialize(accounts);
 
-                // Set key with TTL (e.g., 60 seconds) to handle Gateway crash
-                await db.StringSetAsync("broker:available_accounts", json, TimeSpan.FromSeconds(60));
-                _logger.LogInformation("Registered available accounts in Redis: {Accounts}", string.Join(", ", accounts));
+                await db.StringSetAsync("broker:accounts", json, TimeSpan.FromHours(24));
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogInformation("Registered available accounts in Redis: {Accounts}", string.Join(", ", accounts));
+                }
             }
             catch (Exception ex)
             {
@@ -77,7 +70,10 @@ namespace yQuant.App.BrokerGateway
                 var request = JsonSerializer.Deserialize<BrokerRequest>(message.ToString());
                 if (request == null) return;
 
-                _logger.LogInformation("Received request {RequestId} of type {Type} for {Account}", request.Id, request.Type, request.Account);
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogInformation("Received request {RequestId} of type {Type} for {Account}", request.Id, request.Type, request.Account);
+                }
 
                 BrokerResponse response;
                 try
@@ -86,7 +82,10 @@ namespace yQuant.App.BrokerGateway
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, "Error processing request {RequestId}", request.Id);
+                    if (_logger.IsEnabled(LogLevel.Error))
+                    {
+                        _logger.LogError(ex, "Error processing request {RequestId}", request.Id);
+                    }
                     response = new BrokerResponse
                     {
                         RequestId = request.Id,
@@ -116,24 +115,18 @@ namespace yQuant.App.BrokerGateway
             }
 
             // 2. Dispatch
-            switch (request.Type)
+            return request.Type switch
             {
-                case BrokerRequestType.Ping:
-                    return await HandlePingAsync(adapter);
-                case BrokerRequestType.GetPrice:
-                    return await HandleGetPriceAsync(adapter, request);
-                case BrokerRequestType.GetDeposit:
-                    return await HandleGetDepositAsync(adapter, request);
-                case BrokerRequestType.GetPositions:
-                    return await HandleGetPositionsAsync(adapter, request);
-                case BrokerRequestType.PlaceOrder:
-                    return await HandlePlaceOrderAsync(adapter, request);
-                default:
-                    return new BrokerResponse { RequestId = request.Id, Success = false, Message = "Unknown request type." };
-            }
+                BrokerRequestType.Ping => await HandlePingAsync(adapter),
+                BrokerRequestType.GetPrice => await HandleGetPriceAsync(adapter, request),
+                BrokerRequestType.GetDeposit => await HandleGetDepositAsync(adapter, request),
+                BrokerRequestType.GetPositions => await HandleGetPositionsAsync(adapter, request),
+                BrokerRequestType.PlaceOrder => await HandlePlaceOrderAsync(adapter, request),
+                _ => new BrokerResponse { RequestId = request.Id, Success = false, Message = "Unknown request type." }
+            };
         }
 
-        private async Task<BrokerResponse> HandlePingAsync(IBrokerAdapter adapter)
+        private static async Task<BrokerResponse> HandlePingAsync(IBrokerAdapter adapter)
         {
             try
             {
@@ -191,7 +184,7 @@ namespace yQuant.App.BrokerGateway
             }
         }
 
-        private async Task<BrokerResponse> HandleGetDepositAsync(IBrokerAdapter adapter, BrokerRequest request)
+        private static async Task<BrokerResponse> HandleGetDepositAsync(IBrokerAdapter adapter, BrokerRequest request)
         {
             try
             {
@@ -215,7 +208,7 @@ namespace yQuant.App.BrokerGateway
             }
         }
 
-        private async Task<BrokerResponse> HandleGetPositionsAsync(IBrokerAdapter adapter, BrokerRequest request)
+        private static async Task<BrokerResponse> HandleGetPositionsAsync(IBrokerAdapter adapter, BrokerRequest request)
         {
             try
             {

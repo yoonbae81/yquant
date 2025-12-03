@@ -5,7 +5,7 @@
 @using yQuant.Core.Models
 @using yQuant.Core.Ports.Output.Infrastructure
 @inject OrderPublisher OrderPublisher
-@inject IBrokerAdapterFactory BrokerAdapterFactory
+@inject AssetService AssetService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 
@@ -65,24 +65,24 @@
         };
     private IEnumerable<Account> AvailableAccounts = new List<Account>();
 
-    protected override void OnInitialized()
+    protected override async Task OnInitializedAsync()
     {
 
-        LoadAccounts();
+        await LoadAccounts();
     }
 
 
 
-    private void LoadAccounts()
+    private async Task LoadAccounts()
     {
         var accounts = new List<Account>();
-        var aliases = BrokerAdapterFactory.GetAvailableAccounts();
+        var aliases = await AssetService.GetAvailableAccountsAsync();
         foreach (var alias in aliases)
         {
-            var adapter = BrokerAdapterFactory.GetAdapter(alias);
-            if (adapter != null)
+            var account = AssetService.GetAccountBasicInfo(alias);
+            if (account != null)
             {
-                accounts.Add(adapter.Account);
+                accounts.Add(account);
             }
         }
         AvailableAccounts = accounts;

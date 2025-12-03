@@ -17,7 +17,17 @@ public class RedisOrderPublisher : IOrderPublisher
     public async Task PublishOrderAsync(CoreOrder order)
     {
         var db = _redis.GetDatabase();
-        var orderJson = JsonSerializer.Serialize(order);
-        await db.PublishAsync(RedisChannel.Literal("order"), orderJson);
+
+        var request = new yQuant.Infra.Redis.Models.BrokerRequest
+        {
+            Id = Guid.NewGuid(),
+            Type = yQuant.Infra.Redis.Models.BrokerRequestType.PlaceOrder,
+            Account = order.AccountAlias,
+            Payload = JsonSerializer.Serialize(order),
+            ResponseChannel = string.Empty // Fire and forget for now, or we could listen for confirmation
+        };
+
+        var requestJson = JsonSerializer.Serialize(request);
+        await db.PublishAsync(RedisChannel.Literal("broker:requests"), requestJson);
     }
 }
