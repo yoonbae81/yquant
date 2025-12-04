@@ -91,8 +91,8 @@
         if (Action != null) OrderModel.Action = Action.Value;
         if (AccountAlias != null) OrderModel.AccountAlias = AccountAlias;
 
-        // Set default AccountAlias if only one account exists
-        if (AvailableAccounts.Count() == 1 && OrderModel.AccountAlias == null)
+        // Set default AccountAlias if accounts exist and none selected
+        if (AvailableAccounts.Any() && OrderModel.AccountAlias == null)
         {
             OrderModel.AccountAlias = AvailableAccounts.First().Alias;
         }

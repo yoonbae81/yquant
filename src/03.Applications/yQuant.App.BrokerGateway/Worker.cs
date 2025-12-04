@@ -24,6 +24,13 @@ namespace yQuant.App.BrokerGateway
         private readonly TelegramMessageBuilder _telegramBuilder = telegramBuilder;
         private readonly IEnumerable<ITradingLogger> _tradingLoggers = tradingLoggers;
 
+        public override async Task StartAsync(CancellationToken cancellationToken)
+        {
+            _logger.LogInformation("BrokerGateway Worker starting...");
+            await RegisterAccountsAsync(silent: false);
+            await base.StartAsync(cancellationToken);
+        }
+
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
             _logger.LogInformation("BrokerGateway Worker started.");
@@ -38,12 +45,13 @@ namespace yQuant.App.BrokerGateway
             // Periodic Account Registration (Heartbeat)
             while (!stoppingToken.IsCancellationRequested)
             {
-                await RegisterAccountsAsync();
+                // Wait first since we already registered in StartAsync
                 await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
+                await RegisterAccountsAsync(silent: true);
             }
         }
 
-        private async Task RegisterAccountsAsync()
+        private async Task RegisterAccountsAsync(bool silent = false)
         {
             try
             {
@@ -52,7 +60,7 @@ namespace yQuant.App.BrokerGateway
                 var json = JsonSerializer.Serialize(accounts);
 
                 await db.StringSetAsync("broker:accounts", json, TimeSpan.FromHours(24));
-                if (_logger.IsEnabled(LogLevel.Information))
+                if (!silent && _logger.IsEnabled(LogLevel.Information))
                 {
                     _logger.LogInformation("Registered available accounts in Redis: {Accounts}", string.Join(", ", accounts));
                 }

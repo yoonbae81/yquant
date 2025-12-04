@@ -31,6 +31,11 @@ public class RedisIntegrationTests
         _mockRedis.Setup(x => x.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
             .Returns(_mockDb.Object);
 
+        // Fix: Setup configuration to return a default value for the cache duration
+        var mockSection = new Mock<IConfigurationSection>();
+        mockSection.Setup(s => s.Value).Returns("1");
+        _mockConfig.Setup(c => c.GetSection("CacheSettings:AssetCacheDurationMinutes")).Returns(mockSection.Object);
+
         _assetService = new AssetService(
             _mockRedis.Object,
             _mockRedisService.Object,

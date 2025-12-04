@@ -80,6 +80,7 @@ class Program
                 {
                     return new OrderCommand(sp.GetRequiredService<IBrokerAdapter>(), sp.GetRequiredService<ILogger<OrderCommand>>(), targetAccount, targetAccount, OrderAction.Sell);
                 });
+                services.AddTransient<ICommand>(sp => new CheckAccountsCommand(sp.GetRequiredService<IConnectionMultiplexer>()));
 
                 services.AddSingleton<CommandRouter>();
             })

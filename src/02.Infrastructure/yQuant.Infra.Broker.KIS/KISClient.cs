@@ -19,6 +19,7 @@ public class KISClient : IKISClient
 
     private string? _accessToken;
     private DateTime _accessTokenExpiration = DateTime.MinValue;
+    private static bool _isBaseUrlLogged = false;
 
     public Account Account => _account;
 
@@ -30,7 +31,12 @@ public class KISClient : IKISClient
         _apiConfig = apiConfig;
 
         _httpClient.BaseAddress = new Uri(BaseUrl);
-        _logger.LogInformation("KISClient initialized with BaseUrl: {BaseUrl}", BaseUrl);
+
+        if (!_isBaseUrlLogged)
+        {
+            _logger.LogInformation("KISClient initialized with BaseUrl: {BaseUrl}", BaseUrl);
+            _isBaseUrlLogged = true;
+        }
 
         _rateLimiter = new FixedWindowRateLimiter(new FixedWindowRateLimiterOptions
         {

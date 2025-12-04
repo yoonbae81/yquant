@@ -1,4 +1,5 @@
 <!DOCTYPE html>
+@using Microsoft.AspNetCore.Components.Web
 <html lang="en">
 
 <head>
@@ -13,11 +14,11 @@
     <link rel="stylesheet" href="yQuant.App.Dashboard.styles.css" />
     <ImportMap />
     <link rel="icon" type="image/png" href="favicon.png" />
-    <HeadOutlet />
+    <HeadOutlet @rendermode="RenderMode.InteractiveServer" />
 </head>
 
 <body>
-    <Routes />
+    <Routes @rendermode="RenderMode.InteractiveServer" />
     <ReconnectModal />
     <script src="_content/MudBlazor/MudBlazor.min.js"></script>
     <script src="_framework/blazor.web.js"></script>

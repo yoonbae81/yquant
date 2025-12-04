@@ -31,7 +31,7 @@ public class AssetService
         _cacheDuration = TimeSpan.FromMinutes(minutes);
     }
 
-    public async Task<List<string>> GetAvailableAccountsAsync()
+    public virtual async Task<List<string>> GetAvailableAccountsAsync()
     {
         try
         {
@@ -39,7 +39,12 @@ public class AssetService
             var json = await db.StringGetAsync("broker:accounts");
             if (json.HasValue)
             {
-                return JsonSerializer.Deserialize<List<string>>(json.ToString()) ?? [];
+                var accounts = JsonSerializer.Deserialize<List<string>>(json.ToString()) ?? [];
+                if (_logger.IsEnabled(LogLevel.Information))
+                {
+                    _logger.LogInformation("Fetched {Count} accounts from Redis: {Accounts}", accounts.Count, string.Join(", ", accounts));
+                }
+                return accounts;
             }
         }
         catch (Exception ex)
@@ -68,7 +73,7 @@ public class AssetService
         };
     }
 
-    public async Task<Account?> GetAccountOverviewAsync(string accountAlias)
+    public virtual async Task<Account?> GetAccountOverviewAsync(string accountAlias)
     {
         var cacheKey = $"asset:account:{accountAlias}";
 
