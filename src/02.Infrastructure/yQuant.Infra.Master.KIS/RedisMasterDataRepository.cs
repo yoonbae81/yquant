@@ -13,7 +13,7 @@ namespace yQuant.Infra.Master.KIS
     {
         private readonly IRedisService _redisService;
         private readonly ILogger<RedisMasterDataRepository> _logger;
-        private const string KeyPrefix = "cache:master:";
+        private const string KeyPrefix = "stock:";
         private static readonly TimeSpan DefaultExpiration = TimeSpan.FromHours(25);
 
         public RedisMasterDataRepository(
@@ -44,7 +44,7 @@ namespace yQuant.Infra.Master.KIS
 
             batch.Execute();
             await Task.WhenAll(tasks);
-            
+
             _logger.LogDebug("Saved {Count} stocks to Redis", stocks.Count());
         }
 
@@ -52,7 +52,7 @@ namespace yQuant.Infra.Master.KIS
         {
             var db = _redisService.Connection.GetDatabase();
             var key = $"{KeyPrefix}{ticker}";
-            
+
             var entries = await db.HashGetAllAsync(key);
             if (entries.Length == 0)
             {
@@ -69,8 +69,8 @@ namespace yQuant.Infra.Master.KIS
                 Ticker = ticker,
                 Name = dict.GetValueOrDefault("name", ""),
                 Exchange = dict.GetValueOrDefault("exchange", ""),
-                Currency = Enum.TryParse<CurrencyType>(dict.GetValueOrDefault("currency", "USD"), out var currency) 
-                    ? currency 
+                Currency = Enum.TryParse<CurrencyType>(dict.GetValueOrDefault("currency", "USD"), out var currency)
+                    ? currency
                     : CurrencyType.USD
             };
         }

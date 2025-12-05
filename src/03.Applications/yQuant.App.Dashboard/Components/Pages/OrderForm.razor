@@ -6,6 +6,7 @@
 @using yQuant.Core.Ports.Output.Infrastructure
 @inject OrderPublisher OrderPublisher
 @inject AssetService AssetService
+@inject StockService StockService
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 
@@ -25,8 +26,12 @@
             </MudSelect>
         </MudItem>
         <MudItem xs="12" sm="6">
-            <MudTextField @bind-Value="OrderModel.Ticker" Label="Ticker" Required="true"
-                RequiredError="Ticker is required!" Variant="Variant.Outlined" />
+            <MudTextField T="string" Value="@OrderModel.Ticker" ValueChanged="OnTickerChanged" Label="Ticker" Required="true"
+                RequiredError="Ticker is required!" Variant="Variant.Outlined" DebounceInterval="500" />
+            @if (!string.IsNullOrEmpty(_stockName))
+            {
+                <MudText Typo="Typo.caption" Color="Color.Info">@_stockName</MudText>
+            }
         </MudItem>
         <MudItem xs="12" sm="6">
             <MudSelect @bind-Value="OrderModel.Action" Label="Action" Required="true"
@@ -99,6 +104,29 @@
 
         // Default to Buy if not specified
         if (OrderModel.Action == 0) OrderModel.Action = OrderAction.Buy;
+
+        if (!string.IsNullOrEmpty(OrderModel.Ticker))
+        {
+            await UpdateStockName(OrderModel.Ticker);
+        }
+    }
+
+    private string? _stockName;
+
+    private async Task OnTickerChanged(string ticker)
+    {
+        OrderModel.Ticker = ticker?.ToUpper() ?? "";
+        await UpdateStockName(OrderModel.Ticker);
+    }
+
+    private async Task UpdateStockName(string ticker)
+    {
+        if (string.IsNullOrWhiteSpace(ticker))
+        {
+            _stockName = null;
+            return;
+        }
+        _stockName = await StockService.GetStockNameAsync(ticker);
     }
 
     private async Task SubmitOrder()

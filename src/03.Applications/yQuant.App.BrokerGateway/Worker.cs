@@ -27,7 +27,7 @@ namespace yQuant.App.BrokerGateway
         public override async Task StartAsync(CancellationToken cancellationToken)
         {
             _logger.LogInformation("BrokerGateway Worker starting...");
-            await RegisterAccountsAsync(silent: false);
+            await SyncAllAccountDataAsync(silent: false);
             await base.StartAsync(cancellationToken);
         }
 
@@ -36,38 +36,165 @@ namespace yQuant.App.BrokerGateway
             _logger.LogInformation("BrokerGateway Worker started.");
             var subscriber = _redis.GetSubscriber();
 
-            await subscriber.SubscribeAsync(RedisChannel.Literal("broker:requests"), (channel, message) =>
+            await subscriber.SubscribeAsync(RedisChannel.Literal("order"), (channel, message) =>
             {
                 // Handle concurrently
                 _ = HandleRequestAsync(message);
             });
 
-            // Periodic Account Registration (Heartbeat)
+            // Periodic Account Sync (Heartbeat & State)
             while (!stoppingToken.IsCancellationRequested)
             {
                 // Wait first since we already registered in StartAsync
-                await Task.Delay(TimeSpan.FromSeconds(30), stoppingToken);
-                await RegisterAccountsAsync(silent: true);
+                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken); // More frequent sync for real-time data
+                await SyncAllAccountDataAsync(silent: true);
             }
         }
 
-        private async Task RegisterAccountsAsync(bool silent = false)
+        private async Task SyncAllAccountDataAsync(bool silent = false)
         {
             try
             {
                 var db = _redis.GetDatabase();
-                var accounts = _adapters.Keys.ToList();
-                var json = JsonSerializer.Serialize(accounts);
+                var tasks = new List<Task>();
 
-                await db.StringSetAsync("broker:accounts", json, TimeSpan.FromHours(24));
+                foreach (var kvp in _adapters)
+                {
+                    var alias = kvp.Key;
+                    var adapter = kvp.Value;
+
+                    // 1. Sync Static Account Info (account:{alias})
+                    tasks.Add(SyncAccountInfoAsync(db, alias, adapter));
+
+                    // 2. Sync Deposits (deposit:{alias})
+                    tasks.Add(SyncDepositsAsync(db, alias, adapter));
+
+                    // 3. Sync Positions (position:{alias})
+                    tasks.Add(SyncPositionsAsync(db, alias, adapter));
+
+                    // 4. Sync Prices for held positions (stock:{ticker})
+                    tasks.Add(SyncPricesAsync(db, alias, adapter));
+                }
+
+                await Task.WhenAll(tasks);
+
                 if (!silent && _logger.IsEnabled(LogLevel.Information))
                 {
-                    _logger.LogInformation("Registered available accounts in Redis: {Accounts}", string.Join(", ", accounts));
+                    _logger.LogInformation("Synced all account data to Redis for: {Accounts}", string.Join(", ", _adapters.Keys));
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to register accounts in Redis.");
+                _logger.LogError(ex, "Failed to sync account data to Redis.");
+            }
+        }
+
+        private async Task SyncAccountInfoAsync(IDatabase db, string alias, IBrokerAdapter adapter)
+        {
+            try
+            {
+                var account = adapter.Account;
+                var key = $"account:{alias}";
+                await db.HashSetAsync(key, new HashEntry[]
+                {
+                    new("number", account.Number),
+                    new("broker", account.Broker),
+                    new("is_active", account.Active.ToString())
+                });
+
+                // Add to Index
+                await db.SetAddAsync("account:index", alias);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to sync account info for {Alias}", alias);
+            }
+        }
+
+        private async Task SyncDepositsAsync(IDatabase db, string alias, IBrokerAdapter adapter)
+        {
+            try
+            {
+                // Force refresh to get latest from broker
+                var accountData = await adapter.GetDepositAsync(forceRefresh: true);
+                var key = $"deposit:{alias}";
+
+                var entries = accountData.Deposits.Select(d => new HashEntry(d.Key.ToString(), d.Value.ToString())).ToArray();
+                if (entries.Length > 0)
+                {
+                    await db.HashSetAsync(key, entries);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to sync deposits for {Alias}", alias);
+            }
+        }
+
+        private async Task SyncPositionsAsync(IDatabase db, string alias, IBrokerAdapter adapter)
+        {
+            try
+            {
+                var positions = await adapter.GetPositionsAsync();
+                var key = $"position:{alias}";
+
+                // Clear old positions first? Or just overwrite?
+                // If we sold everything, we need to remove the field.
+                // Redis Hash doesn't support "replace all".
+                // Strategy: Delete key then set new? Or strict field management.
+                // For simplicity/safety, let's delete and re-set to avoid ghost positions.
+                // But deleting might cause a split-second "no position" state.
+                // Better: Get existing fields, calculate diff. 
+                // For now, let's assume overwriting is fine, but we need to handle sold positions.
+                // Let's use Delete-then-Set for correctness of "current state".
+
+                await db.KeyDeleteAsync(key);
+
+                if (positions.Any())
+                {
+                    var entries = positions.Select(p => new HashEntry(p.Ticker, JsonSerializer.Serialize(p))).ToArray();
+                    await db.HashSetAsync(key, entries);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to sync positions for {Alias}", alias);
+            }
+        }
+
+        private async Task SyncPricesAsync(IDatabase db, string alias, IBrokerAdapter adapter)
+        {
+            try
+            {
+                // Get positions to know which tickers to update
+                var positions = await adapter.GetPositionsAsync();
+
+                foreach (var position in positions)
+                {
+                    try
+                    {
+                        var priceInfo = await adapter.GetPriceAsync(position.Ticker);
+                        var key = $"stock:{position.Ticker}";
+
+                        // Update price and changeRate fields
+                        await db.HashSetAsync(key, new HashEntry[]
+                        {
+                            new("price", priceInfo.CurrentPrice.ToString()),
+                            new("changeRate", priceInfo.ChangeRate.ToString())
+                        });
+
+                        // Refresh TTL (25 hours)
+                        await db.KeyExpireAsync(key, TimeSpan.FromHours(25));
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogWarning(ex, "Failed to sync price for {Ticker}", position.Ticker);
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to sync prices for {Alias}", alias);
             }
         }
 
@@ -75,169 +202,76 @@ namespace yQuant.App.BrokerGateway
         {
             try
             {
-                var request = JsonSerializer.Deserialize<BrokerRequest>(message.ToString());
-                if (request == null) return;
+                // Note: Payload is now 'Order' object directly for 'order' channel?
+                // No, the schema says 'order' channel payload is 'Order'.
+                // But the previous code used 'BrokerRequest' wrapper.
+                // The new design says "Payload Model: Order".
+                // So we need to deserialize 'Order' directly.
+                // BUT, we need to know WHICH ACCOUNT to use.
+                // 'Order' model has 'AccountAlias'.
+
+                var order = JsonSerializer.Deserialize<Order>(message.ToString());
+                if (order == null) return;
 
                 if (_logger.IsEnabled(LogLevel.Information))
                 {
-                    _logger.LogInformation("Received request {RequestId} of type {Type} for {Account}", request.Id, request.Type, request.Account);
+                    _logger.LogInformation("Received order {OrderId} for {Account}", order.Id, order.AccountAlias);
                 }
 
-                BrokerResponse response;
+                // The schema says 'execution' channel payload is 'OrderResult'.
+                // So we should process the order and publish OrderResult.
+
                 try
                 {
-                    response = await ProcessRequestAsync(request);
+                    var result = await ProcessOrderAsync(order);
+
+                    // Publish to 'execution'
+                    var db = _redis.GetDatabase();
+                    await db.PublishAsync(RedisChannel.Literal("execution"), JsonSerializer.Serialize(result));
                 }
                 catch (Exception ex)
                 {
-                    if (_logger.IsEnabled(LogLevel.Error))
+                    _logger.LogError(ex, "Error processing order {OrderId}", order.Id);
+                    // Publish failure result
+                    var failureResult = new yQuant.Core.Models.OrderResult
                     {
-                        _logger.LogError(ex, "Error processing request {RequestId}", request.Id);
-                    }
-                    response = new BrokerResponse
-                    {
-                        RequestId = request.Id,
-                        Success = false,
-                        Message = $"Internal Error: {ex.Message}"
+                        OrderId = order.Id.ToString(),
+                        IsSuccess = false,
+                        Message = ex.Message
                     };
-                }
-
-                if (!string.IsNullOrEmpty(request.ResponseChannel))
-                {
                     var db = _redis.GetDatabase();
-                    await db.PublishAsync(RedisChannel.Literal(request.ResponseChannel), JsonSerializer.Serialize(response));
+                    await db.PublishAsync(RedisChannel.Literal("execution"), JsonSerializer.Serialize(failureResult));
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to deserialize or handle request wrapper.");
+                _logger.LogError(ex, "Failed to deserialize or handle order message.");
             }
         }
 
-        private async Task<BrokerResponse> ProcessRequestAsync(BrokerRequest request)
+        private async Task<yQuant.Core.Models.OrderResult> ProcessOrderAsync(Order order)
         {
             // 1. Validate Adapter
-            if (!_adapters.TryGetValue(request.Account, out var adapter))
+            if (!_adapters.TryGetValue(order.AccountAlias, out var adapter))
             {
-                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Account '{request.Account}' not found." };
+                return new yQuant.Core.Models.OrderResult { OrderId = order.Id.ToString(), IsSuccess = false, Message = $"Account '{order.AccountAlias}' not found." };
             }
 
-            // 2. Dispatch
-            return request.Type switch
-            {
-                BrokerRequestType.Ping => await HandlePingAsync(adapter),
-                BrokerRequestType.GetPrice => await HandleGetPriceAsync(adapter, request),
-                BrokerRequestType.GetDeposit => await HandleGetDepositAsync(adapter, request),
-                BrokerRequestType.GetPositions => await HandleGetPositionsAsync(adapter, request),
-                BrokerRequestType.PlaceOrder => await HandlePlaceOrderAsync(adapter, request),
-                _ => new BrokerResponse { RequestId = request.Id, Success = false, Message = "Unknown request type." }
-            };
-        }
-
-        private static async Task<BrokerResponse> HandlePingAsync(IBrokerAdapter adapter)
-        {
-            try
-            {
-                await adapter.EnsureConnectedAsync();
-                return new BrokerResponse { Success = true, Message = "Pong" };
-            }
-            catch (Exception ex)
-            {
-                return new BrokerResponse { Success = false, Message = $"Token Error: {ex.Message}" };
-            }
-        }
-
-        private async Task<BrokerResponse> HandleGetPriceAsync(IBrokerAdapter adapter, BrokerRequest request)
-        {
-            var ticker = request.Payload;
-            if (string.IsNullOrEmpty(ticker)) return new BrokerResponse { RequestId = request.Id, Success = false, Message = "Ticker missing." };
-
-            var db = _redis.GetDatabase();
-            var cacheKey = $"cache:price:{ticker}";
-
-            // Cache Lookup
-            if (!request.ForceRefresh)
-            {
-                var cached = await db.StringGetAsync(cacheKey);
-                if (cached.HasValue)
-                {
-                    return new BrokerResponse
-                    {
-                        RequestId = request.Id,
-                        Success = true,
-                        Payload = cached.ToString()
-                    };
-                }
-            }
-
-            // Fetch from Broker
-            try
-            {
-                var priceInfo = await adapter.GetPriceAsync(ticker);
-                var json = JsonSerializer.Serialize(priceInfo);
-
-                // Cache Result (TTL 5s)
-                await db.StringSetAsync(cacheKey, json, TimeSpan.FromSeconds(5));
-
-                return new BrokerResponse
-                {
-                    RequestId = request.Id,
-                    Success = true,
-                    Payload = json
-                };
-            }
-            catch (Exception ex)
-            {
-                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Price Error: {ex.Message}" };
-            }
-        }
-
-        private static async Task<BrokerResponse> HandleGetDepositAsync(IBrokerAdapter adapter, BrokerRequest request)
-        {
-            try
-            {
-                CurrencyType? currencyType = null;
-                if (!string.IsNullOrEmpty(request.Payload) && Enum.TryParse<CurrencyType>(request.Payload, true, out var parsed))
-                {
-                    currencyType = parsed;
-                }
-
-                var account = await adapter.GetDepositAsync(currencyType);
-                return new BrokerResponse
-                {
-                    RequestId = request.Id,
-                    Success = true,
-                    Payload = JsonSerializer.Serialize(account)
-                };
-            }
-            catch (Exception ex)
-            {
-                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Deposit Error: {ex.Message}" };
-            }
-        }
-
-        private static async Task<BrokerResponse> HandleGetPositionsAsync(IBrokerAdapter adapter, BrokerRequest request)
-        {
-            try
-            {
-                var positions = await adapter.GetPositionsAsync();
-                return new BrokerResponse
-                {
-                    RequestId = request.Id,
-                    Success = true,
-                    Payload = JsonSerializer.Serialize(positions)
-                };
-            }
-            catch (Exception ex)
-            {
-                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Positions Error: {ex.Message}" };
-            }
-        }
-
-        private async Task<BrokerResponse> HandlePlaceOrderAsync(IBrokerAdapter adapter, BrokerRequest request)
-        {
-            var order = JsonSerializer.Deserialize<Order>(request.Payload);
-            if (order == null) return new BrokerResponse { RequestId = request.Id, Success = false, Message = "Invalid Order payload." };
+            // 2. Execute
+            // Note: The previous code handled multiple request types (GetPrice, etc.) via 'broker:requests'.
+            // The new design splits 'order' channel specifically for ORDERS.
+            // What about GetPrice/GetDeposit requests from other apps?
+            // The design says "Reader: App.Dashboard, App.OrderComposer" for keys.
+            // So they should READ keys directly, not ask BrokerGateway via channel.
+            // EXCEPT for 'Price' which might need on-demand fetch if cache miss?
+            // The design says "Writer: App.BrokerGateway (On-demand / Stream)".
+            // If Dashboard needs price, it reads 'stock:{ticker}'. If missing/stale?
+            // For now, let's assume the periodic sync or some other mechanism handles it, 
+            // OR we keep the 'broker:requests' for RPC-like calls if needed?
+            // The user said "execution의 publish는 dashboard도 추가... manual order...".
+            // This implies Dashboard places orders via 'order' channel.
+            // It doesn't explicitly say how to get fresh price on demand.
+            // But let's stick to the "Order" channel handling only Orders for now as per schema.
 
             try
             {
@@ -253,18 +287,27 @@ namespace yQuant.App.BrokerGateway
                     foreach (var logger in _tradingLoggers) await logger.LogOrderFailureAsync(order, result.Message);
                 }
 
-                return new BrokerResponse
-                {
-                    RequestId = request.Id,
-                    Success = true, // Request processed successfully (even if order rejected by broker)
-                    Payload = JsonSerializer.Serialize(result)
-                };
+                return result;
             }
             catch (Exception ex)
             {
-                foreach (var logger in _tradingLoggers) await logger.LogAccountErrorAsync(request.Account, ex, "PlaceOrder");
-                return new BrokerResponse { RequestId = request.Id, Success = false, Message = $"Order Exception: {ex.Message}" };
+                foreach (var logger in _tradingLoggers) await logger.LogAccountErrorAsync(order.AccountAlias, ex, "PlaceOrder");
+                return new yQuant.Core.Models.OrderResult { OrderId = order.Id.ToString(), IsSuccess = false, Message = $"Order Exception: {ex.Message}" };
             }
         }
+
+        // Note: HandleGetPriceAsync is no longer called via channel. 
+        // But we might want to expose a method or keep it for internal use if we want to support on-demand price fetch?
+        // For strict adherence to the new schema which relies on 'stock:{ticker}' cache,
+        // we should ensure prices are updated.
+        // If we don't have an incoming request for price, we rely on... what?
+        // Maybe we should subscribe to a 'price_request' channel? Or just rely on periodic updates?
+        // Given the instructions, I will remove the old Request/Response logic and focus on Order processing.
+        // BUT, I need to implement 'SyncPricesAsync' or similar if I want to keep prices fresh.
+        // However, iterating ALL stocks to update prices is too heavy.
+        // Usually, we only update prices for stocks we hold or watch.
+        // For now, I will leave out the "On-demand" price fetch logic as it's not triggered by 'order' channel.
+        // If the user wants on-demand price, they might need a separate channel or mechanism not fully detailed yet.
+        // I will focus on the explicit requirements: Order placement and Account Sync.
     }
 }

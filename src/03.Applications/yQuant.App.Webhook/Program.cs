@@ -18,7 +18,8 @@ builder.Configuration.AddJsonFile("sharedsettings.json", optional: false, reload
                      .AddJsonFile($"appsettings.{builder.Environment.EnvironmentName}.json", optional: true, reloadOnChange: true);
 
 // Add services to the container.
-builder.Services.AddRedisMiddleware(builder.Configuration);
+builder.Services.AddRedisMiddleware(builder.Configuration)
+                .AddHeartbeat("Webhook");
 
 // Register Discord Notification Services
 builder.Services.Configure<DiscordConfiguration>(builder.Configuration.GetSection("Discord"));

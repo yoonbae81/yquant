@@ -52,6 +52,8 @@ builder.Services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>
 
 builder.Services.AddSingleton<OrderPublisher>();
 builder.Services.AddSingleton<AssetService>();
+builder.Services.AddSingleton<StockService>();
+builder.Services.AddSingleton<SystemHealthService>();
 
 var app = builder.Build();
 

@@ -25,8 +25,9 @@ builder.Services.AddHttpClient<INotificationService, TelegramNotificationService
 builder.Services.AddSingleton<TelegramMessageBuilder>();
 
 // Register KIS HttpClient
-builder.Services.AddHttpClient("KIS");
-builder.Services.AddRedisMiddleware(builder.Configuration);
+builder.Services.AddHttpClient("KIS");// Redis
+builder.Services.AddRedisMiddleware(builder.Configuration)
+                .AddHeartbeat("BrokerGateway");
 
 builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
 builder.Services.AddSingleton<yQuant.Infra.Notification.Telegram.Services.TelegramTemplateService>();

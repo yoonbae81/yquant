@@ -24,18 +24,10 @@ public class OrderPublisher
     {
         _logger.LogInformation("Publishing order to Redis: {Ticker} {Action} {Qty}", order.Ticker, order.Action, order.Qty);
 
-        var request = new BrokerRequest
-        {
-            Id = Guid.NewGuid(),
-            Type = BrokerRequestType.PlaceOrder,
-            Account = order.AccountAlias,
-            Payload = JsonSerializer.Serialize(order),
-            ResponseChannel = string.Empty // Fire and forget
-        };
-
         var db = _redis.GetDatabase();
-        await db.PublishAsync(RedisChannel.Literal("broker:requests"), JsonSerializer.Serialize(request));
+        var orderJson = JsonSerializer.Serialize(order);
+        await db.PublishAsync(RedisChannel.Literal("order"), orderJson);
 
-        _logger.LogInformation("Order published to broker:requests");
+        _logger.LogInformation("Order published to 'order' channel");
     }
 }

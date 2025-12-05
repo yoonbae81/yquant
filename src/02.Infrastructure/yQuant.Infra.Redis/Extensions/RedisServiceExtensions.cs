@@ -1,6 +1,7 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using StackExchange.Redis;
+using Microsoft.Extensions.Logging;
 using yQuant.Infra.Redis.Interfaces;
 using yQuant.Infra.Redis.Services;
 
@@ -25,6 +26,14 @@ public static class RedisServiceExtensions
         services.AddSingleton<IConnectionMultiplexer>(sp => ConnectionMultiplexer.Connect(options));
         services.AddSingleton<IRedisService, RedisService>();
 
+        return services;
+    }
+    public static IServiceCollection AddHeartbeat(this IServiceCollection services, string serviceName)
+    {
+        services.AddHostedService(sp => new HeartbeatService(
+            sp.GetRequiredService<IConnectionMultiplexer>(),
+            sp.GetRequiredService<ILogger<HeartbeatService>>(),
+            serviceName));
         return services;
     }
 }

@@ -36,13 +36,14 @@ public class AssetService
         try
         {
             var db = _redis.GetDatabase();
-            var json = await db.StringGetAsync("broker:accounts");
-            if (json.HasValue)
+            // Read from account:index Set
+            var members = await db.SetMembersAsync("account:index");
+            if (members.Length > 0)
             {
-                var accounts = JsonSerializer.Deserialize<List<string>>(json.ToString()) ?? [];
+                var accounts = members.Select(m => m.ToString()).ToList();
                 if (_logger.IsEnabled(LogLevel.Information))
                 {
-                    _logger.LogInformation("Fetched {Count} accounts from Redis: {Accounts}", accounts.Count, string.Join(", ", accounts));
+                    _logger.LogInformation("Fetched {Count} accounts from Redis Index: {Accounts}", accounts.Count, string.Join(", ", accounts));
                 }
                 return accounts;
             }
@@ -59,12 +60,10 @@ public class AssetService
 
     public static Account GetAccountBasicInfo(string alias)
     {
-        // Return a basic account object with just the alias and broker name
-        // This avoids a remote call if we just need the name for a dropdown
         return new Account
         {
             Alias = alias,
-            Broker = "Redis", // Default for Redis-connected accounts
+            Broker = "Redis",
             Number = "N/A",
             AppKey = "N/A",
             AppSecret = "N/A",
@@ -75,72 +74,65 @@ public class AssetService
 
     public virtual async Task<Account?> GetAccountOverviewAsync(string accountAlias)
     {
-        var cacheKey = $"asset:account:{accountAlias}";
+        // Direct Redis Read (Aggregation)
+        // No local caching needed here if we consider Redis as the "State Store".
+        // But if we want to reduce Redis calls, we can cache the aggregated object.
+        // Given the requirement for "Real-time", let's read directly from Redis State keys.
+        // They are updated by BrokerGateway periodically (e.g. 10s).
 
-        // 1. Try to get from cache
         try
         {
-            var cachedAccount = await _redisService.GetAsync<Account>(cacheKey);
-            if (cachedAccount != null)
+            var db = _redis.GetDatabase();
+
+            // 1. Static Info
+            var accountKey = $"account:{accountAlias}";
+            var accountEntries = await db.HashGetAllAsync(accountKey);
+            if (accountEntries.Length == 0) return null;
+
+            var accountDict = accountEntries.ToDictionary(e => e.Name.ToString(), e => e.Value.ToString());
+
+            // 2. Deposits
+            var depositKey = $"deposit:{accountAlias}";
+            var depositEntries = await db.HashGetAllAsync(depositKey);
+            var deposits = new Dictionary<CurrencyType, decimal>();
+            foreach (var entry in depositEntries)
             {
-                if (_logger.IsEnabled(LogLevel.Debug))
+                if (Enum.TryParse<CurrencyType>(entry.Name, out var currency) && decimal.TryParse(entry.Value.ToString(), out var amount))
                 {
-                    _logger.LogDebug("Cache hit for account {Alias}", accountAlias);
+                    deposits[currency] = amount;
                 }
-                return cachedAccount;
             }
+
+            // 3. Positions
+            var positionKey = $"position:{accountAlias}";
+            var positionEntries = await db.HashGetAllAsync(positionKey);
+            var positions = new List<Position>();
+            foreach (var entry in positionEntries)
+            {
+                try
+                {
+                    var position = JsonSerializer.Deserialize<Position>(entry.Value.ToString());
+                    if (position != null) positions.Add(position);
+                }
+                catch { /* Ignore invalid position json */ }
+            }
+
+            return new Account
+            {
+                Alias = accountAlias,
+                Number = accountDict.GetValueOrDefault("number", "N/A"),
+                Broker = accountDict.GetValueOrDefault("broker", "Unknown"),
+                Active = bool.TryParse(accountDict.GetValueOrDefault("is_active"), out var isActive) && isActive,
+                AppKey = "",
+                AppSecret = "",
+                Deposits = deposits,
+                Positions = positions
+            };
         }
         catch (Exception ex)
         {
-            if (_logger.IsEnabled(LogLevel.Warning))
-            {
-                _logger.LogWarning(ex, "Failed to retrieve account {Alias} from cache", accountAlias);
-            }
+            _logger.LogError(ex, "Failed to aggregate account data for {Alias}", accountAlias);
+            return null;
         }
-
-        // 2. Fetch from broker
-        // Instantiate client directly
-        var adapter = new yQuant.Infra.Redis.Adapters.RedisBrokerClient(_redis, accountAlias);
-
-        Account account;
-        try
-        {
-            // Get Account State (Deposits)
-            account = await adapter.GetDepositAsync(null);
-
-            // Get Positions
-            var positions = await adapter.GetPositionsAsync();
-
-            // Merge Positions into Account
-            account.Positions = positions;
-            account.Alias = accountAlias; // Ensure alias is set
-        }
-        catch (Exception ex)
-        {
-            if (_logger.IsEnabled(LogLevel.Error))
-            {
-                _logger.LogError(ex, "Failed to fetch account data for {Alias} from broker", accountAlias);
-            }
-            throw; // Or return null depending on error handling strategy
-        }
-
-        // 3. Save to cache
-        try
-        {
-            await _redisService.SetAsync(cacheKey, account, _cacheDuration);
-            if (_logger.IsEnabled(LogLevel.Debug))
-            {
-                _logger.LogDebug("Cached account {Alias} for {Duration} minutes", accountAlias, _cacheDuration.TotalMinutes);
-            }
-        }
-        catch (Exception ex)
-        {
-            if (_logger.IsEnabled(LogLevel.Warning))
-            {
-                _logger.LogWarning(ex, "Failed to cache account {Alias}", accountAlias);
-            }
-        }
-
-        return account;
     }
 }
