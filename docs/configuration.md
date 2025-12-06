@@ -65,6 +65,11 @@ dotnet run --project src/03.Applications/yQuant.App.BrokerGateway
 **Webhook Security (for yQuant.App.Webhook):**
 - `Security__WebhookSecret` - Webhook authentication secret
 - `Security__AllowedIps__[N]` - Allowed IP addresses
+ 
+**BrokerGateway Tuning:**
+- `AccountUpdateIntervalMinutes` - Interval in minutes for full broker account sync (default: 1).
+  - *Note*: Between syncs, deposits and positions are updated locally using estimates.
+
 
 ## Multi-Account Setup
 

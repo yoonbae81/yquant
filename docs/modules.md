@@ -177,7 +177,9 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
 - **역할**: 증권사와의 물리적 연결 전담
 - **주요 기능**:
     - **Order Dispatching**: Redis 채널 `yquant:orders`를 구독(Subscribe)하고, 계좌 ID에 맞는 Broker Adapter로 주문 전송
-    - **State Synchronization**: 주기적(예: 1초)으로 증권사 API를 폴링하여 잔고 및 포지션을 조회하고, Redis Cache(`deposit:{Alias}`, `position:{Alias}`) 최신화
+    - **State Synchronization (Hybrid)**: 
+        - **Throttled Sync**: 설정된 주기(기본 1분)마다 증권사 API를 호출하여 정확한 잔고 및 포지션 동기화
+        - **Local Update**: 주기 내 주문 체결 시, Redis Cache(`deposit:{Alias}`, `position:{Alias}`)를 즉시 로컬 업데이트(추정치)하여 초고속 반응성 확보
     - **Error Handling**: 주문 실패나 네트워크 오류 발생 시 알림을 발송하고 로그 기록
 
 ### 3.4. yQuant.App.Console (Manual Control)
@@ -195,7 +197,8 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
     - **자산 현황**: Redis Cache(`account:{Alias}`, `deposit:{Alias}`, `position:{Alias}`)를 조회하여 실시간 예수금, 보유 종목, 평가손익 표시
     - **포지션 관리**: 보유 종목별 상세 정보 및 수익률 시각화
     - **수동 거래**: 웹 UI를 통한 즉시 매수/매도 주문 실행
-    - **예약 주문**: 지정 시간에 자동 실행되는 예약 주문 설정
+    - **예약 주문**: 고급 스케줄링(요일별 반복, 시장 개장 후 n시간 실행)을 지원하는 자동 주문 관리
+    - **실시간 알림**: `RealtimeEventService`를 통해 주문 체결 등 주요 이벤트를 즉시 사용자에게 알림 (Snackbar)
 
 ### 3.6. yQuant.App.StockMaster (Data Sync)
 - **유형**: Worker Service

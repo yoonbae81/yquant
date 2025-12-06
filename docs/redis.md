@@ -36,6 +36,7 @@ All applications use the `yQuant.Infra.Redis` library for standardized connectio
 | `deposit:{Alias}` | Hash | `App.BrokerGateway` | `App.Dashboard`, `App.OrderComposer` | Real-time balance per currency (Field: `USD`, Value: `1000.00`). |
 | `position:{Alias}` | Hash | `App.BrokerGateway` | `App.Dashboard`, `App.OrderComposer` | Real-time positions (Field: `AAPL`, Value: `Position` JSON). |
 | `stock:{Ticker}` | Hash | `App.StockMaster`, `App.BrokerGateway` | `App.Dashboard`, `App.Console` | Merged static info (Name, Exchange) and dynamic market data (Price, Change). |
+| `scheduled:{Alias}` | String | `App.Dashboard` | `App.Dashboard` | List of scheduled orders (JSON Array). Stores schedule config (DaysOfWeek, TimeMode). |
 
 ## 4. Data Flows
 
@@ -52,7 +53,9 @@ All applications use the `yQuant.Infra.Redis` library for standardized connectio
 
 ### 4.3. Account Sync Flow
 1.  **Startup**: `App.BrokerGateway` connects to Broker -> writes `account:{Alias}` and adds to `account:index`.
-2.  **Periodic**: `App.BrokerGateway` polls Broker for Assets/Positions -> updates `deposit:{Alias}` and `position:{Alias}`.
+2.  **Hybrid Sync**:
+    -   **Full Sync**: Polls Broker for Assets/Positions if `AccountUpdateIntervalMinutes` has passed since last sync.
+    -   **Local Update**: On order execution, immediately updates `deposit:{Alias}` and `position:{Alias}` locally using estimated values (reducing Broker API reliance).
 3.  **Aggregation**: `App.OrderComposer` reads all three keys (`account`, `deposit`, `position`) to reconstruct the full `Account` object for risk checks.
 
 ## 5. Maintenance Guidelines

@@ -15,7 +15,8 @@ namespace yQuant.App.BrokerGateway
         Dictionary<string, IBrokerAdapter> adapters,
         INotificationService telegramNotifier,
         TelegramMessageBuilder telegramBuilder,
-        IEnumerable<ITradingLogger> tradingLoggers) : BackgroundService
+        IEnumerable<ITradingLogger> tradingLoggers,
+        IConfiguration configuration) : BackgroundService
     {
         private readonly ILogger<Worker> _logger = logger;
         private readonly IConnectionMultiplexer _redis = redis;
@@ -23,6 +24,10 @@ namespace yQuant.App.BrokerGateway
         private readonly INotificationService _telegramNotifier = telegramNotifier;
         private readonly TelegramMessageBuilder _telegramBuilder = telegramBuilder;
         private readonly IEnumerable<ITradingLogger> _tradingLoggers = tradingLoggers;
+        private readonly IConfiguration _configuration = configuration;
+
+        // Track last sync time per account (Alias -> DateTime)
+        private readonly Dictionary<string, DateTime> _lastAccountSyncTime = new();
 
         public override async Task StartAsync(CancellationToken cancellationToken)
         {
@@ -227,12 +232,29 @@ namespace yQuant.App.BrokerGateway
                     await db.PublishAsync(RedisChannel.Literal("execution"), JsonSerializer.Serialize(result));
 
                     // Event-driven Sync: Update Deposits and Positions immediately after order execution
+                    // THROTTLING LOGIC: Only fetch from broker if interval has passed. Otherwise, update locally to redis.
+
+                    int updateIntervalMinutes = _configuration.GetValue<int>("AccountUpdateIntervalMinutes", 1);
+                    var now = DateTime.UtcNow;
+
                     if (_adapters.TryGetValue(order.AccountAlias, out var adapter))
                     {
-                        // Fire-and-forget sync (or await if we want to ensure consistency before next msg)
-                        // Awaiting is safer to prevent race conditions on fast sequential orders
-                        await SyncDepositsAsync(db, order.AccountAlias, adapter);
-                        await SyncPositionsAsync(db, order.AccountAlias, adapter);
+                        if (!_lastAccountSyncTime.TryGetValue(order.AccountAlias, out var lastSync) || (now - lastSync).TotalMinutes >= updateIntervalMinutes)
+                        {
+                            _logger.LogInformation("Account sync interval passed. Performing full broker sync for {Account}.", order.AccountAlias);
+                            await SyncDepositsAsync(db, order.AccountAlias, adapter);
+                            await SyncPositionsAsync(db, order.AccountAlias, adapter);
+                            await SyncPricesAsync(db, order.AccountAlias, adapter); // Also sync prices if we do full sync
+
+                            _lastAccountSyncTime[order.AccountAlias] = now;
+                        }
+                        else
+                        {
+                            _logger.LogInformation("Throttling account sync. Performing local Redis update for {Account}.", order.AccountAlias);
+                            await UpdateDepositLocalAsync(db, order.AccountAlias, order);
+                            await UpdatePositionLocalAsync(db, order.AccountAlias, order);
+                            // No price sync needed for local update, or we accept stale/estimated prices
+                        }
                     }
                 }
                 catch (Exception ex)
@@ -315,5 +337,158 @@ namespace yQuant.App.BrokerGateway
         // For now, I will leave out the "On-demand" price fetch logic as it's not triggered by 'order' channel.
         // If the user wants on-demand price, they might need a separate channel or mechanism not fully detailed yet.
         // I will focus on the explicit requirements: Order placement and Account Sync.
+        private async Task UpdateDepositLocalAsync(IDatabase db, string alias, Order order)
+        {
+            try
+            {
+                var key = $"deposit:{alias}";
+
+                // Estimate amount: Qty * Price
+                // If Market Order (Price is null/0), try to get last price from Redis
+                decimal executionPrice = order.Price ?? 0;
+                if (executionPrice == 0)
+                {
+                    // Try fetch from stock:{ticker}
+                    var priceVal = await db.HashGetAsync($"stock:{order.Ticker}", "price");
+                    if (priceVal.HasValue && decimal.TryParse(priceVal.ToString(), out var p))
+                    {
+                        executionPrice = p;
+                    }
+                }
+
+                if (executionPrice == 0)
+                {
+                    _logger.LogWarning("Could not estimate execution price for local deposit update. Skipping.");
+                    return;
+                }
+
+                decimal amountChange = order.Qty * executionPrice;
+                // Add some estimated fee? (Ignored for now to match requirement "simple local update")
+
+                // Update Logic:
+                // Buy -> Decrease Currency (e.g. USD)
+                // Sell -> Increase Currency
+                // Note: This assumes simple Cash account. Margin/Credit logic is complex and skipped here.
+
+                // Determine Currency to update.
+                // Order.Currency is usually the Settlement Currency (e.g. USD for US Stk)
+
+                var currencyField = order.Currency.ToString();
+
+                // Get current value
+                var currentVal = await db.HashGetAsync(key, currencyField);
+                decimal currentAmount = 0;
+                if (currentVal.HasValue) decimal.TryParse(currentVal.ToString(), out currentAmount);
+
+                if (order.Action == OrderAction.Buy)
+                {
+                    currentAmount -= amountChange;
+                }
+                else
+                {
+                    currentAmount += amountChange;
+                }
+
+                await db.HashSetAsync(key, currencyField, currentAmount.ToString());
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to perform local deposit update for {Alias}", alias);
+            }
+        }
+
+        private async Task UpdatePositionLocalAsync(IDatabase db, string alias, Order order)
+        {
+            try
+            {
+                var key = $"position:{alias}";
+
+                // Get existing position for this ticker
+                // Redis Hash Field: Ticker
+                var posJson = await db.HashGetAsync(key, order.Ticker);
+                Position position;
+
+                if (posJson.HasValue)
+                {
+                    position = JsonSerializer.Deserialize<Position>(posJson.ToString()) ?? new Position
+                    {
+                        AccountAlias = alias,
+                        Ticker = order.Ticker,
+                        Currency = order.Currency,
+                        Qty = 0,
+                        AvgPrice = 0,
+                        CurrentPrice = 0
+                    };
+                }
+                else
+                {
+                    // New Position
+                    position = new Position
+                    {
+                        AccountAlias = alias,
+                        Ticker = order.Ticker,
+                        Currency = order.Currency,
+                        Qty = 0,
+                        AvgPrice = 0, // Will be set below
+                        CurrentPrice = order.Price ?? 0
+                    };
+                }
+
+                // Update Qty
+                if (order.Action == OrderAction.Buy)
+                {
+                    // Update Avg Price for Buy
+                    // NewAvg = ((OldQty * OldAvg) + (NewQty * NewPrice)) / (OldQty + NewQty)
+                    decimal executionPrice = order.Price ?? position.CurrentPrice;
+                    // If prediction failed, use 0? No, try to get from Redis stock price if still 0
+                    if (executionPrice == 0)
+                    {
+                        var pVal = await db.HashGetAsync($"stock:{order.Ticker}", "price");
+                        if (pVal.HasValue) decimal.TryParse(pVal.ToString(), out executionPrice);
+                    }
+
+                    if (position.Qty + order.Qty > 0)
+                    {
+                        position.AvgPrice = ((position.Qty * position.AvgPrice) + (order.Qty * executionPrice)) / (position.Qty + order.Qty);
+                    }
+                    else
+                    {
+                        // Should not happen for Buy unless short covering? Assuming Long only for now.
+                        position.AvgPrice = executionPrice;
+                    }
+                    position.Qty += order.Qty;
+                }
+                else // Sell
+                {
+                    // Avg Price usually doesn't change on Sell (FIFO/Avg Cost), only Qty reduces.
+                    // Real PnL is realized.
+                    position.Qty -= order.Qty;
+                }
+
+                // If Qty <= 0, remove or keep 0?
+                // Logic says: "position also... redis only change quantity".
+                // If 0, we can keep it as 0 or remove. 
+                // KIS usually returns empty list if no position.
+                // Let's keep it as 0 to avoid "Key not found" issues until next sync clears it.
+                // Or better, if 0, remove the field to match "No Position".
+
+                if (position.Qty <= 0)
+                {
+                    // If we sold more than we have (Short?), let it be negative?
+                    // Assuming Long-only:
+                    if (position.Qty == 0)
+                    {
+                        await db.HashDeleteAsync(key, order.Ticker);
+                        return;
+                    }
+                }
+
+                await db.HashSetAsync(key, order.Ticker, JsonSerializer.Serialize(position));
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to perform local position update for {Alias}", alias);
+            }
+        }
     }
 }

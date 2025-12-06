@@ -38,6 +38,37 @@ public class StockService
         }
     }
 
+    public async Task<(string Name, yQuant.Core.Models.ExchangeCode Exchange, yQuant.Core.Models.CurrencyType Currency)?> GetStockInfoAsync(string ticker)
+    {
+        if (string.IsNullOrWhiteSpace(ticker)) return null;
+
+        try
+        {
+            var db = _redisService.Connection.GetDatabase();
+            var key = $"{KeyPrefix}{ticker}";
+            var entries = await db.HashGetAllAsync(key);
+
+            if (entries.Length == 0) return null;
+
+            var dict = entries.ToDictionary(e => e.Name.ToString(), e => e.Value.ToString());
+
+            var name = dict.GetValueOrDefault("name", "");
+
+            if (!Enum.TryParse<yQuant.Core.Models.ExchangeCode>(dict.GetValueOrDefault("exchange"), true, out var exchange))
+                exchange = yQuant.Core.Models.ExchangeCode.Unknown;
+
+            if (!Enum.TryParse<yQuant.Core.Models.CurrencyType>(dict.GetValueOrDefault("currency"), true, out var currency))
+                currency = yQuant.Core.Models.CurrencyType.USD;
+
+            return (name, exchange, currency);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Error fetching stock info for {Ticker}", ticker);
+            return null;
+        }
+    }
+
     public async Task<Dictionary<string, string>> GetStockNamesAsync(IEnumerable<string> tickers)
     {
         var result = new Dictionary<string, string>();
