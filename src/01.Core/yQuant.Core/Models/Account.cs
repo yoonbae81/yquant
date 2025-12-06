@@ -12,13 +12,14 @@ public class Account
     public required string AppKey { get; set; }
     public required string AppSecret { get; set; }
     public required Dictionary<CurrencyType, decimal> Deposits { get; set; } = new Dictionary<CurrencyType, decimal>();
-    public List<Position> Positions { get; set; } = new List<Position>();
+    public Dictionary<string, List<Position>> Positions { get; set; } = new Dictionary<string, List<Position>>();
     public required bool Active { get; set; }
 
     public decimal GetTotalEquity(CurrencyType targetCurrency)
     {
         var totalEquity = Deposits.GetValueOrDefault(targetCurrency);
-        totalEquity += Positions
+        totalEquity += Positions.Values
+            .SelectMany(list => list)
             .Where(p => p.Currency == targetCurrency)
             .Sum(p => p.CurrentPrice * p.Qty);
         return totalEquity;

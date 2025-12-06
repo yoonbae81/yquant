@@ -24,6 +24,7 @@ namespace yQuant.Infra.Redis.Adapters
             AppKey = "N/A",
             AppSecret = "N/A",
             Deposits = [],
+            Positions = new Dictionary<string, List<Position>>(),
             Active = true
         };
 

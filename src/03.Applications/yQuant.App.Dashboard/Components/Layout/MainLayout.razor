@@ -34,6 +34,12 @@
     <span class="dismiss">🗙</span>
 </div>
 
+@using yQuant.App.Dashboard.Services
+@using yQuant.Core.Models
+@implements IDisposable
+@inject ISnackbar Snackbar
+@inject RealtimeEventService EventService
+
 @code {
     bool _drawerOpen = true;
     bool _isDarkMode;
@@ -45,6 +51,25 @@
         {
             _isDarkMode = true;
         }
+        EventService.OnOrderExecutionReceived += HandleOrderExecution;
+    }
+
+    private void HandleOrderExecution(OrderResult result)
+    {
+        InvokeAsync(() =>
+        {
+            var severity = result.IsSuccess ? Severity.Success : Severity.Error;
+            var message = result.IsSuccess
+                ? $"Order Executed: {result.OrderId} (Success)"
+                : $"Order Failed: {result.Message}";
+
+            Snackbar.Add(message, severity, config =>
+            {
+                config.ShowCloseIcon = true;
+                config.VisibleStateDuration = 5000;
+            });
+            StateHasChanged();
+        });
     }
 
     void DrawerToggle()
@@ -55,5 +80,10 @@
     void ToggleTheme()
     {
         _isDarkMode = !_isDarkMode;
+    }
+
+    public void Dispose()
+    {
+        EventService.OnOrderExecutionReceived -= HandleOrderExecution;
     }
 }

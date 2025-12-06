@@ -54,6 +54,8 @@ builder.Services.AddSingleton<OrderPublisher>();
 builder.Services.AddSingleton<AssetService>();
 builder.Services.AddSingleton<StockService>();
 builder.Services.AddSingleton<SystemHealthService>();
+builder.Services.AddSingleton<RealtimeEventService>();
+builder.Services.AddHostedService<ExecutionListener>();
 
 var app = builder.Build();
 

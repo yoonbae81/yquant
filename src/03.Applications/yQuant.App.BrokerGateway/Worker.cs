@@ -42,13 +42,10 @@ namespace yQuant.App.BrokerGateway
                 _ = HandleRequestAsync(message);
             });
 
-            // Periodic Account Sync (Heartbeat & State)
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                // Wait first since we already registered in StartAsync
-                await Task.Delay(TimeSpan.FromSeconds(10), stoppingToken); // More frequent sync for real-time data
-                await SyncAllAccountDataAsync(silent: true);
-            }
+
+            // Periodic Account Sync Removed (Event-driven only)
+            // But we need to keep the process alive
+            await Task.Delay(-1, stoppingToken);
         }
 
         private async Task SyncAllAccountDataAsync(bool silent = false)
@@ -228,6 +225,15 @@ namespace yQuant.App.BrokerGateway
                     // Publish to 'execution'
                     var db = _redis.GetDatabase();
                     await db.PublishAsync(RedisChannel.Literal("execution"), JsonSerializer.Serialize(result));
+
+                    // Event-driven Sync: Update Deposits and Positions immediately after order execution
+                    if (_adapters.TryGetValue(order.AccountAlias, out var adapter))
+                    {
+                        // Fire-and-forget sync (or await if we want to ensure consistency before next msg)
+                        // Awaiting is safer to prevent race conditions on fast sequential orders
+                        await SyncDepositsAsync(db, order.AccountAlias, adapter);
+                        await SyncPositionsAsync(db, order.AccountAlias, adapter);
+                    }
                 }
                 catch (Exception ex)
                 {

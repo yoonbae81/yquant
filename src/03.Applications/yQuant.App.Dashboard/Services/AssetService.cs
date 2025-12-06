@@ -5,6 +5,7 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Redis.Interfaces;
 using StackExchange.Redis;
 using System.Text.Json;
+using yQuant.Core.Extensions;
 
 namespace yQuant.App.Dashboard.Services;
 
@@ -117,6 +118,11 @@ public class AssetService
                 catch { /* Ignore invalid position json */ }
             }
 
+            // Group by Country Code derived from Currency
+            var groupedPositions = positions
+                .GroupBy(p => p.Currency.GetCountryCode())
+                .ToDictionary(g => g.Key, g => g.ToList());
+
             return new Account
             {
                 Alias = accountAlias,
@@ -126,7 +132,7 @@ public class AssetService
                 AppKey = "",
                 AppSecret = "",
                 Deposits = deposits,
-                Positions = positions
+                Positions = groupedPositions
             };
         }
         catch (Exception ex)

@@ -55,8 +55,10 @@ Core의 인터페이스를 구현하고 실제 기술(DB, API, Network)을 다�
     - `yquant:orders`: OrderComposer가 생성한 Executable Order를 BrokerGateway로 전달하는 Redis 채널
     - `yquant:executions`: BrokerGateway가 체결 결과를 Dashboard 및 Notification 서비스로 전파하는 Redis 채널
 - **Caching Keys**:
-    - `cache:account:{alias}`: 계좌별 자산 현황 스냅샷을 저장하는 Redis Key
-    - `cache:position:{alias}:{ticker}`: 종목별 포지션 상세 정보를 저장하는 Redis Key
+    - `account:{Alias}`: 계좌 정적 정보 (번호, 증권사)
+    - `deposit:{Alias}`: 실시간 예수금 잔고
+    - `position:{Alias}`: 실시간 보유 종목 포지션
+    - `stock:{Ticker}`: 종목 정적 정보 및 실시간 시세
 
 ### 2.3. yQuant.Infra.Notification.Discord
 - **역할**: `ITradingLogger` 및 `ISystemLogger` 구현체
@@ -166,7 +168,7 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
 - **프로세스**:
     1. **Signal 수신**: Redis 채널 `yquant:signals`를 구독(Subscribe)하여 메시지 수신
     2. **정책 적용**: Signal의 Exchange 정보에 맞는 `MarketRule` 선택 (예: NASDAQ -> US Policy)
-    3. **상태 동기화**: Redis Cache(`cache:account:...`)에서 현재 계좌 잔고 조회
+    3. **상태 동기화**: Redis Cache(`deposit:{Alias}`, `position:{Alias}`)에서 현재 계좌 잔고 및 포지션 조회
     4. **Sizing**: `BasicPositionSizer`를 통해 자금 관리 규칙(2% 룰 등) 적용 및 수량 계산
     5. **Order 발행**: 유효한 주문 객체를 Redis 채널 `yquant:orders`로 발행(Publish)
 
@@ -175,7 +177,7 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
 - **역할**: 증권사와의 물리적 연결 전담
 - **주요 기능**:
     - **Order Dispatching**: Redis 채널 `yquant:orders`를 구독(Subscribe)하고, 계좌 ID에 맞는 Broker Adapter로 주문 전송
-    - **State Synchronization**: 주기적(예: 1초)으로 증권사 API를 폴링하여 잔고 및 포지션을 조회하고, Redis Cache(`cache:account:...`) 최신화
+    - **State Synchronization**: 주기적(예: 1초)으로 증권사 API를 폴링하여 잔고 및 포지션을 조회하고, Redis Cache(`deposit:{Alias}`, `position:{Alias}`) 최신화
     - **Error Handling**: 주문 실패나 네트워크 오류 발생 시 알림을 발송하고 로그 기록
 
 ### 3.4. yQuant.App.Console (Manual Control)
@@ -190,7 +192,7 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
 - **유형**: Blazor Server Application
 - **역할**: 웹 기반 실시간 모니터링 및 제어 대시보드
 - **주요 기능**:
-    - **자산 현황**: Redis Cache(`cache:account:...`)를 조회하여 실시간 예수금, 보유 종목, 평가손익 표시
+    - **자산 현황**: Redis Cache(`account:{Alias}`, `deposit:{Alias}`, `position:{Alias}`)를 조회하여 실시간 예수금, 보유 종목, 평가손익 표시
     - **포지션 관리**: 보유 종목별 상세 정보 및 수익률 시각화
     - **수동 거래**: 웹 UI를 통한 즉시 매수/매도 주문 실행
     - **예약 주문**: 지정 시간에 자동 실행되는 예약 주문 설정

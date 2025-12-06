@@ -2,6 +2,7 @@ using System.Text.Json;
 using StackExchange.Redis;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
+using yQuant.Core.Extensions;
 
 namespace yQuant.App.OrderComposer.Adapters;
 
@@ -67,6 +68,11 @@ public class RedisAccountRepository : IAccountRepository
         }
 
         // 4. Aggregate
+        // Group by Country Code derived from Currency
+        var groupedPositions = positions
+            .GroupBy(p => p.Currency.GetCountryCode())
+            .ToDictionary(g => g.Key, g => g.ToList());
+
         return new Account
         {
             Alias = accountAlias,
@@ -76,7 +82,7 @@ public class RedisAccountRepository : IAccountRepository
             AppKey = string.Empty, // Redacted
             AppSecret = string.Empty, // Redacted
             Deposits = deposits,
-            Positions = positions
+            Positions = groupedPositions
         };
     }
 }
