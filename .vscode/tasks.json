@@ -66,12 +66,12 @@
             }
         },
         {
-            "label": "build: Dashboard",
+            "label": "build: Web",
             "command": "dotnet",
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/03.Applications/yQuant.App.Dashboard/yQuant.App.Dashboard.csproj",
+                "${workspaceFolder}/src/03.Applications/yQuant.App.Web/yQuant.App.Web.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

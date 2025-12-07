@@ -12,6 +12,7 @@ public class Position
     public required decimal CurrentPrice { get; set; }
     public decimal ChangeRate { get; set; }
     public string? Source { get; set; }
+    public ExchangeCode? Exchange { get; set; }
 
     // Calculated Property
     public decimal UnrealizedPnL => (CurrentPrice - AvgPrice) * Qty;

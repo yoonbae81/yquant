@@ -86,6 +86,12 @@ namespace yQuant.Infra.Master.KIS
 
                     _logger.LogInformation("[{Country}] StockMaster Sync Completed Successfully (Repository Updated).", country);
 
+                    // Additional: Save Korean domestic tickers to file for Redis-independent classification
+                    if (country == CountryCode.KR)
+                    {
+                        await SaveDomesticTickersToFileAsync(allStocks);
+                    }
+
                     var breakdown = string.Join("\n", allStocks.GroupBy(s => s.Exchange).Select(g => $"- {g.Key}: {g.Count()} items"));
                     await _systemLogger.LogStatusAsync("StockMaster", $"Sync Completed for {country}.\n{breakdown}");
                 }
@@ -112,6 +118,36 @@ namespace yQuant.Infra.Master.KIS
             }
 
             _logger.LogInformation("Completed sync for all countries");
+        }
+
+        /// <summary>
+        /// Saves Korean domestic tickers to a plain text file for Redis-independent classification.
+        /// File is saved to system temp directory for cross-application access.
+        /// </summary>
+        private async Task SaveDomesticTickersToFileAsync(IEnumerable<StockMaster> stocks)
+        {
+            try
+            {
+                var tempDir = Path.GetTempPath();
+                var filePath = Path.Combine(tempDir, "domestic_tickers.txt");
+
+                var tickers = stocks
+                    .Select(s => s.Ticker)
+                    .Where(t => !string.IsNullOrWhiteSpace(t))
+                    .OrderBy(t => t)
+                    .Distinct();
+
+                // Atomic write: write to temp file first, then move
+                var tempFile = $"{filePath}.tmp";
+                await File.WriteAllLinesAsync(tempFile, tickers);
+                File.Move(tempFile, filePath, overwrite: true);
+
+                _logger.LogInformation("Saved {Count} domestic tickers to {File}", tickers.Count(), filePath);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning(ex, "Failed to save domestic tickers to file (non-critical)");
+            }
         }
     }
 }

@@ -1,3 +1,4 @@
+using System.Linq;
 using System.Threading.Tasks;
 using System.Collections.Generic;
 using yQuant.Core.Models;
@@ -27,9 +28,11 @@ public class AssetService
 
         // 2. Get Positions
         var positions = await adapter.GetPositionsAsync();
-        
-        // 3. Merge Positions into Account
-        account.Positions = positions;
+
+        // 3. Merge Positions into Account (grouped by ticker)
+        account.Positions = positions
+            .GroupBy(p => p.Ticker)
+            .ToDictionary(g => g.Key, g => g.ToList());
         account.Alias = accountAlias; // Ensure alias is set
 
         return account;

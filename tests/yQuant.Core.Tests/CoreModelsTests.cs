@@ -22,25 +22,31 @@ public class CoreModelsTests
             {
                 { CurrencyType.USD, 1000m }
             },
-            Positions = new List<Position>
+            Positions = new Dictionary<string, List<Position>>
             {
-                new Position
+                ["AAPL"] = new List<Position>
                 {
-                    AccountAlias = "TestAccount",
-                    Ticker = "AAPL",
-                    Currency = CurrencyType.USD,
-                    Qty = 10,
-                    AvgPrice = 150m,
-                    CurrentPrice = 155m // PnL = (155-150)*10 = 50
+                    new Position
+                    {
+                        AccountAlias = "TestAccount",
+                        Ticker = "AAPL",
+                        Currency = CurrencyType.USD,
+                        Qty = 10,
+                        AvgPrice = 150m,
+                        CurrentPrice = 155m // PnL = (155-150)*10 = 50
+                    }
                 },
-                new Position
+                ["GOOG"] = new List<Position>
                 {
-                    AccountAlias = "TestAccount",
-                    Ticker = "GOOG",
-                    Currency = CurrencyType.USD,
-                    Qty = 5,
-                    AvgPrice = 2800m,
-                    CurrentPrice = 2850m // PnL = (2850-2800)*5 = 250
+                    new Position
+                    {
+                        AccountAlias = "TestAccount",
+                        Ticker = "GOOG",
+                        Currency = CurrencyType.USD,
+                        Qty = 5,
+                        AvgPrice = 2800m,
+                        CurrentPrice = 2850m // PnL = (2850-2800)*5 = 250
+                    }
                 }
             }
         };

@@ -51,13 +51,16 @@ public class BrokerGatewayTests
         var mockDatabase = new Mock<IDatabase>();
         _redisMock!.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>())).Returns(mockDatabase.Object);
 
+        var mockConfiguration = new Mock<IConfiguration>();
+
         var worker = new Worker(
             _loggerMock!.Object,
             _redisMock!.Object,
             adapters,
             _telegramNotifierMock!.Object,
             telegramBuilder,
-            new[] { _tradingLoggerMock!.Object });
+            new[] { _tradingLoggerMock!.Object },
+            mockConfiguration.Object);
 
         // Act
         // StartAsync calls RegisterAccountsAsync immediately now
@@ -85,13 +88,16 @@ public class BrokerGatewayTests
         var telegramBuilder = new TelegramMessageBuilder(templateService);
         var adapters = new Dictionary<string, IBrokerAdapter>();
 
+        var mockConfiguration = new Mock<IConfiguration>();
+
         var worker = new Worker(
             _loggerMock!.Object,
             _redisMock!.Object,
             adapters,
             _telegramNotifierMock!.Object,
             telegramBuilder,
-            new[] { _tradingLoggerMock!.Object });
+            new[] { _tradingLoggerMock!.Object },
+            mockConfiguration.Object);
 
         // Act
         await worker.StartAsync(CancellationToken.None);

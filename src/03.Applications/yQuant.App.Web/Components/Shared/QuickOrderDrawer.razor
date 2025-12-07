@@ -1,0 +1,131 @@
+@using yQuant.Core.Models
+
+<!-- Quick Order Drawer -->
+<MudDrawer @bind-Open="@IsOpen" Anchor="Anchor.End" Elevation="1" Variant="@DrawerVariant.Temporary" Width="400px">
+    <MudDrawerHeader>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@(Action == OrderAction.Buy ? Icons.Material.Filled.TrendingUp : Icons.Material.Filled.TrendingDown)" 
+                     Color="@(Action == OrderAction.Buy ? Color.Success : Color.Error)" Class="mr-2" />
+            @Action.ToString().ToUpper()
+        </MudText>
+    </MudDrawerHeader>
+    <MudDivider />
+    
+    <MudContainer Class="pa-4 d-flex flex-column" Style="height: calc(100vh - 64px);">
+        <!-- Top Section: Position Information -->
+        <MudStack Spacing="3" Class="flex-grow-1">
+            <!-- Stock Name (Large) -->
+            <MudText Typo="Typo.h4" Color="Color.Secondary" Class="mb-2">@StockName</MudText>
+            <MudText Typo="Typo.h6" Class="mb-4">@Ticker</MudText>
+            
+            @if (HoldingQty > 0)
+            {
+                <MudDivider Class="my-2" />
+                
+                <!-- Position Details (Single Column, Large Font) -->
+                <MudStack Spacing="3">
+                    <div>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">보유수량</MudText>
+                        <MudText Typo="Typo.h5" Class="mt-1"><strong>@HoldingQty</strong></MudText>
+                    </div>
+                    
+                    <div>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">평균단가</MudText>
+                        <MudText Typo="Typo.h5" Class="mt-1"><strong>@AvgPrice.ToString("N2")</strong></MudText>
+                    </div>
+                    
+                    <div>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">현재가</MudText>
+                        <MudText Typo="Typo.h5" Class="mt-1"><strong>@CurrentPrice.ToString("N2")</strong></MudText>
+                    </div>
+                    
+                    <div>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">수익률</MudText>
+                        <MudText Typo="Typo.h5" Class="mt-1" Style="@GetColorStyle(UnrealizedPnL)">
+                            <strong>@ReturnRate.ToString("F2")%</strong>
+                        </MudText>
+                    </div>
+                    
+                    <div>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary">평가손익</MudText>
+                        <MudText Typo="Typo.h5" Class="mt-1" Style="@GetColorStyle(UnrealizedPnL)">
+                            <strong>@UnrealizedPnL.ToString("N2")</strong>
+                        </MudText>
+                    </div>
+                </MudStack>
+            }
+            else
+            {
+                <MudAlert Severity="Severity.Info" Class="mt-4">보유 중인 포지션이 없습니다</MudAlert>
+            }
+        </MudStack>
+        
+        <!-- Bottom Section: Order Input -->
+        <MudStack Spacing="3" Class="mt-auto pt-4">
+            <MudDivider />
+            
+            <MudNumericField @bind-Value="Quantity" 
+                           Label="Quantity" 
+                           Min="1" 
+                           Required="true"
+                           Variant="Variant.Outlined"
+                           Adornment="Adornment.Start"
+                           AdornmentIcon="@Icons.Material.Filled.Numbers" />
+            
+            <MudAlert Severity="Severity.Info" Dense="true">Market Order (시장가 주문)</MudAlert>
+            
+            <MudStack Row="true" Spacing="2">
+                <MudButton OnClick="Close" Variant="Variant.Text" FullWidth="true">Cancel</MudButton>
+                <MudButton OnClick="Submit" 
+                           Color="@(Action == OrderAction.Buy ? Color.Success : Color.Error)" 
+                           Variant="Variant.Filled"
+                           Disabled="@(Quantity <= 0)"
+                           FullWidth="true">
+                    Place Order
+                </MudButton>
+            </MudStack>
+        </MudStack>
+    </MudContainer>
+</MudDrawer>
+
+@code {
+    [Parameter] public bool IsOpen { get; set; }
+    [Parameter] public EventCallback<bool> IsOpenChanged { get; set; }
+    
+    [Parameter] public string Ticker { get; set; } = "";
+    [Parameter] public string StockName { get; set; } = "";
+    [Parameter] public OrderAction Action { get; set; }
+    [Parameter] public string AccountAlias { get; set; } = "";
+    [Parameter] public ExchangeCode Exchange { get; set; }
+    [Parameter] public CurrencyType Currency { get; set; }
+    
+    [Parameter] public decimal HoldingQty { get; set; }
+    [Parameter] public decimal AvgPrice { get; set; }
+    [Parameter] public decimal CurrentPrice { get; set; }
+    [Parameter] public decimal UnrealizedPnL { get; set; }
+    [Parameter] public decimal ReturnRate { get; set; }
+    
+    [Parameter] public EventCallback OnOrderPlaced { get; set; }
+    
+    private int Quantity { get; set; } = 1;
+    
+    private async Task Close()
+    {
+        await IsOpenChanged.InvokeAsync(false);
+    }
+    
+    private async Task Submit()
+    {
+        await OnOrderPlaced.InvokeAsync();
+        Quantity = 1;  // Reset
+    }
+    
+    private string GetColorStyle(decimal value)
+    {
+        if (value > 0) return "color: red;";
+        if (value < 0) return "color: blue;";
+        return "";
+    }
+    
+    public int GetQuantity() => Quantity;
+}

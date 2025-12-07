@@ -55,7 +55,7 @@ public class BasicPositionSizerTests
             AppSecret = "test_secret",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal> { { CurrencyType.USD, 1_000_000m } },
-            Positions = new List<Position>()
+            Positions = new Dictionary<string, List<Position>>()
         };
 
         // Act
@@ -99,7 +99,7 @@ public class BasicPositionSizerTests
             AppSecret = "test_secret",
             Active = true,
             Deposits = new Dictionary<CurrencyType, decimal> { { CurrencyType.USD, 100m } }, // Not enough cash
-            Positions = new List<Position>()
+            Positions = new Dictionary<string, List<Position>>()
         };
 
         // Act

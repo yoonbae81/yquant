@@ -1,0 +1,89 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider @bind-IsDarkMode="_isDarkMode" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+            OnClick="@((e) => DrawerToggle())" />
+        <yQuant.App.Dashboard.Components.Shared.SystemHealthIcons />
+        <MudSpacer />
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+            Color="Color.Inherit" OnClick="@ToggleTheme" />
+        <MudLink Href="https://learn.microsoft.com/aspnet/core/" Target="_blank" Color="Color.Inherit">About</MudLink>
+    </MudAppBar>
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="1">
+        <MudDrawerHeader>
+            <MudText Typo="Typo.h6">yQuant.App.Dashboard</MudText>
+        </MudDrawerHeader>
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="my-4 pt-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@using yQuant.App.Web.Services
+@using yQuant.Core.Models
+@implements IDisposable
+@inject ISnackbar Snackbar
+@inject RealtimeEventService EventService
+
+@code {
+    bool _drawerOpen = true;
+    bool _isDarkMode;
+
+    protected override void OnInitialized()
+    {
+        var currentHour = DateTime.Now.Hour;
+        if (currentHour >= 22 || currentHour < 7)
+        {
+            _isDarkMode = true;
+        }
+        EventService.OnOrderExecutionReceived += HandleOrderExecution;
+    }
+
+    private void HandleOrderExecution(OrderResult result)
+    {
+        InvokeAsync(() =>
+        {
+            var severity = result.IsSuccess ? Severity.Success : Severity.Error;
+            var message = result.IsSuccess
+                ? $"Order Executed: {result.OrderId} (Success)"
+                : $"Order Failed: {result.Message}";
+
+            Snackbar.Add(message, severity, config =>
+            {
+                config.ShowCloseIcon = true;
+                config.VisibleStateDuration = 5000;
+            });
+            StateHasChanged();
+        });
+    }
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    void ToggleTheme()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    public void Dispose()
+    {
+        EventService.OnOrderExecutionReceived -= HandleOrderExecution;
+    }
+}

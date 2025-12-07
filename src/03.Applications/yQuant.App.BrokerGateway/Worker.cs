@@ -58,27 +58,21 @@ namespace yQuant.App.BrokerGateway
             try
             {
                 var db = _redis.GetDatabase();
-                var tasks = new List<Task>();
 
                 foreach (var kvp in _adapters)
                 {
                     var alias = kvp.Key;
                     var adapter = kvp.Value;
 
-                    // 1. Sync Static Account Info (account:{alias})
-                    tasks.Add(SyncAccountInfoAsync(db, alias, adapter));
+                    // 1. Sync Static Account Info (account:{alias}) - can run independently
+                    await SyncAccountInfoAsync(db, alias, adapter);
 
-                    // 2. Sync Deposits (deposit:{alias})
-                    tasks.Add(SyncDepositsAsync(db, alias, adapter));
+                    // 2. Sync Deposits first (deposit:{alias}) - calls DomesticBalance and caches it
+                    await SyncDepositsAsync(db, alias, adapter);
 
-                    // 3. Sync Positions (position:{alias})
-                    tasks.Add(SyncPositionsAsync(db, alias, adapter));
-
-                    // 4. Sync Prices for held positions (stock:{ticker})
-                    tasks.Add(SyncPricesAsync(db, alias, adapter));
+                    // 3. Sync Positions (position:{alias}) and Prices (stock:{ticker}) - reuses cached DomesticBalance
+                    await SyncPositionsAsync(db, alias, adapter);
                 }
-
-                await Task.WhenAll(tasks);
 
                 if (!silent && _logger.IsEnabled(LogLevel.Information))
                 {
@@ -156,6 +150,29 @@ namespace yQuant.App.BrokerGateway
                 {
                     var entries = positions.Select(p => new HashEntry(p.Ticker, JsonSerializer.Serialize(p))).ToArray();
                     await db.HashSetAsync(key, entries);
+
+                    // Also sync prices for held positions (no need for separate API calls)
+                    foreach (var position in positions)
+                    {
+                        try
+                        {
+                            var priceKey = $"stock:{position.Ticker}";
+
+                            // Use price data already in position (from GetPositionsAsync)
+                            await db.HashSetAsync(priceKey, new HashEntry[]
+                            {
+                                new("price", position.CurrentPrice.ToString()),
+                                new("changeRate", position.ChangeRate.ToString())
+                            });
+
+                            // Refresh TTL (25 hours)
+                            await db.KeyExpireAsync(priceKey, TimeSpan.FromHours(25));
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogWarning(ex, "Failed to sync price for {Ticker}", position.Ticker);
+                        }
+                    }
                 }
             }
             catch (Exception ex)
@@ -164,41 +181,7 @@ namespace yQuant.App.BrokerGateway
             }
         }
 
-        private async Task SyncPricesAsync(IDatabase db, string alias, IBrokerAdapter adapter)
-        {
-            try
-            {
-                // Get positions to know which tickers to update
-                var positions = await adapter.GetPositionsAsync();
 
-                foreach (var position in positions)
-                {
-                    try
-                    {
-                        var priceInfo = await adapter.GetPriceAsync(position.Ticker);
-                        var key = $"stock:{position.Ticker}";
-
-                        // Update price and changeRate fields
-                        await db.HashSetAsync(key, new HashEntry[]
-                        {
-                            new("price", priceInfo.CurrentPrice.ToString()),
-                            new("changeRate", priceInfo.ChangeRate.ToString())
-                        });
-
-                        // Refresh TTL (25 hours)
-                        await db.KeyExpireAsync(key, TimeSpan.FromHours(25));
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogWarning(ex, "Failed to sync price for {Ticker}", position.Ticker);
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, "Failed to sync prices for {Alias}", alias);
-            }
-        }
 
         private async Task HandleRequestAsync(RedisValue message)
         {
@@ -243,8 +226,7 @@ namespace yQuant.App.BrokerGateway
                         {
                             _logger.LogInformation("Account sync interval passed. Performing full broker sync for {Account}.", order.AccountAlias);
                             await SyncDepositsAsync(db, order.AccountAlias, adapter);
-                            await SyncPositionsAsync(db, order.AccountAlias, adapter);
-                            await SyncPricesAsync(db, order.AccountAlias, adapter); // Also sync prices if we do full sync
+                            await SyncPositionsAsync(db, order.AccountAlias, adapter); // Also syncs prices
 
                             _lastAccountSyncTime[order.AccountAlias] = now;
                         }

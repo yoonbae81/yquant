@@ -1,0 +1,141 @@
+@using yQuant.Core.Models
+@using yQuant.App.Web.Services
+@inject NavigationManager NavigationManager
+@inject OrderPublisher OrderPublisher
+@inject ISnackbar Snackbar
+@inject yQuant.App.Web.Services.StockService StockService
+
+<MudTable Items="Positions" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true" Elevation="0">
+    <HeaderContent>
+        <MudTh>Ticker</MudTh>
+        <MudTh>Qty</MudTh>
+        <MudTh>Avg Price</MudTh>
+        <MudTh>Current Price</MudTh>
+        <MudTh>Change %</MudTh>
+        <MudTh>Unrealized PnL</MudTh>
+        <MudTh>Actions</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Ticker">@context.Ticker</MudTd>
+        <MudTd DataLabel="Qty">@context.Qty.ToString("N0")</MudTd>
+        <MudTd DataLabel="Avg Price">@context.AvgPrice.ToString("N2")</MudTd>
+        <MudTd DataLabel="Current Price">@context.CurrentPrice.ToString("N2")</MudTd>
+        <MudTd DataLabel="Change %" Style="@(context.ChangeRate >= 0 ? "color: red;" : "color: blue;")">
+            @context.ChangeRate.ToString("N2")%
+        </MudTd>
+        <MudTd DataLabel="Unrealized PnL" Style="@(context.UnrealizedPnL >= 0 ? "color: green;" : "color: red;")">
+            @context.UnrealizedPnL.ToString("N2")
+        </MudTd>
+        <MudTd DataLabel="Actions">
+            <MudButton OnClick="@(() => OpenQuickOrderDrawer(context, OrderAction.Buy))" Color="Color.Success"
+                Size="Size.Small" Variant="Variant.Outlined" Style="padding: 2px 6px;">Buy</MudButton>
+            <MudButton OnClick="@(() => OpenQuickOrderDrawer(context, OrderAction.Sell))" Color="Color.Error"
+                Size="Size.Small" Variant="Variant.Outlined" Style="padding: 2px 6px;">Sell</MudButton>
+        </MudTd>
+    </RowTemplate>
+    <NoRecordsContent>
+        <MudText>No positions found for this account.</MudText>
+    </NoRecordsContent>
+</MudTable>
+
+<!-- Quick Order Drawer Component -->
+<QuickOrderDrawer @ref="_drawerRef" @bind-IsOpen="_drawerOpen" Ticker="@_orderTicker" StockName="@_orderStockName"
+    Action="@_orderAction" AccountAlias="@_orderAccountAlias" Exchange="@_orderExchange" Currency="@_orderCurrency"
+    HoldingQty="@_orderHoldingQty" AvgPrice="@_orderAvgPrice" CurrentPrice="@_orderCurrentPrice"
+    UnrealizedPnL="@_orderUnrealizedPnL" ReturnRate="@_orderReturnRate" OnOrderPlaced="@HandleOrderPlaced" />
+
+@code {
+    [Parameter]
+    public IEnumerable<yQuant.Core.Models.Position> Positions { get; set; } = new List<yQuant.Core.Models.Position>();
+
+    [Parameter]
+    public required string AccountAlias { get; set; }
+
+    [Parameter]
+    public EventCallback<(string ticker, OrderAction action, string accountAlias)> OnOrderAction { get; set; }
+
+    // Drawer state
+    private bool _drawerOpen = false;
+    private string _orderTicker = "";
+    private string _orderStockName = "";
+    private OrderAction _orderAction = OrderAction.Buy;
+    private string _orderAccountAlias = "";
+    private ExchangeCode _orderExchange = ExchangeCode.KOSPI;
+    private CurrencyType _orderCurrency = CurrencyType.KRW;
+
+    // Position details
+    private decimal _orderHoldingQty = 0;
+    private decimal _orderAvgPrice = 0;
+    private decimal _orderCurrentPrice = 0;
+    private decimal _orderUnrealizedPnL = 0;
+    private decimal _orderReturnRate = 0;
+
+    private QuickOrderDrawer? _drawerRef;
+    private Dictionary<string, string> _stockNames = new();
+
+    protected override async Task OnParametersSetAsync()
+    {
+        // Load stock names for all positions
+        var tickers = Positions.Select(p => p.Ticker).Distinct();
+        _stockNames = await StockService.GetStockNamesAsync(tickers);
+    }
+
+    private void OpenQuickOrderDrawer(yQuant.Core.Models.Position position, OrderAction action)
+    {
+        _orderTicker = position.Ticker;
+        _orderStockName = GetStockName(position.Ticker);
+        _orderAction = action;
+        _orderAccountAlias = position.AccountAlias;
+        _orderExchange = position.Exchange ?? ExchangeCode.KOSPI;
+        _orderCurrency = position.Currency;
+
+        // Position details
+        _orderHoldingQty = position.Qty;
+        _orderAvgPrice = position.AvgPrice;
+        _orderCurrentPrice = position.CurrentPrice;
+        _orderUnrealizedPnL = position.UnrealizedPnL;
+        _orderReturnRate = GetReturnRate(position);
+
+        _drawerOpen = true;
+    }
+
+    private async Task HandleOrderPlaced()
+    {
+        try
+        {
+            var quantity = _drawerRef?.GetQuantity() ?? 1;
+
+            var order = new Order
+                {
+                    AccountAlias = _orderAccountAlias,
+                    Ticker = _orderTicker,
+                    Exchange = _orderExchange,
+                    Currency = _orderCurrency,
+                    Action = _orderAction,
+                    Qty = quantity,
+                    Price = 0, // Market order
+                    Type = OrderType.Market
+                };
+
+            await OrderPublisher.PublishOrderAsync(order);
+            Snackbar.Add($"Order placed: {_orderAction} {quantity} {_orderTicker}", Severity.Success);
+
+            _drawerOpen = false;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Order failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetStockName(string ticker)
+    {
+        return _stockNames.TryGetValue(ticker, out var name) ? name : "-";
+    }
+
+    private decimal GetReturnRate(yQuant.Core.Models.Position pos)
+    {
+        if (pos.AvgPrice == 0) return 0;
+        return (pos.CurrentPrice - pos.AvgPrice) / pos.AvgPrice * 100;
+    }
+}

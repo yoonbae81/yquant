@@ -202,6 +202,23 @@ public class KISClient : IKISClient
 
         var requestMessage = new HttpRequestMessage(new HttpMethod(endpoint!.Method), BuildUrl(endpoint.Path, queryParams));
 
+        // Log the API request with endpoint name and key parameters
+        var logMessage = $"KIS API Request - Endpoint: {endpointName}";
+        if (queryParams != null && queryParams.Count > 0)
+        {
+            // Extract ticker/symbol if present
+            if (queryParams.TryGetValue("symb", out var ticker) ||
+                queryParams.TryGetValue("symbol", out ticker) ||
+                queryParams.TryGetValue("pdno", out ticker))
+            {
+                logMessage += $", Ticker: {ticker}";
+            }
+            // Show all query params for debugging
+            var paramStr = string.Join(", ", queryParams.Select(kv => $"{kv.Key}={kv.Value}"));
+            logMessage += $", Params: [{paramStr}]";
+        }
+        _logger.LogInformation(logMessage);
+
         string? trId = endpoint.TrId;
         if (!string.IsNullOrEmpty(trIdVariant) && endpoint.TrIdMap != null && endpoint.TrIdMap.TryGetValue(trIdVariant, out var mappedTrId))
         {
@@ -226,6 +243,25 @@ public class KISClient : IKISClient
 
         if (body != null && (endpoint.Method.Equals("POST", StringComparison.OrdinalIgnoreCase) || endpoint.Method.Equals("PUT", StringComparison.OrdinalIgnoreCase)))
         {
+            // Extract ticker from body if present (for order requests)
+            try
+            {
+                var bodyJson = JsonSerializer.Serialize(body);
+                using var doc = JsonDocument.Parse(bodyJson);
+                if (doc.RootElement.TryGetProperty("pdno", out var pdno))
+                {
+                    _logger.LogInformation("KIS API Request Body - Ticker: {Ticker}", pdno.GetString());
+                }
+                else if (doc.RootElement.TryGetProperty("symb", out var symb))
+                {
+                    _logger.LogInformation("KIS API Request Body - Ticker: {Ticker}", symb.GetString());
+                }
+            }
+            catch
+            {
+                // Ignore JSON parsing errors for logging
+            }
+
             // For POST requests (excluding Token and Hashkey themselves), generate and add Hashkey
             if (endpointName != "Token" && endpointName != "Hashkey")
             {

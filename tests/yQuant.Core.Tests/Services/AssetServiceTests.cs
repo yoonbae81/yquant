@@ -85,8 +85,10 @@ public class AssetServiceTests
 
         Assert.NotNull(result.Positions);
         Assert.Equal(2, result.Positions.Count);
-        Assert.Contains(result.Positions, p => p.Ticker == "005930" && p.Qty == 10);
-        Assert.Contains(result.Positions, p => p.Ticker == "AAPL" && p.Qty == 5);
+        Assert.True(result.Positions.ContainsKey("005930"));
+        Assert.True(result.Positions.ContainsKey("AAPL"));
+        Assert.Equal(10, result.Positions["005930"][0].Qty);
+        Assert.Equal(5, result.Positions["AAPL"][0].Qty);
 
         _mockAdapterFactory.Verify(x => x.GetAdapter(accountAlias), Times.Once);
         _mockBrokerAdapter.Verify(x => x.GetDepositAsync(null, false), Times.Once);
