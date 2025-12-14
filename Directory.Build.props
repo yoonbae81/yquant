@@ -1,0 +1,6 @@
+<Project>
+  <PropertyGroup>
+    <!-- Allow building with .NET 10.0 preview SDK that may have missing package metadata -->
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+  </PropertyGroup>
+</Project>
