@@ -1,0 +1,9 @@
+[Unit]
+Description=yQuant Stock Master Data Sync (Console)
+After=network.target
+
+[Service]
+Type=oneshot
+WorkingDirectory=/srv/yquant/console
+ExecStart=/usr/bin/dotnet /srv/yquant/console/yQuant.App.Console.dll catalog
+TimeoutStartSec=1800

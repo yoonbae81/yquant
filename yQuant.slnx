@@ -1,0 +1,37 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/01.Core/">
+    <Project Path="src/01.Core/yQuant.Core/yQuant.Core.csproj" />
+  </Folder>
+  <Folder Name="/src/02.Infrastructure/">
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Redis/yQuant.Infra.Redis.csproj" />
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Broker.KIS/yQuant.Infra.Broker.KIS.csproj" />
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Notification/yQuant.Infra.Notification.csproj" />
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Notification.Telegram/yQuant.Infra.Notification.Telegram.csproj" />
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Reporting/yQuant.Infra.Reporting.csproj" />
+  </Folder>
+  <Folder Name="/src/03.Applications/">
+    <Project Path="src/03.Applications/yQuant.App.BrokerGateway/yQuant.App.BrokerGateway.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.Web/yQuant.App.Web.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.Webhook/yQuant.App.Webhook.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.Notifier/yQuant.App.Notifier.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.OrderManager/yQuant.App.OrderManager.csproj" />
+  </Folder>
+  <Folder Name="/src/04.Policies/">
+    <Project Path="src/04.Policies/yQuant.Policies.Sizing/yQuant.Policies.Sizing.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="src/02.Infrastructure/yQuant.Infra.Notification.Discord/yQuant.Infra.Notification.Discord.csproj" />
+    <Project Path="tests/yQuant.App.BrokerGateway.Tests/yQuant.App.BrokerGateway.Tests.csproj" />
+    <Project Path="tests/yQuant.App.Web.Tests/yQuant.App.Web.Tests.csproj" />
+    <Project Path="tests/yQuant.App.Webhook.Tests/yQuant.App.Webhook.Tests.csproj" />
+    <Project Path="tests/yQuant.App.OrderManager.Tests/yQuant.App.OrderManager.Tests.csproj" />
+    <Project Path="tests/yQuant.Core.Tests/yQuant.Core.Tests.csproj" />
+    <Project Path="tests/yQuant.Infra.Broker.KIS.Tests/yQuant.Infra.Broker.KIS.Tests.csproj" />
+    <Project Path="tests/yQuant.Infra.Notification.Discord.Tests/yQuant.Infra.Notification.Discord.Tests.csproj" />
+    <Project Path="tests/yQuant.Infra.Notification.Telegram.Tests/yQuant.Infra.Notification.Telegram.Tests.csproj" />
+    <Project Path="tests/yQuant.Infra.Reporting.Tests/yQuant.Infra.Reporting.Tests.csproj" />
+    <Project Path="tests/yQuant.Policies.Sizing.Tests/yQuant.Policies.Sizing.Tests.csproj" />
+  </Folder>
+</Solution>

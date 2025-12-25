@@ -1,0 +1,75 @@
+{
+    "DomesticBalance": {
+        "Path": "/uapi/domestic-stock/v1/trading/inquire-balance",
+        "Method": "GET",
+        "TrId": "TTTC8434R",
+        "Parameters": {
+            "CANO": {
+                "Description": "Account Number",
+                "Required": true,
+                "Type": "string",
+                "Length": 8
+            },
+            "ACNT_PRDT_CD": {
+                "Description": "Account Product Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "AFHR_FLPR_YN": {
+                "Description": "After Hours Fluctuation Price YN",
+                "Required": true,
+                "Type": "string",
+                "Length": 1
+            },
+            "OFL_YN": {
+                "Description": "Offline YN",
+                "Required": true,
+                "Type": "string",
+                "Length": 1
+            },
+            "INQR_DVSN": {
+                "Description": "Inquiry Division",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "UNPR_DVSN": {
+                "Description": "Unit Price Division",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "FUND_STTL_ICLD_YN": {
+                "Description": "Fund Settlement Included YN",
+                "Required": true,
+                "Type": "string",
+                "Length": 1
+            },
+            "FNCG_AMT_AUTO_RDPT_YN": {
+                "Description": "Financing Amount Auto Repayment YN",
+                "Required": true,
+                "Type": "string",
+                "Length": 1
+            },
+            "PRCS_DVSN": {
+                "Description": "Process Division",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "CTX_AREA_FK100": {
+                "Description": "Context Area FK100",
+                "Required": false,
+                "Type": "string",
+                "Length": 100
+            },
+            "CTX_AREA_NK100": {
+                "Description": "Context Area NK100",
+                "Required": false,
+                "Type": "string",
+                "Length": 100
+            }
+        }
+    }
+}

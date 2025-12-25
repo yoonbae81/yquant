@@ -1,0 +1,37 @@
+@using yQuant.Core.Models
+@inject ILogger<AccountSelector> Logger
+
+<div class="d-flex align-center mb-4">
+    <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
+        @foreach (var acc in Accounts)
+        {
+            var isSelected = SelectedAccountAlias == acc.Alias;
+            <MudButton OnClick="@(() => OnAccountSelected(acc.Alias))"
+                Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                Color="@(isSelected ? Color.Primary : Color.Default)" Size="@(isSelected ? Size.Medium : Size.Small)"
+                Style="@(isSelected ? "font-weight: bold; box-shadow: 0 4px 8px rgba(0,102,255,0.4); background-color: #0066FF !important; color: white !important;" : "")">
+                @acc.Alias
+            </MudButton>
+        }
+    </MudButtonGroup>
+</div>
+
+@code {
+    [Parameter]
+    public IEnumerable<Account> Accounts { get; set; } = new List<Account>();
+
+    [Parameter]
+    public string? SelectedAccountAlias { get; set; }
+
+    [Parameter]
+    public EventCallback<string> SelectedAccountAliasChanged { get; set; }
+
+    private async Task OnAccountSelected(string alias)
+    {
+        Logger.LogInformation("AccountSelector: Button clicked for alias: {Alias}", alias);
+        SelectedAccountAlias = alias;
+        Logger.LogInformation("AccountSelector: Invoking callback for alias: {Alias}", alias);
+        await SelectedAccountAliasChanged.InvokeAsync(alias);
+        Logger.LogInformation("AccountSelector: Callback completed for alias: {Alias}", alias);
+    }
+}

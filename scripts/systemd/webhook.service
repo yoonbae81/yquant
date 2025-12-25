@@ -1,0 +1,16 @@
+[Unit]
+Description=yQuant Webhook Service
+After=network.target
+
+[Service]
+Type=notify
+WorkingDirectory=/srv/yquant/webhook
+ExecStart=/usr/bin/dotnet /srv/yquant/webhook/yQuant.App.Webhook.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=webhook
+Environment=ASPNETCORE_URLS=http://0.0.0.0:8080
+
+[Install]
+WantedBy=default.target

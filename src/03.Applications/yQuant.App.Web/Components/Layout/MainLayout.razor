@@ -1,0 +1,144 @@
+﻿@inherits LayoutComponentBase
+
+<MudThemeProvider @bind-IsDarkMode="_isDarkMode" Theme="_customTheme" />
+<MudDialogProvider />
+<MudSnackbarProvider />
+<MudPopoverProvider />
+
+<MudLayout>
+    <MudAppBar Elevation="0"
+        Style="@($"background-color: {(_isDarkMode ? "#27272f" : "#f5f5f5")}; color: {(_isDarkMode ? "#fff" : "#333")}; height: 64px; border-bottom: 1px solid {(_isDarkMode ? "#3e3e42" : "#e0e0e0")};")">
+        <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start"
+            OnClick="@((e) => DrawerToggle())" />
+        <MudText Typo="Typo.h6" Class="ml-3" Style="display: flex; align-items: center; height: 100%;">
+            @GetPageTitle()</MudText>
+        <MudSpacer />
+        <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
+            Color="Color.Inherit" OnClick="@ToggleTheme" />
+        <MudLink Href="https://github.com/yoonbae81/yquant/README.md" Target="_blank"
+            Style="@($"color: {(_isDarkMode ? "#fff" : "#333")}; display: flex; align-items: center;")">About
+        </MudLink>
+    </MudAppBar>
+    <MudDrawer @bind-Open="_drawerOpen" Elevation="1" Width="190px">
+        <MudDrawerHeader
+            Style="@($"background-color: {(_isDarkMode ? "#1a1a1a" : "white")}; height: 64px; padding: 0 16px; display: flex; align-items: center; border-bottom: 1px solid {(_isDarkMode ? "#2d2d2d" : "#e0e0e0")};")">
+            <MudLink Href="/" Underline="Underline.None" Style="display: flex; align-items: center; height: 100%;">
+                <img src="@(_isDarkMode ? "/images/logo_dark.png" : "/images/logo.png")" alt="yQuant Logo"
+                    style="height: 40px; cursor: pointer;" />
+            </MudLink>
+        </MudDrawerHeader>
+        <NavMenu />
+    </MudDrawer>
+    <MudMainContent>
+        <MudContainer MaxWidth="MaxWidth.Large" Class="my-4 pt-4">
+            @Body
+        </MudContainer>
+    </MudMainContent>
+</MudLayout>
+
+<div id="blazor-error-ui" data-nosnippet>
+    An unhandled error has occurred.
+    <a href="." class="reload">Reload</a>
+    <span class="dismiss">🗙</span>
+</div>
+
+@using yQuant.App.Web.Services
+@using yQuant.Core.Models
+@implements IDisposable
+@inject ISnackbar Snackbar
+@inject RealtimeEventService EventService
+@inject NavigationManager NavigationManager
+
+@code {
+    bool _drawerOpen = true;
+    bool _isDarkMode;
+
+    private MudTheme _customTheme = new MudTheme()
+        {
+            PaletteLight = new PaletteLight()
+            {
+                Primary = "#0066FF",
+                AppbarBackground = "#f5f5f5",
+                AppbarText = "#333333",
+                Surface = "#ffffff",
+                DrawerBackground = "#ffffff",
+                Background = "#fafafa"
+            },
+            PaletteDark = new PaletteDark()
+            {
+                Primary = "#0066FF",
+                AppbarBackground = "#27272f",
+                AppbarText = "#ffffff",
+                Surface = "#1a1a1a",
+                DrawerBackground = "#1a1a1a",
+                Background = "#121212",
+                TextPrimary = "#ffffff",
+                TextSecondary = "rgba(255,255,255, 0.7)"
+            }
+        };
+
+    protected override void OnInitialized()
+    {
+        var currentHour = DateTime.Now.Hour;
+        if (currentHour >= 22 || currentHour < 7)
+        {
+            _isDarkMode = true;
+        }
+        EventService.OnOrderExecutionReceived += HandleOrderExecution;
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void OnLocationChanged(object? sender, Microsoft.AspNetCore.Components.Routing.LocationChangedEventArgs e)
+    {
+        StateHasChanged();
+    }
+
+    private string GetPageTitle()
+    {
+        var uri = new Uri(NavigationManager.Uri);
+        var path = uri.AbsolutePath.ToLower();
+
+        if (path == "/" || path.StartsWith("/dashboard")) return "Dashboard";
+        if (path.StartsWith("/assets")) return "Assets";
+        if (path.StartsWith("/scheduled")) return "Scheduled Orders";
+        if (path.StartsWith("/orderform")) return "Buy Order";
+        if (path.StartsWith("/trades")) return "Trade History";
+        if (path.StartsWith("/performance")) return "Performance";
+
+        return "yQuant";
+    }
+
+    private void HandleOrderExecution(OrderResult result)
+    {
+        InvokeAsync(() =>
+        {
+            var severity = result.IsSuccess ? Severity.Success : Severity.Error;
+            var message = result.IsSuccess
+    ? $"Order Executed: {result.OrderId} (Success)"
+    : $"Order Failed: {result.Message}";
+
+            Snackbar.Add(message, severity, config =>
+    {
+    config.ShowCloseIcon = true;
+    config.VisibleStateDuration = 5000;
+            });
+            StateHasChanged();
+        });
+    }
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    void ToggleTheme()
+    {
+        _isDarkMode = !_isDarkMode;
+    }
+
+    public void Dispose()
+    {
+        EventService.OnOrderExecutionReceived -= HandleOrderExecution;
+        NavigationManager.LocationChanged -= OnLocationChanged;
+    }
+}

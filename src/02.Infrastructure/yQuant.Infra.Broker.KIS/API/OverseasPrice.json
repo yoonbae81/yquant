@@ -1,0 +1,27 @@
+{
+    "OverseasPrice": {
+        "Path": "/uapi/overseas-price/v1/quotations/price",
+        "Method": "GET",
+        "TrId": "HHDFS00000300",
+        "Parameters": {
+            "AUTH": {
+                "Description": "Auth",
+                "Required": false,
+                "Type": "string",
+                "Length": 0
+            },
+            "EXCD": {
+                "Description": "Exchange Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 4
+            },
+            "SYMB": {
+                "Description": "Symbol",
+                "Required": true,
+                "Type": "string",
+                "Length": 12
+            }
+        }
+    }
+}

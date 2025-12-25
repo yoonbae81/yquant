@@ -1,0 +1,7 @@
+{
+    "OrderSuccess": "[주문 성공] {Ticker} {Action} {Qty} @ {Price}",
+    "OrderFailure": "[주문 실패] {Ticker} : {Message}",
+    "AccountSyncFailure": "[계좌 동기화 실패] {Alias} - {Message}",
+    "NoAccountConfig": "[주문 실패] 계좌 설정 없음: {Alias} - {Ticker}",
+    "NoBrokerAdapter": "[주문 실패] 계좌 어댑터 없음: {Alias} - {Ticker}"
+}

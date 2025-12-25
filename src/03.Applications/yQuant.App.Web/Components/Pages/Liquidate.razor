@@ -1,0 +1,586 @@
+@page "/liquidate"
+@page "/liquidate/{AccountAlias}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@using yQuant.App.Web.Services
+@using yQuant.App.Web.Models
+@using yQuant.Core.Models
+@using PositionModel = yQuant.Core.Models.Position
+@inject AssetService AssetService
+@inject AccountCacheService AccountCacheService
+@inject StockService StockService
+@inject LiquidateService LiquidateService
+@inject SchedulerService SchedulerService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+
+<PageTitle>Liquidate Positions</PageTitle>
+
+<div class="d-flex align-center mb-4">
+    <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
+        @foreach (var acc in AvailableAccounts)
+        {
+            var isSelected = SelectedAccountAlias == acc.Alias;
+            <MudButton OnClick="@(() => OnAccountChanged(acc.Alias))"
+                Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                Color="@(isSelected ? Color.Primary : Color.Default)" Size="@(isSelected ? Size.Medium : Size.Small)"
+                Style="@(isSelected ? "font-weight: bold; box-shadow: 0 3px 5px rgba(0,0,0,0.2);" : "")">
+                @acc.Alias
+            </MudButton>
+        }
+    </MudButtonGroup>
+</div>
+
+@if (!string.IsNullOrEmpty(SelectedAccountAlias))
+{
+    <MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true" PanelClass="pa-6">
+        <MudTabPanel Text="Manual Liquidate" Icon="@Icons.Material.Filled.Sell">
+            @* Manual Liquidate Tab Content *@
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudCard Outlined="true">
+                        <MudCardContent>
+                            <div class="d-flex gap-4 align-center mb-4">
+                                <MudSelect T="string" Value="@_countryFilter" ValueChanged="@((string v) => { _countryFilter = v; ApplyFilters(); })" 
+                                    Label="Country" Variant="Variant.Outlined" Style="max-width: 200px;">
+                                    <MudSelectItem T="string" Value="@("All")">All</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("KR")">KR (KRW)</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("US")">US (USD)</MudSelectItem>
+                                </MudSelect>
+
+                                <MudSelect T="string" Value="@_buyReasonFilter" ValueChanged="@((string v) => { _buyReasonFilter = v; ApplyFilters(); })" 
+                                    Label="Buy Reason" Variant="Variant.Outlined" Style="max-width: 250px;">
+                                    @foreach (var reason in _buyReasonOptions)
+                                    {
+                                        <MudSelectItem T="string" Value="@reason">@reason</MudSelectItem>
+                                    }
+                                </MudSelect>
+
+                                <MudSpacer />
+
+                                <MudButton Variant="Variant.Filled" Color="Color.Error" Size="Size.Large"
+                                    OnClick="ExecuteManualLiquidation" Disabled="@(!_filteredPositions.Any())"
+                                    Style="min-width: 200px;">
+                                    <MudIcon Icon="@Icons.Material.Filled.Sell" Class="mr-2" />
+                                    Liquidate Now (@_filteredPositions.Count)
+                                </MudButton>
+                            </div>
+
+                            @if (_filteredPositions.Any())
+                            {
+                                <MudTable Items="@_filteredPositions" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true">
+                                    <HeaderContent>
+                                        <MudTh>Ticker</MudTh>
+                                        <MudTh>Name</MudTh>
+                                        <MudTh>Currency</MudTh>
+                                        <MudTh Style="text-align: right;">Qty</MudTh>
+                                        <MudTh Style="text-align: right;">Avg Price</MudTh>
+                                        <MudTh Style="text-align: right;">Cur Price</MudTh>
+                                        <MudTh Style="text-align: right;">PnL</MudTh>
+                                        <MudTh Style="text-align: right;">Return %</MudTh>
+                                        <MudTh>Buy Reason</MudTh>
+                                    </HeaderContent>
+                                    <RowTemplate>
+                                        <MudTd DataLabel="Ticker">@context.Ticker</MudTd>
+                                        <MudTd DataLabel="Name">@GetStockName(context.Ticker)</MudTd>
+                                        <MudTd DataLabel="Currency">@context.Currency</MudTd>
+                                        <MudTd DataLabel="Qty" Style="text-align: right;">@context.Qty</MudTd>
+                                        <MudTd DataLabel="Avg Price" Style="text-align: right;">@context.AvgPrice.ToString("N0")</MudTd>
+                                        <MudTd DataLabel="Cur Price" Style="text-align: right;">@context.CurrentPrice.ToString("N0")</MudTd>
+                                        <MudTd DataLabel="PnL" Style="@("text-align: right; " + GetColorStyle(context.UnrealizedPnL))">
+                                            @context.UnrealizedPnL.ToString("N0")</MudTd>
+                                        <MudTd DataLabel="Return %" Style="@("text-align: right; " + GetColorStyle(context.UnrealizedPnL))">
+                                            @GetReturnRate(context).ToString("F2")%</MudTd>
+                                        <MudTd DataLabel="Buy Reason">@(context.BuyReason ?? "Unknown")</MudTd>
+                                    </RowTemplate>
+                                </MudTable>
+                            }
+                            else
+                            {
+                                <MudText Typo="Typo.body1" Color="Color.Default" Class="mt-4">
+                                    No positions match the selected filters.
+                                </MudText>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+
+        <MudTabPanel Text="Scheduled Liquidate" Icon="@Icons.Material.Filled.Schedule">
+            @* Scheduled Liquidate Tab Content *@
+            <MudGrid>
+                <MudItem xs="12" md="6">
+                    <MudCard Outlined="true" Class="pa-4">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Add/Edit Scheduled Liquidation</MudText>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudForm Model="@CurrentSchedule" @ref="@ScheduleForm" ValidationDelay="0">
+                                <MudSelect T="string" @bind-Value="CurrentSchedule.CountryFilter" Label="Country Filter"
+                                    Variant="Variant.Outlined" Class="mb-3">
+                                    <MudSelectItem T="string" Value="@((string?)null)">All</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("KR")">KR (KRW)</MudSelectItem>
+                                    <MudSelectItem T="string" Value="@("US")">US (USD)</MudSelectItem>
+                                </MudSelect>
+
+                                <MudSelect T="string" @bind-Value="CurrentSchedule.BuyReasonFilter" Label="Buy Reason Filter"
+                                    Variant="Variant.Outlined" Class="mb-3">
+                                    @foreach (var reason in _buyReasonOptions)
+                                    {
+                                        <MudSelectItem T="string" Value="@(reason == "All" ? null : reason)">@reason</MudSelectItem>
+                                    }
+                                </MudSelect>
+
+                                <MudText Typo="Typo.subtitle2" Class="mt-4">Run Days</MudText>
+                                <div class="d-flex gap-2 mb-2">
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="SelectEveryday">Everyday
+                                    </MudButton>
+                                    <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="ClearDays">Clear</MudButton>
+                                </div>
+                                <div class="d-flex flex-wrap gap-2">
+                                    @foreach (var day in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday,
+                                DayOfWeek.Thursday, DayOfWeek.Friday })
+                                    {
+                                        <MudCheckBox T="bool" Label="@day.ToString()[..3]"
+                                            Value="@CurrentSchedule.DaysOfWeek.Contains(day)"
+                                            ValueChanged="@((bool c) => UpdateDay(day, c))" Dense="true" Color="Color.Primary" />
+                                    }
+                                </div>
+                                @if (!CurrentSchedule.DaysOfWeek.Any())
+                                {
+                                    <MudText Typo="Typo.caption" Color="Color.Error">Select at least one day.</MudText>
+                                }
+
+                                <div class="d-flex gap-4 mt-3">
+                                    <MudSelect T="ScheduleTimeMode" @bind-Value="CurrentSchedule.TimeMode" Label="Time Mode"
+                                        Class="flex-grow-1" Variant="Variant.Outlined">
+                                        <MudSelectItem T="ScheduleTimeMode" Value="ScheduleTimeMode.FixedTime">Fixed Time (Local)
+                                        </MudSelectItem>
+                                        <MudSelectItem T="ScheduleTimeMode" Value="ScheduleTimeMode.AfterMarketOpen">After Market
+                                            Close</MudSelectItem>
+                                    </MudSelect>
+
+                                    <MudTimePicker
+                                        Label="@(CurrentSchedule.TimeMode == ScheduleTimeMode.FixedTime ? "Execution Time" : "Offset Time")"
+                                    @bind-Time="ScheduleTime" Class="flex-grow-1" Variant="Variant.Outlined" />
+                                </div>
+                                @if (CurrentSchedule.TimeMode == ScheduleTimeMode.AfterMarketOpen)
+                                {
+                                    <MudText Typo="Typo.caption" Class="ml-1">Runs N hours:minutes AFTER market close.</MudText>
+                                }
+                                @if (CurrentSchedule.TimeMode == ScheduleTimeMode.FixedTime)
+                                {
+                                    <MudText Typo="Typo.caption" Class="ml-1">Time in your local timezone (UTC@(GetLocalUtcOffset())).
+                                    </MudText>
+                                }
+
+                                <MudTextField T="string" @bind-Value="CurrentSchedule.Notes" Label="Notes (Optional)" Lines="2"
+                                    Class="mt-3" Variant="Variant.Outlined" />
+
+                                <MudCheckBox T="bool" @bind-Value="CurrentSchedule.IsActive" Label="Active" Class="mt-3"
+                                    Color="Color.Success" />
+                            </MudForm>
+                        </MudCardContent>
+                        <MudCardActions Class="justify-end">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSchedule"
+                                Disabled="@(!IsFormValid())">Save Schedule</MudButton>
+                            <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="ClearForm">Clear</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+
+                <MudItem xs="12" md="6">
+                    <MudCard Outlined="true" Class="pa-4">
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <div class="d-flex justify-space-between align-center">
+                                    <MudText Typo="Typo.h6">Existing Schedules</MudText>
+                                    <div class="d-flex gap-2">
+                                        <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                            StartIcon="@Icons.Material.Filled.Download" OnClick="ExportSchedules" Size="Size.Small">
+                                            Export</MudButton>
+                                        <InputFile id="importLiquidationFile" OnChange="ImportSchedules" hidden />
+                                        <MudButton HtmlTag="label" Variant="Variant.Filled" Color="Color.Secondary"
+                                            StartIcon="@Icons.Material.Filled.Upload" for="importLiquidationFile" Size="Size.Small">Import
+                                        </MudButton>
+                                    </div>
+                                </div>
+                            </CardHeaderContent>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            @if (!_scheduledLiquidations.Any())
+                            {
+                                <MudText>No scheduled liquidations found for this account.</MudText>
+                            }
+                            else
+                            {
+                                <MudList T="ScheduledLiquidation">
+                                    @foreach (var schedule in _scheduledLiquidations.OrderBy(s => s.NextExecutionTime ?? DateTime.MaxValue))
+                                    {
+                                        <MudListItem T="ScheduledLiquidation" OnClick="@(() => EditSchedule(schedule))">
+                                            <div class="d-flex justify-space-between align-center">
+                                                <div>
+                                                    <MudText><b>@(schedule.CountryFilter ?? "All Countries")</b> / <b>@(schedule.BuyReasonFilter ?? "All Reasons")</b>
+                                                    </MudText>
+                                                    <MudText Typo="Typo.body2">
+                                                        @GetDaysDisplay(schedule.DaysOfWeek)
+                                                        at @GetScheduleTimeDisplay(schedule)
+                                                    </MudText>
+                                                    <MudText Typo="Typo.caption">
+                                                        Next: @(schedule.NextExecutionTime?.ToLocalTime().ToString("g") ?? "Inactive")
+                                                    </MudText>
+                                                </div>
+                                                <div class="d-flex align-center">
+                                                    @if (!schedule.IsActive)
+                                                    {
+                                                        <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactive</MudChip>
+                                                    }
+                                                    <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                        Size="Size.Small" OnClick="@(() => DeleteSchedule(schedule.Id))" />
+                                                </div>
+                                            </div>
+                                        </MudListItem>
+                                        <MudDivider />
+                                    }
+                                </MudList>
+                            }
+                        </MudCardContent>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+    </MudTabs>
+}
+else
+{
+    <MudText>Please select an account.</MudText>
+}
+
+@code {
+    [Parameter]
+    public string? AccountAlias { get; set; }
+
+    private string? SelectedAccountAlias;
+    private IEnumerable<Account> AvailableAccounts = new List<Account>();
+    private Account? _currentAccount;
+    private List<PositionModel> _allPositions = new();
+    private List<PositionModel> _filteredPositions = new();
+    private Dictionary<string, string> _stockNames = new();
+    private List<string> _buyReasonOptions = new() { "All" };
+
+    // Manual Liquidate Filters
+    private string _countryFilter = "All";
+    private string _buyReasonFilter = "All";
+
+    // Scheduled Liquidate
+    private MudForm? ScheduleForm;
+    private ScheduledLiquidation CurrentSchedule = new()
+        {
+            AccountAlias = "",
+            CountryFilter = null,
+            BuyReasonFilter = null,
+            TimeMode = ScheduleTimeMode.FixedTime,
+            TimeConfig = TimeSpan.FromHours(15), // Default 3PM local
+            DaysOfWeek = new()
+        };
+    private IEnumerable<ScheduledLiquidation> _scheduledLiquidations = new List<ScheduledLiquidation>();
+
+    private TimeSpan? ScheduleTime
+    {
+        get
+        {
+            if (CurrentSchedule.TimeMode == ScheduleTimeMode.FixedTime)
+            {
+                var utcTime = DateTime.UtcNow.Date.Add(CurrentSchedule.TimeConfig);
+                var localTime = utcTime.ToLocalTime();
+                return localTime.TimeOfDay;
+            }
+            return CurrentSchedule.TimeConfig;
+        }
+        set
+        {
+            if (CurrentSchedule.TimeMode == ScheduleTimeMode.FixedTime && value.HasValue)
+            {
+                var localTime = DateTime.Now.Date.Add(value.Value);
+                var utcTime = localTime.ToUniversalTime();
+                CurrentSchedule.TimeConfig = utcTime.TimeOfDay;
+            }
+            else
+            {
+                CurrentSchedule.TimeConfig = value ?? TimeSpan.Zero;
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+        SchedulerService.OnChange += OnSchedulerServiceChange;
+
+        if (string.IsNullOrEmpty(AccountAlias) && AvailableAccounts.Any())
+        {
+            AccountAlias = AvailableAccounts.First().Alias;
+        }
+
+        if (!string.IsNullOrEmpty(AccountAlias))
+        {
+            SelectedAccountAlias = AccountAlias;
+            CurrentSchedule.AccountAlias = AccountAlias;
+            await LoadAccountData(AccountAlias);
+            LoadScheduledLiquidations();
+        }
+    }
+
+    private async Task LoadAccounts()
+    {
+        AvailableAccounts = await AccountCacheService.GetAccountsAsync();
+    }
+
+    private async Task OnAccountChanged(string alias)
+    {
+        SelectedAccountAlias = alias;
+        AccountAlias = alias;
+        CurrentSchedule.AccountAlias = alias;
+        NavigationManager.NavigateTo($"/liquidate/{alias}");
+        await LoadAccountData(alias);
+        LoadScheduledLiquidations();
+        ClearForm();
+        StateHasChanged();
+    }
+
+    private async Task LoadAccountData(string alias)
+    {
+        _currentAccount = await AssetService.GetAccountOverviewAsync(alias);
+        if (_currentAccount?.Positions != null)
+        {
+            _allPositions = _currentAccount.Positions.Values.SelectMany(list => list).ToList();
+
+            var tickers = _allPositions.Select(p => p.Ticker).Distinct();
+            _stockNames = await StockService.GetStockNamesAsync(tickers);
+
+            // Update BuyReason options
+            _buyReasonOptions = LiquidateService.GetBuyReasonOptions(_allPositions);
+
+            // Apply filters
+            ApplyFilters();
+        }
+    }
+
+    private void ApplyFilters()
+    {
+        _filteredPositions = LiquidateService.FilterPositions(_allPositions, _countryFilter, _buyReasonFilter);
+        StateHasChanged();
+    }
+
+    private async Task ExecuteManualLiquidation()
+    {
+        if (!_filteredPositions.Any() || string.IsNullOrEmpty(SelectedAccountAlias))
+        {
+            Snackbar.Add("No positions to liquidate", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var count = await LiquidateService.LiquidatePositionsAsync(_filteredPositions, SelectedAccountAlias);
+            Snackbar.Add($"Liquidated {count} positions", Severity.Success);
+
+            // Reload account data after short delay
+            await Task.Delay(500);
+            await LoadAccountData(SelectedAccountAlias);
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Liquidation failed: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private string GetStockName(string ticker)
+    {
+        return _stockNames.TryGetValue(ticker, out var name) ? name : "-";
+    }
+
+    private string GetColorStyle(decimal value)
+    {
+        if (value > 0) return "color: red;";
+        if (value < 0) return "color: blue;";
+        return "";
+    }
+
+    private decimal GetReturnRate(PositionModel pos)
+    {
+        if (pos.AvgPrice == 0) return 0;
+        return (pos.CurrentPrice - pos.AvgPrice) / pos.AvgPrice * 100;
+    }
+
+    // Scheduled Liquidation Methods
+    private void LoadScheduledLiquidations()
+    {
+        if (!string.IsNullOrEmpty(SelectedAccountAlias))
+        {
+            _scheduledLiquidations = SchedulerService.GetScheduledLiquidations(SelectedAccountAlias);
+        }
+    }
+
+    private async void OnSchedulerServiceChange() => await InvokeAsync(() =>
+    {
+        LoadScheduledLiquidations();
+        StateHasChanged();
+    });
+
+    private void UpdateDay(DayOfWeek day, bool isSelected)
+    {
+        if (isSelected) CurrentSchedule.DaysOfWeek.Add(day);
+        else CurrentSchedule.DaysOfWeek.Remove(day);
+    }
+
+    private void SelectEveryday()
+    {
+        CurrentSchedule.DaysOfWeek = new() { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+DayOfWeek.Friday };
+    }
+
+    private void ClearDays() => CurrentSchedule.DaysOfWeek.Clear();
+
+    private bool IsFormValid()
+    {
+        return !string.IsNullOrEmpty(CurrentSchedule.AccountAlias) &&
+        CurrentSchedule.DaysOfWeek.Any();
+    }
+
+    private void ClearForm()
+    {
+        CurrentSchedule = new()
+            {
+                AccountAlias = SelectedAccountAlias ?? "",
+                CountryFilter = null,
+                BuyReasonFilter = null,
+                TimeMode = ScheduleTimeMode.FixedTime,
+                TimeConfig = TimeSpan.FromHours(15),
+                DaysOfWeek = new()
+            };
+        ScheduleForm?.ResetValidation();
+        StateHasChanged();
+    }
+
+    private void SaveSchedule()
+    {
+        if (IsFormValid())
+        {
+            SchedulerService.AddOrUpdateScheduledLiquidation(CurrentSchedule);
+            Snackbar.Add("Scheduled liquidation saved!", Severity.Success);
+            ClearForm();
+            LoadScheduledLiquidations();
+        }
+        else
+        {
+            Snackbar.Add("Please select at least one day.", Severity.Warning);
+        }
+    }
+
+    private void EditSchedule(ScheduledLiquidation schedule)
+    {
+        CurrentSchedule = new ScheduledLiquidation
+            {
+                Id = schedule.Id,
+                AccountAlias = schedule.AccountAlias,
+                CountryFilter = schedule.CountryFilter,
+                BuyReasonFilter = schedule.BuyReasonFilter,
+                TimeMode = schedule.TimeMode,
+                TimeConfig = schedule.TimeConfig,
+                DaysOfWeek = new HashSet<DayOfWeek>(schedule.DaysOfWeek),
+                IsActive = schedule.IsActive,
+                Notes = schedule.Notes,
+                NextExecutionTime = schedule.NextExecutionTime
+            };
+        StateHasChanged();
+    }
+
+    private void DeleteSchedule(Guid id)
+    {
+        SchedulerService.RemoveScheduledLiquidation(id);
+        if (CurrentSchedule.Id == id) ClearForm();
+        Snackbar.Add("Scheduled liquidation deleted!", Severity.Success);
+        LoadScheduledLiquidations();
+    }
+
+    private async Task ExportSchedules()
+    {
+        if (string.IsNullOrEmpty(SelectedAccountAlias))
+        {
+            Snackbar.Add("Please select an account first.", Severity.Warning);
+            return;
+        }
+
+        var json = SchedulerService.ExportLiquidations(SelectedAccountAlias);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+        var base64 = Convert.ToBase64String(bytes);
+        var fileName = $"Scheduled Liquidations - {SelectedAccountAlias}.json";
+        await JS.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+
+    private async Task ImportSchedules(InputFileChangeEventArgs e)
+    {
+        if (string.IsNullOrEmpty(SelectedAccountAlias))
+        {
+            Snackbar.Add("Please select an account first.", Severity.Warning);
+            return;
+        }
+
+        var file = e.File;
+        if (file != null)
+        {
+            using var stream = file.OpenReadStream(1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+            try
+            {
+                SchedulerService.ImportLiquidations(json, SelectedAccountAlias);
+                Snackbar.Add("Schedules imported successfully!", Severity.Success);
+                LoadScheduledLiquidations();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Import failed: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    private string GetDaysDisplay(HashSet<DayOfWeek> days)
+    {
+        var allWeekdays = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday
+};
+        if (days.Count == 5 && allWeekdays.All(d => days.Contains(d)))
+        {
+            return "Everyday";
+        }
+        return string.Join(", ", days.Select(d => d.ToString()[..3]));
+    }
+
+    private string GetScheduleTimeDisplay(ScheduledLiquidation schedule)
+    {
+        if (schedule.TimeMode == ScheduleTimeMode.FixedTime)
+        {
+            var utcTime = DateTime.UtcNow.Date.Add(schedule.TimeConfig);
+            var localTime = utcTime.ToLocalTime();
+            return $"{localTime:HH:mm} (Local)";
+        }
+        return $"+{schedule.TimeConfig:hh\\:mm} Close";
+    }
+
+    private string GetLocalUtcOffset()
+    {
+        var offset = TimeZoneInfo.Local.GetUtcOffset(DateTime.Now);
+        var sign = offset.TotalHours >= 0 ? "+" : "";
+        return $"{sign}{offset.TotalHours:0.##}";
+    }
+
+    public void Dispose()
+    {
+        SchedulerService.OnChange -= OnSchedulerServiceChange;
+    }
+}

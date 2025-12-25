@@ -1,0 +1,94 @@
+{
+    "OverseasBalance": {
+        "Path": "/uapi/overseas-stock/v1/trading/inquire-present-balance",
+        "Method": "GET",
+        "TrId": "CTRP6504R",
+        "Parameters": {
+            "CANO": {
+                "Description": "Account Number",
+                "Required": true,
+                "Type": "string",
+                "Length": 8
+            },
+            "ACNT_PRDT_CD": {
+                "Description": "Account Product Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "OVRS_EXCG_CD": {
+                "Description": "Overseas Exchange Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 4
+            },
+            "TR_CRCY_CD": {
+                "Description": "Transaction Currency Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 3
+            },
+            "CTX_AREA_FK200": {
+                "Description": "Context Area FK200",
+                "Required": false,
+                "Type": "string",
+                "Length": 200
+            },
+            "CTX_AREA_NK200": {
+                "Description": "Context Area NK200",
+                "Required": false,
+                "Type": "string",
+                "Length": 200
+            },
+            "WCRC_FRCR_DVSN_CD": {
+                "Description": "Won/Foreign Currency Division Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "TR_MKET_CD": {
+                "Description": "Transaction Market Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "NATN_CD": {
+                "Description": "Nation Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 3
+            },
+            "INQR_DVSN_CD": {
+                "Description": "Inquiry Division Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            }
+        }
+    },
+    "OverseasPositions": {
+        "Path": "/uapi/overseas-stock/v1/trading/inquire-balance",
+        "Method": "GET",
+        "TrId": "TTTS3012R",
+        "Parameters": {
+            "CANO": {
+                "Description": "Account Number",
+                "Required": true,
+                "Type": "string",
+                "Length": 8
+            },
+            "ACNT_PRDT_CD": {
+                "Description": "Account Product Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 2
+            },
+            "OVRS_EXCH_CD": {
+                "Description": "Overseas Exchange Code",
+                "Required": true,
+                "Type": "string",
+                "Length": 4
+            }
+        }
+    }
+}

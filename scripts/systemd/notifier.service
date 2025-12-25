@@ -1,0 +1,15 @@
+[Unit]
+Description=yQuant Notifier Service
+After=network.target
+
+[Service]
+Type=notify
+WorkingDirectory=/srv/yquant/notifier
+ExecStart=/usr/bin/dotnet /srv/yquant/notifier/yQuant.App.Notifier.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=notifier
+
+[Install]
+WantedBy=default.target

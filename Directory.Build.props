@@ -1,0 +1,15 @@
+<Project>
+  <PropertyGroup>
+    <!-- Allow building with .NET 10.0 preview SDK that may have missing package metadata -->
+    <AllowMissingPrunePackageData>true</AllowMissingPrunePackageData>
+  </PropertyGroup>
+
+  <PropertyGroup>
+    <RepoRoot>$([MSBuild]::GetDirectoryNameOfFileAbove($(MSBuildProjectDirectory), 'appsettings.json'))/</RepoRoot>
+  </PropertyGroup>
+
+  <ItemGroup Condition="'$(MSBuildProjectExtension)' == '.csproj' AND ('$(UsingMicrosoftNETSdkWorker)' == 'true' OR '$(UsingMicrosoftNETSdkWeb)' == 'true' OR '$(OutputType)' == 'Exe') AND '$(IsTestProject)' != 'true'">
+    <None Include="$(RepoRoot)appsettings.json" Link="appsettings.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('$(RepoRoot)appsettings.json')" />
+    <None Include="$(RepoRoot)appsecrets.json" Link="appsecrets.json" CopyToOutputDirectory="PreserveNewest" Condition="Exists('$(RepoRoot)appsecrets.json')" />
+  </ItemGroup>
+</Project>

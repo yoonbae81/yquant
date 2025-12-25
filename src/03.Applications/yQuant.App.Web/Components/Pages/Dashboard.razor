@@ -1,0 +1,78 @@
+@page "/"
+@page "/dashboard"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@using yQuant.App.Web.Services
+@using yQuant.Core.Models
+
+@using yQuant.Core.Ports.Output.Infrastructure
+@inject AssetService AssetService
+@inject AccountCacheService AccountCacheService
+@inject NavigationManager NavigationManager
+@inject IJSRuntime JSRuntime
+
+<PageTitle>Dashboard</PageTitle>
+
+<MudText Typo="Typo.h5" Class="mb-4">Accounts</MudText>
+
+@if (_accounts == null || !_accounts.Any())
+{
+    <MudProgressCircular Indeterminate="true" Color="Color.Primary" />
+    <MudText Class="mt-2">Loading data...</MudText>
+}
+else
+{
+    <MudGrid>
+    @foreach (var account in _accounts)
+        {
+            <MudItem xs="12" md="6" lg="4">
+                <AssetSummaryCard Account="@account" OnAccountClick="@(() => ScrollToPosition(account.Alias))" />
+            </MudItem>
+        }
+        </MudGrid>
+
+    <MudText Typo="Typo.h5" Class="mt-6 mb-4">Positions</MudText>
+    @foreach (var account in _accounts)
+    {
+        <div id="position-@account.Alias">
+            <MudText Typo="Typo.h6" Class="mt-4 mb-2">Account: @account.Alias (@account.Broker)</MudText>
+            <PositionTable Positions="@account.Positions.Values.SelectMany(list => list)" AccountAlias="@(account.Alias)"
+                OnOrderAction="HandleOrderAction" />
+        </div>
+    }
+}
+
+@code {
+    private IEnumerable<Account>? _accounts;
+
+    protected override async Task OnInitializedAsync()
+    {
+
+        await LoadData();
+    }
+
+
+
+    private async Task LoadData()
+    {
+        var cachedAccounts = await AccountCacheService.GetAccountsAsync();
+        var aliases = cachedAccounts.Select(a => a.Alias);
+        var tasks = aliases.Select(async alias => await AssetService.GetAccountOverviewAsync(alias));
+        var accounts = await Task.WhenAll(tasks);
+        _accounts = accounts.Where(a => a != null).Select(a => a!).ToList();
+        StateHasChanged();
+    }
+
+    private void HandleOrderAction((string ticker, OrderAction action, string accountAlias) args)
+    {
+        // Navigate to the order form with pre-filled details
+        NavigationManager.NavigateTo($"/orderform?ticker={args.ticker}&action={args.action}&accountAlias={args.accountAlias}");
+    }
+
+    private async Task ScrollToPosition(string accountAlias)
+    {
+        var elementId = $"position-{accountAlias}";
+        await JSRuntime.InvokeVoidAsync("eval", $"document.getElementById('{elementId}')?.scrollIntoView({{ behavior: 'smooth', block: 'start' }});");
+    }
+
+}

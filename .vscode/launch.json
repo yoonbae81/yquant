@@ -1,0 +1,117 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "yQuant.App.BrokerGateway",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: BrokerGateway",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.BrokerGateway/bin/Debug/net10.0/yQuant.App.BrokerGateway.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.BrokerGateway",
+            "stopAtEntry": false,
+            "env": {
+                "REDIS_URL": "${env:REDIS_URL}"
+            },
+            "console": "externalTerminal"
+        },
+        {
+            "name": "yQuant.App.Console",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: Console",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.Console/bin/Debug/net10.0/yQuant.App.Console.dll",
+            "args": [
+                "trading",
+                "info",
+                "069500"
+            ],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.Console",
+            "stopAtEntry": false,
+            "env": {
+                "REDIS_URL": "${env:REDIS_URL}"
+            },
+            "console": "externalTerminal"
+        },
+        {
+            "name": "yQuant.App.Webhook",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: Webhook",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.Webhook/bin/Debug/net10.0/yQuant.App.Webhook.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.Webhook",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "REDIS_URL": "${env:REDIS_URL}"
+            },
+            "sourceFileMap": {
+                "/Views": "${workspaceFolder}/Views"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "yQuant.App.OrderManager",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: OrderManager",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.OrderManager/bin/Debug/net10.0/yQuant.App.OrderManager.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.OrderManager",
+            "stopAtEntry": false,
+            "env": {
+                "REDIS_URL": "${env:REDIS_URL}"
+            },
+            "console": "integratedTerminal"
+        },
+        {
+            "name": "yQuant.App.Web",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build: Web",
+            "program": "${workspaceFolder}/src/03.Applications/yQuant.App.Web/bin/Debug/net10.0/yQuant.App.Web.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/src/03.Applications/yQuant.App.Web",
+            "stopAtEntry": false,
+            "serverReadyAction": {
+                "action": "openExternally",
+                "pattern": "\\bNow listening on:\\s+(https?://\\S+)"
+            },
+            "env": {
+                "REDIS_URL": "${env:REDIS_URL}"
+            },
+            "console": "integratedTerminal"
+        }
+    ],
+    "compounds": [
+        {
+            "name": "Console + Gateway",
+            "configurations": [
+                "yQuant.App.Console",
+                "yQuant.App.BrokerGateway"
+            ],
+            "stopAll": true
+        },
+        {
+            "name": "Web + Gateway",
+            "configurations": [
+                "yQuant.App.Web",
+                "yQuant.App.BrokerGateway"
+            ],
+            "stopAll": true
+        },
+        {
+            "name": "Webhook + Gateway + OrderManager",
+            "configurations": [
+                "yQuant.App.Webhook",
+                "yQuant.App.BrokerGateway",
+                "yQuant.App.OrderManager"
+            ],
+            "stopAll": true
+        }
+    ]
+}

@@ -1,0 +1,15 @@
+[Unit]
+Description=yQuant Order Manager Service
+After=network.target
+
+[Service]
+Type=notify
+WorkingDirectory=/srv/yquant/ordermanager
+ExecStart=/usr/bin/dotnet /srv/yquant/ordermanager/yQuant.App.OrderManager.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=ordermanager
+
+[Install]
+WantedBy=default.target

@@ -1,0 +1,296 @@
+{
+    "Signal": {
+        "title": "Signal: {Source}",
+        "color": 3447003,
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            },
+            {
+                "name": "Action",
+                "value": "{Action}",
+                "inline": true
+            },
+            {
+                "name": "Price",
+                "value": "{Price}",
+                "inline": true
+            },
+            {
+                "name": "Strength",
+                "value": "{Strength}",
+                "inline": true
+            }
+        ],
+        "footer": {
+            "text": "Timeframe: {Timeframe}"
+        },
+        "timestamp": "{Timestamp}"
+    },
+    "Execution_Buy": {
+        "title": "Order Executed: Buy",
+        "color": 5763719,
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            },
+            {
+                "name": "Qty",
+                "value": "{Qty}",
+                "inline": true
+            },
+            {
+                "name": "Price",
+                "value": "{Price}",
+                "inline": true
+            },
+            {
+                "name": "Type",
+                "value": "{Type}",
+                "inline": true
+            },
+            {
+                "name": "Account",
+                "value": "{AccountAlias}",
+                "inline": true
+            }
+        ],
+        "timestamp": "{Timestamp}"
+    },
+    "Execution_Sell": {
+        "title": "Order Executed: Sell",
+        "color": 15548997,
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            },
+            {
+                "name": "Qty",
+                "value": "{Qty}",
+                "inline": true
+            },
+            {
+                "name": "Price",
+                "value": "{Price}",
+                "inline": true
+            },
+            {
+                "name": "Type",
+                "value": "{Type}",
+                "inline": true
+            },
+            {
+                "name": "Account",
+                "value": "{AccountAlias}",
+                "inline": true
+            }
+        ],
+        "timestamp": "{Timestamp}"
+    },
+    "Error": {
+        "title": "{Title}",
+        "description": "**Context**: {Context}\n**Message**: {Message}",
+        "color": 15105570,
+        "fields": [
+            {
+                "name": "Stack Trace",
+                "value": "```\n{StackTrace}\n```"
+            }
+        ],
+        "timestamp": "{Timestamp}"
+    },
+    "Summary": {
+        "title": "Daily Summary: {AccountAlias}",
+        "color": 3447003,
+        "description": "Date: {Date}",
+        "fields": [
+            {
+                "name": "Total Equity",
+                "value": "{TotalEquity}",
+                "inline": true
+            },
+            {
+                "name": "Daily PnL",
+                "value": "{DailyPnL}",
+                "inline": true
+            },
+            {
+                "name": "Daily Return",
+                "value": "{DailyReturn}",
+                "inline": true
+            },
+            {
+                "name": "Positions",
+                "value": "{PositionsCount}",
+                "inline": true
+            }
+        ],
+        "timestamp": "{Timestamp}"
+    },
+    "Startup": {
+        "title": "System Startup",
+        "color": 5763719,
+        "fields": [
+            {
+                "name": "Application",
+                "value": "{AppName}",
+                "inline": true
+            },
+            {
+                "name": "Version",
+                "value": "{Version}",
+                "inline": true
+            }
+        ],
+        "timestamp": "{Timestamp}"
+    },
+    "Status": {
+        "title": "[{Context}] Status Update",
+        "description": "{Message}",
+        "color": 3447003,
+        "timestamp": "{Timestamp}"
+    },
+    "Execution_Failure": {
+        "title": "Order Rejected",
+        "color": 15548997,
+        "description": "**Reason**: {Reason}",
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            },
+            {
+                "name": "Action",
+                "value": "{Action}",
+                "inline": true
+            },
+            {
+                "name": "Qty",
+                "value": "{Qty}",
+                "inline": true
+            },
+            {
+                "name": "Price",
+                "value": "{Price}",
+                "inline": true
+            },
+            {
+                "name": "Account",
+                "value": "{AccountAlias}",
+                "inline": true
+            }
+        ],
+        "timestamp": "{Timestamp}"
+    },
+    "ScheduledOrder_Request": {
+        "title": "📅 Scheduled Order Triggered",
+        "color": 10181046,
+        "description": "**Schedule ID**: {ScheduleId}",
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            },
+            {
+                "name": "Exchange",
+                "value": "{Exchange}",
+                "inline": true
+            },
+            {
+                "name": "Action",
+                "value": "{Action}",
+                "inline": true
+            },
+            {
+                "name": "Quantity",
+                "value": "{Quantity}",
+                "inline": true
+            },
+            {
+                "name": "Account",
+                "value": "{AccountAlias}",
+                "inline": true
+            },
+            {
+                "name": "Next Execution",
+                "value": "{NextExecution}",
+                "inline": false
+            }
+        ],
+        "timestamp": "{Timestamp}"
+    },
+    "ScheduledOrder_Success": {
+        "title": "✅ Scheduled Order Executed",
+        "color": 5763719,
+        "description": "**Schedule ID**: {ScheduleId}",
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            },
+            {
+                "name": "Exchange",
+                "value": "{Exchange}",
+                "inline": true
+            },
+            {
+                "name": "Action",
+                "value": "{Action}",
+                "inline": true
+            },
+            {
+                "name": "Quantity",
+                "value": "{Quantity}",
+                "inline": true
+            },
+            {
+                "name": "Account",
+                "value": "{AccountAlias}",
+                "inline": true
+            }
+        ],
+        "timestamp": "{Timestamp}"
+    },
+    "ScheduledOrder_Failure": {
+        "title": "❌ Scheduled Order Failed",
+        "color": 15548997,
+        "description": "**Schedule ID**: {ScheduleId}\n**Reason**: {Reason}",
+        "fields": [
+            {
+                "name": "Ticker",
+                "value": "{Ticker}",
+                "inline": true
+            },
+            {
+                "name": "Exchange",
+                "value": "{Exchange}",
+                "inline": true
+            },
+            {
+                "name": "Action",
+                "value": "{Action}",
+                "inline": true
+            },
+            {
+                "name": "Quantity",
+                "value": "{Quantity}",
+                "inline": true
+            },
+            {
+                "name": "Account",
+                "value": "{AccountAlias}",
+                "inline": true
+            }
+        ],
+        "timestamp": "{Timestamp}"
+    }
+}

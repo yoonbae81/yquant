@@ -1,0 +1,33 @@
+@using yQuant.Core.Models
+@inject NavigationManager NavigationManager
+
+<MudCard Outlined="true" Class="pa-2" Style="cursor: pointer;" @onclick="OnAccountClick">
+    <MudCardHeader>
+        <CardHeaderContent>
+            <MudText Typo="Typo.h6">@Account.Alias</MudText>
+            <MudText Typo="Typo.subtitle2">@Account.Broker (@Account.Number)</MudText>
+        </CardHeaderContent>
+    </MudCardHeader>
+    <MudCardContent>
+        <MudStack Spacing="0">
+            @foreach (var deposit in Account.Deposits)
+            {
+                <MudText Typo="Typo.body2">
+                    Total Equity (@deposit.Key): <b>@Account.GetTotalEquity(deposit.Key).ToString("N0")</b>
+                </MudText>
+                <MudText Typo="Typo.body2">
+                    Deposit (@deposit.Key): <b>@deposit.Value.ToString("N0")</b>
+                </MudText>
+            }
+            <MudText Typo="Typo.body2">Positions: <b>@Account.Positions.Count</b></MudText>
+        </MudStack>
+    </MudCardContent>
+</MudCard>
+
+@code {
+    [Parameter]
+    public required Account Account { get; set; }
+
+    [Parameter]
+    public EventCallback OnAccountClick { get; set; }
+}

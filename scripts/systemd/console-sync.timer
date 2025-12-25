@@ -1,0 +1,14 @@
+[Unit]
+Description=yQuant Stock Master Data Sync Timer
+Requires=console-sync.service
+
+[Timer]
+# 매일 오전 9시에 실행
+OnCalendar=*-*-* 09:00:00
+# 시스템 부팅 후 10분 뒤에도 실행 (놓친 실행 보완)
+OnBootSec=10min
+# 타이머가 놓친 실행을 즉시 수행
+Persistent=true
+
+[Install]
+WantedBy=timers.target

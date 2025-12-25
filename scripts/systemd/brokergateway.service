@@ -1,0 +1,15 @@
+[Unit]
+Description=yQuant Broker Gateway Service
+After=network.target
+
+[Service]
+Type=notify
+WorkingDirectory=/srv/yquant/brokergateway
+ExecStart=/usr/bin/dotnet /srv/yquant/brokergateway/yQuant.App.BrokerGateway.dll
+Restart=always
+RestartSec=10
+KillSignal=SIGINT
+SyslogIdentifier=brokergateway
+
+[Install]
+WantedBy=default.target
