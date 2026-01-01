@@ -17,6 +17,7 @@ public class KISClient : IKISClient
     private readonly KISApiConfig _apiConfig;
     private readonly RateLimiter _rateLimiter;
     private readonly ITokenRedisService? _tokenRedis;
+    private readonly SemaphoreSlim _connectionLock = new(1, 1);
 
     private string? _accessToken;
     private DateTime _accessTokenExpiration = DateTime.MinValue;
@@ -64,43 +65,56 @@ public class KISClient : IKISClient
 
     public async Task EnsureConnectedAsync()
     {
-        // 1. Check memory cache first
+        // 1. Check memory cache first (Pre-lock check)
         if (!string.IsNullOrEmpty(_accessToken) && _accessTokenExpiration > DateTime.UtcNow.AddMinutes(1))
         {
             return;
         }
 
-
-        // 2. Check Global Token Redis (Shared across environments)
-        if (_tokenRedis != null)
+        await _connectionLock.WaitAsync();
+        try
         {
-            var tokenFromRedis = await _tokenRedis.GetAsync<TokenCacheEntry>($"Token:KIS:{_account.Alias}");
-            if (tokenFromRedis != null && tokenFromRedis.Expiration > DateTime.UtcNow.AddMinutes(1))
+            // 2. Check memory cache again (Post-lock check)
+            if (!string.IsNullOrEmpty(_accessToken) && _accessTokenExpiration > DateTime.UtcNow.AddMinutes(1))
             {
-                _accessToken = tokenFromRedis.Token;
-                _accessTokenExpiration = tokenFromRedis.Expiration;
-                _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
-                _logger.LogInformation("Loaded KIS access token from GLOBAL Redis cache for account {Alias}.", _account.Alias);
-
-                // Also update local file cache as fallback
-                await SaveTokenToFileAsync(_accessToken, _accessTokenExpiration);
                 return;
             }
-        }
 
-        // 3. Check local file cache (fallback when Redis is unavailable)
-        var tokenFromFile = await LoadTokenFromFileAsync();
-        if (tokenFromFile != null && tokenFromFile.Expiration > DateTime.UtcNow.AddMinutes(1))
+            // 3. Check Global Token Redis (Shared across environments)
+            if (_tokenRedis != null)
+            {
+                var tokenFromRedis = await _tokenRedis.GetAsync<TokenCacheEntry>($"Token:KIS:{_account.Alias}");
+                if (tokenFromRedis != null && tokenFromRedis.Expiration > DateTime.UtcNow.AddMinutes(1))
+                {
+                    _accessToken = tokenFromRedis.Token;
+                    _accessTokenExpiration = tokenFromRedis.Expiration;
+                    _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+                    _logger.LogInformation("Loaded KIS access token from GLOBAL Redis cache for account {Alias}.", _account.Alias);
+
+                    // Also update local file cache as fallback
+                    await SaveTokenToFileAsync(_accessToken, _accessTokenExpiration);
+                    return;
+                }
+            }
+
+            // 4. Check local file cache (fallback when Redis is unavailable)
+            var tokenFromFile = await LoadTokenFromFileAsync();
+            if (tokenFromFile != null && tokenFromFile.Expiration > DateTime.UtcNow.AddMinutes(1))
+            {
+                _accessToken = tokenFromFile.Token;
+                _accessTokenExpiration = tokenFromFile.Expiration;
+                _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+                _logger.LogInformation("Loaded KIS access token from local file cache for account {Alias}.", _account.Alias);
+                return;
+            }
+
+            // 5. Fetch from API
+            await GetAccessTokenAsync();
+        }
+        finally
         {
-            _accessToken = tokenFromFile.Token;
-            _accessTokenExpiration = tokenFromFile.Expiration;
-            _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
-            _logger.LogInformation("Loaded KIS access token from local file cache for account {Alias}.", _account.Alias);
-            return;
+            _connectionLock.Release();
         }
-
-        // 4. Fetch from API
-        await GetAccessTokenAsync();
     }
 
     private async Task<TokenCacheEntry?> LoadTokenFromFileAsync()
