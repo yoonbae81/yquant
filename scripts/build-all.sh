@@ -10,6 +10,22 @@ cd "$PROJECT_ROOT"
 # 배포 대상 디렉토리
 DEPLOY_ROOT="${DEPLOY_ROOT:-/srv/yquant}"
 
+# 권한 확인 및 디렉토리 생성 시도
+if [ ! -d "$DEPLOY_ROOT" ]; then
+    echo "📂 Creating deploy directory: $DEPLOY_ROOT"
+    mkdir -p "$DEPLOY_ROOT" || {
+        echo "❌ Error: Cannot create directory $DEPLOY_ROOT"
+        echo "💡 Please run: sudo mkdir -p $DEPLOY_ROOT && sudo chown -R \$USER:\$USER $DEPLOY_ROOT"
+        exit 1
+    }
+fi
+
+if [ ! -w "$DEPLOY_ROOT" ]; then
+    echo "❌ Error: No write permission to $DEPLOY_ROOT"
+    echo "💡 Please run: sudo chown -R \$USER:\$USER $DEPLOY_ROOT"
+    exit 1
+fi
+
 echo "📦 Publishing BrokerGateway..."
 dotnet publish src/03.Applications/yQuant.App.BrokerGateway/yQuant.App.BrokerGateway.csproj \
   -c Release \
