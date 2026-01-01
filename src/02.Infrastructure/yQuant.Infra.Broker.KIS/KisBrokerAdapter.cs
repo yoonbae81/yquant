@@ -154,7 +154,8 @@ public class KISBrokerAdapter : IBrokerAdapter
     {
         await EnsureConnectedAsync();
         var accountNumber = _client.Account.Number;
-        _logger.LogInformation("Placing order for {Ticker} {Action} {Qty} at {Price} for account {AccountNumber} via KIS.", order.Ticker, order.Action, order.Qty, order.Price, accountNumber);
+        _logger.LogInformation("Placing {Type} order for {Ticker} {Action} {Qty} (Requested Price: {Price}) for account {AccountNumber} via KIS.",
+            order.Type, order.Ticker, order.Action, order.Qty, order.Price ?? 0, accountNumber);
 
         // Determine if domestic using intelligent caching strategy
         bool isDomestic = await IsDomesticTickerAsync(order.Ticker);
@@ -176,14 +177,27 @@ public class KISBrokerAdapter : IBrokerAdapter
     {
         var (cano, acntPrdtCd) = ParseAccountNumber(accountNumber);
 
+        // KIS Domestic Order Divisions:
+        // 00: 지정가 (Limit)
+        // 01: 시장가 (Market)
+
+        string ordDvsn = "00";
+        string ordUnpr = (order.Price ?? 0).ToString();
+
+        if (order.Type == OrderType.Market)
+        {
+            ordDvsn = "01";
+            ordUnpr = "0";
+        }
+
         var requestBody = new
         {
             CANO = cano,
             ACNT_PRDT_CD = acntPrdtCd,
-            PDNO = order.Ticker.Length > 6 ? order.Ticker.Substring(0, 6) : order.Ticker, // Ensure 6 digits
-            ORD_DVSN = order.Type == OrderType.Market ? "01" : "00",
+            PDNO = order.Ticker.Length > 6 ? order.Ticker.Substring(0, 6) : order.Ticker,
+            ORD_DVSN = ordDvsn,
             ORD_QTY = order.Qty.ToString(),
-            ORD_UNPR = order.Type == OrderType.Market ? "0" : (order.Price ?? 0).ToString(), // Market price must be 0
+            ORD_UNPR = ordUnpr,
         };
 
         try
@@ -221,23 +235,24 @@ public class KISBrokerAdapter : IBrokerAdapter
         string ordDvsn = order.Type == OrderType.Market ? "01" : "00";
         string ordUnpr = order.Type == OrderType.Market ? "0" : (order.Price ?? 0).ToString("F2");
 
-        // KIS API Limitation: US Market Orders ("01") are not supported.
-        // Emulate using Limit Order with buffer.
-        // KIS API Limitation: US Market Orders ("01") are not supported.
-        // Emulate using Limit Order with buffer.
-        if (country == CountryCode.US && order.Type == OrderType.Market)
+        // KIS API Limitation: Market Orders ("01") are not supported for many overseas markets via the standard API.
+        // We emulate Market Orders using a Limit Order with a generous buffer (10%).
+        bool needsEmulation = order.Type == OrderType.Market &&
+            (country == CountryCode.US || country == CountryCode.HK || country == CountryCode.VN || country == CountryCode.CN);
+
+        if (needsEmulation)
         {
-            _logger.LogInformation("Emulating Market Order for US stock {Ticker} using Limit Order with buffer.", order.Ticker);
-            var limitPrice = await EmulateUsMarketOrderAsync(order.Ticker, order.Action);
+            _logger.LogInformation("Emulating Market Order for {Country} stock {Ticker} using Limit Order with 10% buffer.", country, order.Ticker);
+            var limitPrice = await EmulateMarketOrderPriceAsync(order.Ticker, order.Exchange, order.Action);
 
             ordDvsn = "00"; // Limit
-            ordUnpr = limitPrice.ToString("F2");
+            ordUnpr = limitPrice.ToString(country == CountryCode.VN ? "F0" : "F2");
 
-            _logger.LogInformation("Current Price used for emulation: {LimitPrice}", limitPrice);
+            _logger.LogInformation("Execution Price used for emulation: {LimitPrice}", limitPrice);
         }
 
-        // Adjust price formatting for JPY and VND (no decimals usually)
-        if (order.Currency == CurrencyType.JPY || order.Currency == CurrencyType.VND)
+        // Adjust price formatting for JPY and VND (no decimals)
+        if (!needsEmulation && (order.Currency == CurrencyType.JPY || order.Currency == CurrencyType.VND))
         {
             ordUnpr = order.Type == OrderType.Market ? "0" : (order.Price ?? 0).ToString("F0");
         }
@@ -282,15 +297,22 @@ public class KISBrokerAdapter : IBrokerAdapter
         }
     }
 
-    private async Task<decimal> EmulateUsMarketOrderAsync(string ticker, OrderAction action)
+    private async Task<decimal> EmulateMarketOrderPriceAsync(string ticker, ExchangeCode exchange, OrderAction action)
     {
-        var priceInfo = await GetPriceAsync(ticker);
+        var priceInfo = await GetPriceAsync(ticker, exchange);
         if (priceInfo.CurrentPrice <= 0)
         {
             throw new InvalidOperationException($"Failed to fetch current price for {ticker} to emulate Market Order.");
         }
 
-        decimal limitPrice = priceInfo.CurrentPrice * (action == OrderAction.Buy ? 1.05m : 0.95m);
+        // Use 10% buffer to ensure immediate fill even during high volatility or gap-opens at market start.
+        decimal limitPrice = priceInfo.CurrentPrice * (action == OrderAction.Buy ? 1.10m : 0.90m);
+
+        // Rounding based on currency
+        if (exchange == ExchangeCode.HNX || exchange == ExchangeCode.HOSE || exchange == ExchangeCode.TSE)
+        {
+            return Math.Round(limitPrice, 0);
+        }
 
         return Math.Round(limitPrice, 2);
     }
