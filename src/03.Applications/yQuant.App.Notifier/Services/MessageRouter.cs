@@ -99,8 +99,8 @@ public class MessageRouter
     {
         try
         {
-            // DiscordLogger의 LogStatusAsync를 활용
-            var context = $"[{message.Channel}] {message.Type}";
+            // Use the type directly as context to avoid redundant channel info in the title
+            var context = message.Type;
             var messageText = FormatMessage(message);
 
             if (message.Channel == NotificationChannels.Security)
@@ -139,20 +139,34 @@ public class MessageRouter
 
     private string FormatMessage(NotificationMessage message)
     {
-        var lines = new List<string>
-        {
-            $"**{message.Type}**"
-        };
+        var lines = new List<string>();
 
         if (!string.IsNullOrEmpty(message.AccountAlias))
-            lines.Add($"Account: {message.AccountAlias}");
+            lines.Add($"**Account**: {message.AccountAlias}");
 
-        lines.Add($"Time: {message.Timestamp:yyyy-MM-dd HH:mm:ss} UTC");
-        lines.Add("");
-        lines.Add(JsonSerializer.Serialize(message.Data, new JsonSerializerOptions
+        // If data is a string or a JsonElement representing a string, display it directly
+        if (message.Data is string str)
         {
-            WriteIndented = true
-        }));
+            lines.Add(str);
+        }
+        else if (message.Data is JsonElement element)
+        {
+            if (element.ValueKind == JsonValueKind.String)
+            {
+                lines.Add(element.GetString() ?? "");
+            }
+            else
+            {
+                lines.Add(JsonSerializer.Serialize(message.Data, new JsonSerializerOptions { WriteIndented = true }));
+            }
+        }
+        else
+        {
+            lines.Add(JsonSerializer.Serialize(message.Data, new JsonSerializerOptions
+            {
+                WriteIndented = true
+            }));
+        }
 
         return string.Join("\n", lines);
     }

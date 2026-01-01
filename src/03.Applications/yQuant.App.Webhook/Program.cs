@@ -4,7 +4,7 @@ using StackExchange.Redis;
 using System.Net;
 using System.Text.Json;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Notification.Discord;
+using yQuant.Infra.Notification;
 using yQuant.Infra.Redis.Extensions;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -24,14 +24,10 @@ builder.Configuration.SetBasePath(AppContext.BaseDirectory)
 builder.Services.AddRedisMiddleware(builder.Configuration)
                 .AddHeartbeat("Webhook");
 
-// Register Discord Notification Services
-// Register Discord Notification Services
-var discordConfig = builder.Configuration.GetSection("Notifier:Discord");
-builder.Services.Configure<DiscordConfiguration>(discordConfig);
-builder.Services.AddHttpClient("DiscordWebhook");
-builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
-builder.Services.AddSingleton<ITradingLogger, DiscordLogger>();
-builder.Services.AddSingleton<ISystemLogger, DiscordLogger>();
+// Register Notification Services (Redis based)
+builder.Services.AddSingleton<NotificationPublisher>();
+builder.Services.AddSingleton<ITradingLogger, RedisTradingLogger>();
+builder.Services.AddSingleton<ISystemLogger, RedisSystemLogger>();
 
 var app = builder.Build();
 

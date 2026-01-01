@@ -11,7 +11,7 @@ using yQuant.Infra.Redis.Interfaces;
 using yQuant.Infra.Reporting.Repositories;
 
 using StackExchange.Redis;
-using yQuant.Infra.Notification.Discord;
+using yQuant.Infra.Notification;
 
 
 
@@ -91,13 +91,10 @@ builder.Services.AddSingleton<SimpleAuthService>();
 // Register Redis Middleware
 builder.Services.AddRedisMiddleware(builder.Configuration);
 
-// Register Discord Notification Services
-var discordConfig = builder.Configuration.GetSection("Notifier:Discord");
-builder.Services.Configure<DiscordConfiguration>(discordConfig);
-builder.Services.AddHttpClient("DiscordWebhook");
-builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
-builder.Services.AddSingleton<ITradingLogger, DiscordLogger>();
-builder.Services.AddSingleton<ISystemLogger, DiscordLogger>();
+// Register Notification Services (Redis based)
+builder.Services.AddSingleton<NotificationPublisher>();
+builder.Services.AddSingleton<ITradingLogger, RedisTradingLogger>();
+builder.Services.AddSingleton<ISystemLogger, RedisSystemLogger>();
 
 // Register SchedulerService as Singleton (CRUD only, execution handled by OrderManager)
 builder.Services.AddSingleton<SchedulerService>();

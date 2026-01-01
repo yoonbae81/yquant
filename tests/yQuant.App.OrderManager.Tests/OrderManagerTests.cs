@@ -52,11 +52,13 @@ public class OrderManagerTests
         // Arrange
         var orderCompositionUseCaseMock = new Mock<yQuant.Core.Ports.Input.IOrderCompositionUseCase>();
         var orderPublisherMock = new Mock<yQuant.Core.Ports.Output.Infrastructure.IOrderPublisher>();
+        var notificationPublisherMock = new Mock<yQuant.Infra.Notification.NotificationPublisher>(_redisMock!.Object);
         var scheduleExecutorLoggerMock = new Mock<ILogger<yQuant.App.OrderManager.Services.ScheduleExecutor>>();
         var scheduleExecutor = new yQuant.App.OrderManager.Services.ScheduleExecutor(
             scheduleExecutorLoggerMock.Object,
             _redisMock!.Object,
-            orderPublisherMock.Object
+            orderPublisherMock.Object,
+            notificationPublisherMock.Object
         );
 
         // Setup IServiceScopeFactory mock

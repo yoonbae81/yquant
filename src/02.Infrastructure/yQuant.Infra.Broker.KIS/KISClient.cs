@@ -5,6 +5,7 @@ using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS.Models;
 using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Notification;
 
 namespace yQuant.Infra.Broker.KIS;
 
@@ -225,12 +226,16 @@ public class KISClient : IKISClient
 
             _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
             _logger.LogInformation("Successfully obtained KIS access token for account {Alias}. Expires in {Seconds}s.", _account.Alias, tokenResponse.ExpiresIn);
+
+            // Notify via uniform Logger extension
+            _logger.LogSecurityNotification($"Token issued for '{_account.Alias}' (Host: {Environment.MachineName})", _account.Alias);
         }
         else
         {
             throw new InvalidOperationException("Failed to obtain KIS access token.");
         }
     }
+
 
 
 

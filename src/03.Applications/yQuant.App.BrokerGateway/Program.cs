@@ -2,7 +2,7 @@ using yQuant.App.BrokerGateway;
 using yQuant.Infra.Redis.Extensions;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
-using yQuant.Infra.Notification.Telegram;
+using yQuant.Infra.Notification;
 using StackExchange.Redis;
 
 
@@ -20,18 +20,17 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnC
                      .AddJsonFile("appsecrets.json", optional: false, reloadOnChange: true);
 
 
-
-// Register Telegram Notification Service
-builder.Services.AddHttpClient<INotificationService, TelegramNotificationService>();
-builder.Services.AddSingleton<TelegramMessageBuilder>();
-
 // Register KIS HttpClient
-builder.Services.AddHttpClient("KIS");// Redis
+builder.Services.AddHttpClient("KIS");
+
+// Redis
 builder.Services.AddRedisMiddleware(builder.Configuration)
                 .AddHeartbeat("BrokerGateway");
 
-builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
-builder.Services.AddSingleton<yQuant.Infra.Notification.Telegram.Services.TelegramTemplateService>();
+// Notifications (Redis based)
+builder.Services.AddSingleton<NotificationPublisher>();
+builder.Logging.AddRedisNotification();
+builder.Services.AddSingleton<ITradingLogger, RedisTradingLogger>();
 
 // Performance & Trade Tracking
 builder.Services.AddSingleton<IPerformanceRepository, yQuant.Infra.Reporting.Repositories.JsonPerformanceRepository>();

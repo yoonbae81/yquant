@@ -3,8 +3,6 @@ using StackExchange.Redis;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
-using yQuant.Infra.Notification.Telegram;
-using yQuant.Infra.Redis.Models;
 using Order = yQuant.Core.Models.Order;
 
 namespace yQuant.App.BrokerGateway
@@ -13,8 +11,6 @@ namespace yQuant.App.BrokerGateway
         ILogger<Worker> logger,
         IConnectionMultiplexer redis,
         Dictionary<string, IBrokerAdapter> adapters,
-        INotificationService telegramNotifier,
-        TelegramMessageBuilder telegramBuilder,
         IEnumerable<ITradingLogger> tradingLoggers,
         ITradeRepository tradeRepository,
         IConfiguration configuration) : BackgroundService
@@ -22,8 +18,6 @@ namespace yQuant.App.BrokerGateway
         private readonly ILogger<Worker> _logger = logger;
         private readonly IConnectionMultiplexer _redis = redis;
         private readonly Dictionary<string, IBrokerAdapter> _adapters = adapters;
-        private readonly INotificationService _telegramNotifier = telegramNotifier;
-        private readonly TelegramMessageBuilder _telegramBuilder = telegramBuilder;
         private readonly IEnumerable<ITradingLogger> _tradingLoggers = tradingLoggers;
         private readonly ITradeRepository _tradeRepository = tradeRepository;
         private readonly IConfiguration _configuration = configuration;

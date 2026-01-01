@@ -16,7 +16,7 @@ public class ScheduleExecutor
     private readonly ILogger<ScheduleExecutor> _logger;
     private readonly IConnectionMultiplexer _redis;
     private readonly IOrderPublisher _orderPublisher;
-    private readonly yQuant.Infra.Notification.Discord.DiscordLogger? _discordLogger;
+    private readonly yQuant.Infra.Notification.NotificationPublisher _notificationPublisher;
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         Converters = { new JsonStringEnumConverter() }
@@ -26,12 +26,12 @@ public class ScheduleExecutor
         ILogger<ScheduleExecutor> logger,
         IConnectionMultiplexer redis,
         IOrderPublisher orderPublisher,
-        yQuant.Infra.Notification.Discord.DiscordLogger? discordLogger = null)
+        yQuant.Infra.Notification.NotificationPublisher notificationPublisher)
     {
         _logger = logger;
         _redis = redis;
         _orderPublisher = orderPublisher;
-        _discordLogger = discordLogger;
+        _notificationPublisher = notificationPublisher;
     }
 
     public async Task ProcessSchedulesAsync()
@@ -119,28 +119,29 @@ public class ScheduleExecutor
             return;
         }
 
-        // Send Discord notification: Scheduled Order Request
-        if (_discordLogger != null)
+        // Send notification: Scheduled Order Request
+        _ = Task.Run(async () =>
         {
-            _ = Task.Run(async () =>
+            try
             {
-                try
-                {
-                    await _discordLogger.LogScheduledOrderRequestAsync(
-                        order.Id.ToString(),
+                await _notificationPublisher.PublishScheduleNotificationAsync(
+                    "ScheduledOrderRequest",
+                    order.AccountAlias,
+                    new
+                    {
+                        order.Id,
                         order.Ticker,
-                        order.Exchange.ToString(),
-                        order.Action.ToString(),
-                        order.Quantity.Value,
-                        order.AccountAlias,
-                        order.NextExecutionTime);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Failed to send Discord notification for scheduled order request");
-                }
-            });
-        }
+                        Exchange = order.Exchange.ToString(),
+                        Action = order.Action.ToString(),
+                        Quantity = order.Quantity.Value,
+                        order.NextExecutionTime
+                    });
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send notification for scheduled order request");
+            }
+        });
 
         var coreOrder = new CoreOrder
         {
@@ -159,54 +160,56 @@ public class ScheduleExecutor
             await _orderPublisher.PublishOrderAsync(coreOrder);
             _logger.LogInformation("Successfully published scheduled order for {Ticker}", order.Ticker);
 
-            // Send Discord notification: Scheduled Order Success
-            if (_discordLogger != null)
+            // Send notification: Scheduled Order Success
+            _ = Task.Run(async () =>
             {
-                _ = Task.Run(async () =>
+                try
                 {
-                    try
-                    {
-                        await _discordLogger.LogScheduledOrderSuccessAsync(
-                            order.Id.ToString(),
+                    await _notificationPublisher.PublishScheduleNotificationAsync(
+                        "ScheduledOrderSuccess",
+                        order.AccountAlias,
+                        new
+                        {
+                            order.Id,
                             order.Ticker,
-                            order.Exchange.ToString(),
-                            order.Action.ToString(),
-                            order.Quantity.Value,
-                            order.AccountAlias);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Failed to send Discord notification for scheduled order success");
-                    }
-                });
-            }
+                            Exchange = order.Exchange.ToString(),
+                            Action = order.Action.ToString(),
+                            Quantity = order.Quantity.Value
+                        });
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to send notification for scheduled order success");
+                }
+            });
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to publish scheduled order {Id}", order.Id);
 
-            // Send Discord notification: Scheduled Order Failure
-            if (_discordLogger != null)
+            // Send notification: Scheduled Order Failure
+            _ = Task.Run(async () =>
             {
-                _ = Task.Run(async () =>
+                try
                 {
-                    try
-                    {
-                        await _discordLogger.LogScheduledOrderFailureAsync(
-                            order.Id.ToString(),
+                    await _notificationPublisher.PublishScheduleNotificationAsync(
+                        "ScheduledOrderFailure",
+                        order.AccountAlias,
+                        new
+                        {
+                            order.Id,
                             order.Ticker,
-                            order.Exchange.ToString(),
-                            order.Action.ToString(),
-                            order.Quantity.Value,
-                            order.AccountAlias,
-                            ex.Message);
-                    }
-                    catch (Exception notifyEx)
-                    {
-                        _logger.LogError(notifyEx, "Failed to send Discord notification for scheduled order failure");
-                    }
-                });
-            }
+                            Exchange = order.Exchange.ToString(),
+                            Action = order.Action.ToString(),
+                            Quantity = order.Quantity.Value,
+                            Error = ex.Message
+                        });
+                }
+                catch (Exception notifyEx)
+                {
+                    _logger.LogError(notifyEx, "Failed to send notification for scheduled order failure");
+                }
+            });
         }
     }
 

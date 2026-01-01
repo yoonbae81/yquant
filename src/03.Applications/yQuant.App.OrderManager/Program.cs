@@ -29,13 +29,8 @@ builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnC
 builder.Services.AddRedisMiddleware(builder.Configuration)
                 .AddHeartbeat("OrderManager");
 
-// Register Discord Notification Services
-var discordConfig = builder.Configuration.GetSection("Notifier:Discord");
-
-builder.Services.Configure<yQuant.Infra.Notification.Discord.DiscordConfiguration>(discordConfig);
-builder.Services.AddHttpClient("DiscordWebhook");
-builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
-builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.DiscordLogger>();
+// Register Notification Services
+builder.Services.AddSingleton<yQuant.Infra.Notification.NotificationPublisher>();
 
 // Register Core Services (exclude ManualTradingService as OrderManager doesn't need direct broker interaction)
 builder.Services.AddyQuantCore(includeManualTrading: false);
