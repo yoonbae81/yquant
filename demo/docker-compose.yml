@@ -1,21 +1,22 @@
 services:
-  # 1. Independent Redis for Demo
-  demo-redis:
+  # 1. Independent Redis for Message (Pub/Sub, state)
+  msg-redis:
     image: redis:alpine
     ports:
       - "6380:6379"
 
-  # 2. KIS Mock Server
+  # 2. Independent Redis for Token (Shared across environments)
+  token-redis:
+    image: redis:alpine
+    ports:
+      - "6381:6379"
+
+  # 3. KIS Mock Server
   kis-mock:
-    build: 
+    build:
       context: ./kis-mock
     ports:
       - "9443:9443"
-
-  # 3. Notifier (Optional, but good for demo)
-  # demo-notifier:
-  #   ...
-
   # Note: Other apps (BrokerGateway, OrderManager, Web) 
   # can be run locally pointing to these services
   # or added here for a full containerized demo.
