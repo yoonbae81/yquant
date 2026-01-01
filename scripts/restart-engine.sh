@@ -1,13 +1,13 @@
 #!/bin/bash
+# scripts/restart-engine.sh
 set -e
 
-echo "🔄 Restarting all yQuant services..."
+echo "🔄 Restarting yQuant Engine services..."
 
 SERVICES=(
   "brokergateway"
   "ordermanager"
   "notifier"
-  "web"
   "webhook"
 )
 
@@ -19,9 +19,8 @@ for service in "${SERVICES[@]}"; do
     echo "✅ $service.service is running"
   else
     echo "❌ $service.service failed to start"
-    systemctl --user status "$service.service" --no-pager
     exit 1
   fi
 done
 
-echo "✅ All services restarted successfully!"
+echo "✅ Engine services restarted!"

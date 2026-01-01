@@ -1,7 +1,8 @@
 #!/bin/bash
+# scripts/build-engine.sh
 set -e
 
-echo "🔨 Building all yQuant applications..."
+echo "🔨 Building yQuant Engine applications..."
 
 # 프로젝트 루트 디렉토리
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -15,15 +16,8 @@ if [ ! -d "$DEPLOY_ROOT" ]; then
     echo "📂 Creating deploy directory: $DEPLOY_ROOT"
     mkdir -p "$DEPLOY_ROOT" || {
         echo "❌ Error: Cannot create directory $DEPLOY_ROOT"
-        echo "💡 Please run: sudo mkdir -p $DEPLOY_ROOT && sudo chown -R \$USER:\$USER $DEPLOY_ROOT"
         exit 1
     }
-fi
-
-if [ ! -w "$DEPLOY_ROOT" ]; then
-    echo "❌ Error: No write permission to $DEPLOY_ROOT"
-    echo "💡 Please run: sudo chown -R \$USER:\$USER $DEPLOY_ROOT"
-    exit 1
 fi
 
 echo "📦 Publishing BrokerGateway..."
@@ -41,19 +35,14 @@ dotnet publish src/03.Applications/yQuant.App.Notifier/yQuant.App.Notifier.cspro
   -c Release \
   -o "$DEPLOY_ROOT/notifier"
 
-echo "📦 Publishing Console..."
-dotnet publish src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj \
-  -c Release \
-  -o "$DEPLOY_ROOT/console"
-
-echo "📦 Publishing Web..."
-dotnet publish src/03.Applications/yQuant.App.Web/yQuant.App.Web.csproj \
-  -c Release \
-  -o "$DEPLOY_ROOT/web"
-
 echo "📦 Publishing Webhook..."
 dotnet publish src/03.Applications/yQuant.App.Webhook/yQuant.App.Webhook.csproj \
   -c Release \
   -o "$DEPLOY_ROOT/webhook"
 
-echo "✅ All applications built successfully!"
+echo "📦 Publishing Console (Sync Tool)..."
+dotnet publish src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj \
+  -c Release \
+  -o "$DEPLOY_ROOT/console"
+
+echo "✅ Engine applications built successfully!"

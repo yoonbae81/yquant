@@ -1,13 +1,13 @@
 #!/bin/bash
+# scripts/health-check-engine.sh
 set -e
 
-echo "🏥 Checking health of all yQuant services..."
+echo "🏥 Checking health of yQuant Engine services..."
 
 SERVICES=(
   "brokergateway"
   "ordermanager"
   "notifier"
-  "web"
   "webhook"
 )
 
@@ -32,7 +32,7 @@ fi
 
 echo ""
 if [ "$ALL_HEALTHY" = true ]; then
-  echo "✅ All services are healthy!"
+  echo "✅ All engine services are healthy!"
   exit 0
 else
   echo "❌ Some services are not running. Check logs with:"

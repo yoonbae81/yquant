@@ -6,11 +6,16 @@
 
 ```
 scripts/
-├── build-all.sh           # 모든 애플리케이션 빌드
-├── restart-services.sh    # 모든 서비스 재시작
-├── deploy.sh              # 전체 배포 프로세스 (pull + build + restart)
-├── health-check.sh        # 서비스 상태 확인
-├── setup-systemd.sh       # systemd 서비스 파일 설치 (초기 설정용)
+├── deploy-engine.sh       # [Engine 서버] 전체 배포 (Core 엔진 서비스들)
+├── deploy-dashboard.sh    # [Dashboard 서버] 전체 배포 (UI)
+├── setup-engine.sh        # [Engine 서버] systemd 서비스 설치
+├── setup-dashboard.sh     # [Dashboard 서버] systemd 서비스 설치
+├── build-engine.sh        # Engine 관련 앱 빌드
+├── build-dashboard.sh     # Dashboard 관련 앱 빌드
+├── restart-engine.sh      # Engine 서비스 재시작
+├── restart-dashboard.sh   # Dashboard 서비스 재시작
+├── health-check-engine.sh # [Engine 서버] 서비스 상태 확인
+├── health-check-dashboard.sh # [Dashboard 서버] 서비스 상태 확인
 └── systemd/               # systemd 서비스 파일 템플릿
     ├── brokergateway.service
     ├── ordermanager.service
@@ -21,100 +26,99 @@ scripts/
     └── webhook.service
 ```
 
-## 🚀 초기 설정 (서버에서 한 번만 실행)
+## 🌐 서버별 구성 및 배포
 
-### 1. systemd 서비스 설치
+분산 환경(Engine + Dashboard)에서의 배포 프로세스입니다.
 
+### 1. Engine 서버 (A1.Flex 등)
+핵심 트레이딩 엔진과 Redis를 가동합니다.
+
+#### 초기 설정
 ```bash
 cd ~/yquant
-bash scripts/setup-systemd.sh
+# 1) 시스템 서비스 설치
+bash scripts/setup-engine.sh
+# 2) 서비스 활성화 및 시작
+systemctl --user enable brokergateway ordermanager notifier webhook console-sync.timer
+systemctl --user start brokergateway ordermanager notifier webhook console-sync.timer
 ```
 
-이 스크립트는:
-- systemd 사용자 서비스 디렉토리 생성 (`~/.config/systemd/user`)
-- 모든 서비스 파일 복사 및 설치
-- systemd 데몬 리로드
-
-### 2. 설정 확인
-
-운영 서버의 배포 경로(예: `/srv/yquant/`)에 `appsecrets.json` 파일이 위치하고 올바른 Redis 주소가 설정되어 있는지 확인하세요.
-
-### 3. 서비스 활성화 및 시작
-
+#### 배포
 ```bash
-# 서비스 활성화 (부팅 시 자동 시작)
-systemctl --user enable brokergateway ordermanager notifier web webhook console-sync.timer
-
-# 서비스 시작
-systemctl --user start brokergateway ordermanager notifier web webhook console-sync.timer
-
-# 로그아웃 후에도 서비스 유지
-sudo loginctl enable-linger $USER
+bash scripts/deploy-engine.sh
 ```
 
-## 🔄 배포 스크립트 사용법
+### 2. Dashboard 서버 (E2.Micro 등)
+대시보드 UI만 가동합니다.
 
-### 자동 배포 (GitHub Actions)
+**중요:** `/srv/yquant/web/appsecrets.json`에서 **Redis 주소를 Engine 서버의 IP**로 수정해야 합니다.
 
-태그를 푸시하면 자동으로 배포됩니다:
-
-```bash
-# 로컬에서
-git tag v1.0.0
-git push origin v1.0.0
-```
-
-또는 GitHub Actions에서 수동으로 트리거할 수 있습니다.
-
-### 수동 배포 (서버에서 직접)
-
+#### 초기 설정
 ```bash
 cd ~/yquant
-bash scripts/deploy.sh
+# 1) 시스템 서비스 설치
+bash scripts/setup-dashboard.sh
+# 2) 서비스 활성화 및 시작
+systemctl --user enable web
+systemctl --user start web
 ```
 
-이 스크립트는 다음을 수행합니다:
-1. 최신 코드 pull (`git pull origin main`)
-2. 모든 애플리케이션 빌드 (`build-all.sh`)
-3. 모든 서비스 재시작 (`restart-services.sh`)
-4. 서비스 상태 확인
+#### 배포
+```bash
+bash scripts/deploy-dashboard.sh
+```
 
 ### 개별 스크립트 실행
 
-#### 빌드만 수행
+#### 빌드만 수행 (각 서버에서)
 
 ```bash
-bash scripts/build-all.sh
+# Engine 서버에서
+bash scripts/build-engine.sh
+
+# Dashboard 서버에서
+bash scripts/build-dashboard.sh
 ```
 
-환경 변수 `DEPLOY_ROOT`로 배포 경로를 변경할 수 있습니다:
+#### 서비스 재시작만 수행 (각 서버에서)
 
 ```bash
-DEPLOY_ROOT=/custom/path bash scripts/build-all.sh
+# Engine 서버에서
+bash scripts/restart-engine.sh
+
+# Dashboard 서버에서
+bash scripts/restart-dashboard.sh
 ```
 
-#### 서비스 재시작만 수행
+#### 서비스 상태 확인 (각 서버에서)
 
 ```bash
-bash scripts/restart-services.sh
-```
+# Engine 서버에서
+bash scripts/health-check-engine.sh
 
-#### 서비스 상태 확인
-
-```bash
-bash scripts/health-check.sh
+# Dashboard 서버에서
+bash scripts/health-check-dashboard.sh
 ```
 
 ## 🔧 GitHub Actions 설정
 
-GitHub 저장소의 Settings > Secrets and variables > Actions에 다음 시크릿을 추가하세요:
+GitHub 저장소의 Settings > Secrets and variables > Actions에 다음 시크릿들을 추가하세요:
 
-| Secret Name | 설명 | 예시 |
-|------------|------|------|
-| `SERVER_HOST` | 배포 서버 호스트 | `123.456.789.0` |
-| `SSH_USER` | SSH 사용자명 | `yquant` |
-| `SSH_KEY` | SSH 개인 키 | `-----BEGIN OPENSSH PRIVATE KEY-----...` |
-| `SSH_PORT` | SSH 포트 (선택사항) | `22` (기본값) |
+#### 1. Engine 서버용 시크릿
+| Secret Name | 설명 |
+|------------|------|
+| `ENGINE_HOST` | Engine 서버 호스트 (A1) |
+| `ENGINE_SSH_USER` | SSH 사용자명 |
+| `ENGINE_SSH_KEY` | SSH 개인 키 |
+| `ENGINE_SSH_PORT` | SSH 포트 (기본 22) |
+
+#### 2. Dashboard 서버용 시크릿
+| Secret Name | 설명 |
+|------------|------|
+| `DASHBOARD_HOST` | Dashboard 서버 호스트 (E2) |
+| `DASHBOARD_SSH_USER` | SSH 사용자명 |
+| `DASHBOARD_SSH_KEY` | SSH 개인 키 |
+| `DASHBOARD_SSH_PORT` | SSH 포트 (기본 22) |
 
 ### SSH 키 생성 (서버에서)
 
@@ -208,8 +212,9 @@ systemctl --user restart brokergateway
 ### 설정 정보 변경 후
 
 ```bash
-# appsecrets.json 파일 수정 후 서비스 재시작
-bash scripts/restart-services.sh
+# appsecrets.json 파일 수정 후 서비스 재시작 (해당 서버에서)
+bash scripts/restart-engine.sh  # Engine 서버일 경우
+bash scripts/restart-dashboard.sh     # Dashboard 서버일 경우
 ```
 
 ## 📝 참고사항

@@ -1,0 +1,53 @@
+name: Deploy yQuant Dashboard
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    name: Deploy Dashboard
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: 🚀 Deploy via SSH
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DASHBOARD_HOST }}
+          username: ${{ secrets.DASHBOARD_SSH_USER }}
+          key: ${{ secrets.DASHBOARD_SSH_KEY }}
+          port: ${{ secrets.DASHBOARD_SSH_PORT || 22 }}
+          script: |
+            cd ~/yquant
+            git fetch --all
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+            bash scripts/deploy-dashboard.sh
+      
+      - name: 🏥 Health Check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.DASHBOARD_HOST }}
+          username: ${{ secrets.DASHBOARD_SSH_USER }}
+          key: ${{ secrets.DASHBOARD_SSH_KEY }}
+          port: ${{ secrets.DASHBOARD_SSH_PORT || 22 }}
+          script: |
+            cd ~/yquant
+            bash scripts/health-check-dashboard.sh
+      
+      - name: 📢 Notify Success
+        if: success()
+        run: |
+          echo "✅ Dashboard Deployment successful!"
+          echo "Ref: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+      
+      - name: 📢 Notify Failure
+        if: failure()
+        run: |
+          echo "❌ Dashboard Deployment failed!"
+          echo "Check the logs above for details."
