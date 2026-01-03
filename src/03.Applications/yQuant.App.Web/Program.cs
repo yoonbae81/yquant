@@ -111,6 +111,14 @@ app.UseStatusCodePagesWithReExecute("/not-found");
 // app.UseHttpsRedirection(); // Disabled for HAProxy TLS termination
 
 app.UseStaticFiles();
+
+// Apply PathBase if configured (for HAProxy reverse proxying like /staging or /demo)
+var pathBase = app.Configuration.GetValue<string>("Web:PathBase");
+if (!string.IsNullOrWhiteSpace(pathBase) && pathBase != "/")
+{
+    app.UsePathBase(pathBase);
+}
+
 app.UseAntiforgery();
 
 // Authentication & Authorization middleware (must be before MapRazorComponents)
