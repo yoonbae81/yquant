@@ -14,6 +14,7 @@
     <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification\yQuant.Infra.Notification.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification.Discord\yQuant.Infra.Notification.Discord.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -3,6 +3,7 @@ using yQuant.Infra.Redis.Extensions;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Notification;
+using yQuant.Infra.Notification.Discord;
 using StackExchange.Redis;
 
 
@@ -31,6 +32,9 @@ builder.Services.AddRedisMiddleware(builder.Configuration)
 builder.Services.AddSingleton<NotificationPublisher>();
 builder.Logging.AddRedisNotification();
 builder.Services.AddSingleton<ITradingLogger, RedisTradingLogger>();
+
+// Discord Direct Notification (for Startup/System status)
+builder.AddDiscordDirectNotification();
 
 // Performance & Trade Tracking
 builder.Services.AddSingleton<IPerformanceRepository, yQuant.Infra.Reporting.Repositories.JsonPerformanceRepository>();
@@ -87,6 +91,15 @@ if (OperatingSystem.IsLinux())
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
         logger.LogWarning(ex, "Failed to notify systemd");
     }
+}
+
+// Direct Discord Startup Notification
+var systemLogger = host.Services.GetService<ISystemLogger>();
+if (systemLogger != null)
+{
+    var appName = "App.BrokerGateway";
+    var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
+    await systemLogger.LogStartupAsync(appName, version);
 }
 
 host.Run();

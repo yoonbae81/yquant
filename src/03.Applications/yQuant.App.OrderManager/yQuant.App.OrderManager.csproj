@@ -18,5 +18,6 @@
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification\yQuant.Infra.Notification.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Reporting\yQuant.Infra.Reporting.csproj" />
     <ProjectReference Include="..\..\04.Policies\yQuant.Policies.Sizing\yQuant.Policies.Sizing.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification.Discord\yQuant.Infra.Notification.Discord.csproj" />
   </ItemGroup>
 </Project>

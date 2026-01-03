@@ -4,6 +4,7 @@ using yQuant.App.Notifier.Services;
 using yQuant.Infra.Redis.Extensions;
 using yQuant.Infra.Notification.Discord;
 using yQuant.Infra.Notification.Telegram;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 var settings = new HostApplicationBuilderSettings
 {
@@ -24,12 +25,7 @@ builder.Services.AddRedisMiddleware(builder.Configuration)
                 .AddHeartbeat("Notifier");
 
 // Register Discord Notification Services
-// Discord 설정은 appsecrets.json의 Notifier:Discord 섹션 사용
-var discordConfig = builder.Configuration.GetSection("Notifier:Discord");
-builder.Services.Configure<yQuant.Infra.Notification.Discord.DiscordConfiguration>(discordConfig);
-builder.Services.AddHttpClient("DiscordWebhook");
-builder.Services.AddSingleton<yQuant.Infra.Notification.Discord.Services.DiscordTemplateService>();
-builder.Services.AddSingleton<DiscordLogger>();
+builder.AddDiscordDirectNotification();
 
 // Register Telegram Notification Services (optional)
 var telegramEnabled = builder.Configuration.GetValue<bool>("Notifier:Telegram:Enabled");
@@ -75,6 +71,15 @@ if (OperatingSystem.IsLinux())
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
         logger.LogWarning(ex, "Failed to notify systemd");
     }
+}
+
+// Direct Discord Startup Notification
+var systemLogger = host.Services.GetService<ISystemLogger>();
+if (systemLogger != null)
+{
+    var appName = "App.Notifier";
+    var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
+    await systemLogger.LogStartupAsync(appName, version);
 }
 
 host.Run();

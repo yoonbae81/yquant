@@ -5,6 +5,7 @@ using System.Net;
 using System.Text.Json;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Notification;
+using yQuant.Infra.Notification.Discord;
 using yQuant.Infra.Redis.Extensions;
 
 var builder = WebApplication.CreateSlimBuilder(args);
@@ -28,6 +29,9 @@ builder.Services.AddRedisMiddleware(builder.Configuration)
 builder.Services.AddSingleton<NotificationPublisher>();
 builder.Services.AddSingleton<ITradingLogger, RedisTradingLogger>();
 builder.Services.AddSingleton<ISystemLogger, RedisSystemLogger>();
+
+// Discord Direct Notification (for Startup/System status)
+builder.AddDiscordDirectNotification();
 
 var app = builder.Build();
 
@@ -181,6 +185,15 @@ if (OperatingSystem.IsLinux())
     {
         app.Logger.LogWarning(ex, "Failed to notify systemd");
     }
+}
+
+// Direct Discord Startup Notification
+var systemLoggerService = app.Services.GetService<ISystemLogger>();
+if (systemLoggerService != null)
+{
+    var appName = "App.Webhook";
+    var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
+    await systemLoggerService.LogStartupAsync(appName, version);
 }
 
 app.Run();

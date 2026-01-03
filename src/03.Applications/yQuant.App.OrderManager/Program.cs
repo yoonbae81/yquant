@@ -9,6 +9,7 @@ using yQuant.Core.Extensions;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Core.Ports.Output.Policies;
 using yQuant.Infra.Redis.Extensions;
+using yQuant.Infra.Notification.Discord;
 
 
 
@@ -31,6 +32,9 @@ builder.Services.AddRedisMiddleware(builder.Configuration)
 
 // Register Notification Services
 builder.Services.AddSingleton<yQuant.Infra.Notification.NotificationPublisher>();
+
+// Discord Direct Notification (for Startup/System status)
+builder.AddDiscordDirectNotification();
 
 // Register Core Services (exclude ManualTradingService as OrderManager doesn't need direct broker interaction)
 builder.Services.AddyQuantCore(includeManualTrading: false);
@@ -129,6 +133,15 @@ if (OperatingSystem.IsLinux())
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
         logger.LogWarning(ex, "Failed to notify systemd");
     }
+}
+
+// Direct Discord Startup Notification
+var systemLogger = host.Services.GetService<ISystemLogger>();
+if (systemLogger != null)
+{
+    var appName = "App.OrderManager";
+    var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
+    await systemLogger.LogStartupAsync(appName, version);
 }
 
 host.Run();
