@@ -205,7 +205,7 @@ if (OperatingSystem.IsLinux())
 var systemLoggerService = app.Services.GetService<ISystemLogger>();
 if (systemLoggerService != null)
 {
-    var appName = "App.Webhook";
+    var appName = "Webhook";
     var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
     await systemLoggerService.LogStartupAsync(appName, version);
 }

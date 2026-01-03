@@ -86,7 +86,7 @@ if (OperatingSystem.IsLinux())
 var systemLogger = host.Services.GetService<ISystemLogger>();
 if (systemLogger != null)
 {
-    var appName = "App.Notifier";
+    var appName = "Notifier";
     var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
     await systemLogger.LogStartupAsync(appName, version);
 }

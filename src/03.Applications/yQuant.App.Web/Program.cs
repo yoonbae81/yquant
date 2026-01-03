@@ -215,7 +215,7 @@ if (OperatingSystem.IsLinux())
 var systemLoggerService = app.Services.GetService<ISystemLogger>();
 if (systemLoggerService != null)
 {
-    var appName = "App.Web";
+    var appName = "Web";
     var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version?.ToString() ?? "1.0.0";
     await systemLoggerService.LogStartupAsync(appName, version);
 }
