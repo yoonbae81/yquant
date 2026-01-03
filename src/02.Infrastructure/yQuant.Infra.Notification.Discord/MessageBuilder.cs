@@ -68,7 +68,7 @@ namespace yQuant.Infra.Notification.Discord
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
-        public DiscordWebhookPayload BuildErrorMessage(string title, Exception ex, string context)
+        public DiscordWebhookPayload BuildErrorMessage(string title, Exception ex, string context, string host)
         {
             var stackTrace = ex.StackTrace ?? "";
             if (stackTrace.Length > 1000)
@@ -78,6 +78,7 @@ namespace yQuant.Infra.Notification.Discord
 
             var values = new Dictionary<string, string>
             {
+                { "Host", host },
                 { "Title", title },
                 { "Context", context },
                 { "Message", ex.Message },
@@ -106,12 +107,13 @@ namespace yQuant.Infra.Notification.Discord
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
-        public DiscordWebhookPayload BuildStartupMessage(string appName, string version)
+        public DiscordWebhookPayload BuildStartupMessage(string appName, string version, string host)
         {
             var values = new Dictionary<string, string>
             {
                 { "AppName", appName },
                 { "Version", version },
+                { "Host", host },
                 { "Timestamp", DateTime.UtcNow.ToString("o") }
             };
 
@@ -119,10 +121,11 @@ namespace yQuant.Infra.Notification.Discord
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
-        public DiscordWebhookPayload BuildStatusMessage(string context, string message)
+        public DiscordWebhookPayload BuildStatusMessage(string context, string message, string host)
         {
             var values = new Dictionary<string, string>
             {
+                { "Host", host },
                 { "Context", context },
                 { "Message", message },
                 { "Timestamp", DateTime.UtcNow.ToString("o") }

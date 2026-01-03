@@ -95,7 +95,7 @@
     },
     "Error": {
         "title": "{Title}",
-        "description": "**Context**: {Context}\n**Message**: {Message}",
+        "description": "**Host**: {Host}\n**Context**: {Context}\n**Message**: {Message}",
         "color": 15105570,
         "fields": [
             {
@@ -146,13 +146,18 @@
                 "name": "Version",
                 "value": "{Version}",
                 "inline": true
+            },
+            {
+                "name": "Host",
+                "value": "{Host}",
+                "inline": true
             }
         ],
         "timestamp": "{Timestamp}"
     },
     "Status": {
         "title": "[{Context}] Status Update",
-        "description": "{Message}",
+        "description": "**Host**: {Host}\n{Message}",
         "color": 3447003,
         "timestamp": "{Timestamp}"
     },

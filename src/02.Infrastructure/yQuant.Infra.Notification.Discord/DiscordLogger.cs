@@ -94,7 +94,7 @@ namespace yQuant.Infra.Notification.Discord
                 string? webhookUrl = GetAccountWebhookUrl(accountAlias);
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
-                var payload = _messageBuilder.BuildErrorMessage($"Account Error: {accountAlias}", ex, context);
+                var payload = _messageBuilder.BuildErrorMessage($"Account Error: {accountAlias}", ex, context, Environment.MachineName);
                 await SendAsync(webhookUrl, payload);
             }
             catch (Exception logEx)
@@ -130,7 +130,7 @@ namespace yQuant.Infra.Notification.Discord
                 string webhookUrl = _config.Channels.System?.Status ?? _config.Channels.Default ?? string.Empty;
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
-                var payload = _messageBuilder.BuildStartupMessage(appName, version);
+                var payload = _messageBuilder.BuildStartupMessage(appName, version, Environment.MachineName);
                 await SendAsync(webhookUrl, payload);
             }
             catch (Exception ex)
@@ -148,7 +148,7 @@ namespace yQuant.Infra.Notification.Discord
                 string webhookUrl = _config.Channels.System?.Error ?? _config.Channels.Default ?? string.Empty;
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
-                var payload = _messageBuilder.BuildErrorMessage("System Error", ex, context);
+                var payload = _messageBuilder.BuildErrorMessage("System Error", ex, context, Environment.MachineName);
                 await SendAsync(webhookUrl, payload);
             }
             catch (Exception logEx)
@@ -167,7 +167,7 @@ namespace yQuant.Infra.Notification.Discord
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
                 // Reuse Startup message builder or create a new one for generic status
-                var payload = _messageBuilder.BuildStatusMessage(context, message);
+                var payload = _messageBuilder.BuildStatusMessage(context, message, Environment.MachineName);
                 await SendAsync(webhookUrl, payload);
             }
             catch (Exception ex)
@@ -185,7 +185,7 @@ namespace yQuant.Infra.Notification.Discord
                 string webhookUrl = _config.Channels.System?.Security ?? _config.Channels.System?.Status ?? _config.Channels.Default ?? string.Empty;
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
-                var payload = _messageBuilder.BuildStatusMessage(context, message);
+                var payload = _messageBuilder.BuildStatusMessage(context, message, Environment.MachineName);
                 await SendAsync(webhookUrl, payload);
             }
             catch (Exception ex)
