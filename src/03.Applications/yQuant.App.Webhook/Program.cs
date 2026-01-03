@@ -10,6 +10,12 @@ using yQuant.Infra.Redis.Extensions;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
+// Configure Kestrel to listen on port 6000
+builder.WebHost.ConfigureKestrel(options =>
+{
+    options.ListenAnyIP(6000);
+});
+
 // Configure JSON serialization for minimal API
 builder.Services.ConfigureHttpJsonOptions(options =>
 {
