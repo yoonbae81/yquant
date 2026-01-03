@@ -25,26 +25,37 @@ public class StockCatalogRepository
 
     public async Task SaveBatchAsync(IEnumerable<Stock> stocks, CancellationToken cancellationToken = default)
     {
-        var db = _redisService.Connection.GetDatabase();
-        var batch = db.CreateBatch();
-        var tasks = new List<Task>();
+        const int ChunkSize = 500;
+        var stockList = stocks.ToList();
+        if (stockList.Count == 0) return;
 
-        foreach (var stock in stocks)
+        var db = _redisService.Connection.GetDatabase();
+
+        for (int i = 0; i < stockList.Count; i += ChunkSize)
         {
-            var key = $"{KeyPrefix}{stock.Ticker}";
-            tasks.Add(batch.HashSetAsync(key, new HashEntry[]
+            var chunk = stockList.Skip(i).Take(ChunkSize);
+            var batch = db.CreateBatch();
+            var tasks = new List<Task>();
+
+            foreach (var stock in chunk)
             {
-                new("name", stock.Name),
-                new("exchange", stock.Exchange),
-                new("currency", stock.Currency.ToString())
-            }));
-            tasks.Add(batch.KeyExpireAsync(key, DefaultExpiration));
+                var key = $"{KeyPrefix}{stock.Ticker}";
+                tasks.Add(batch.HashSetAsync(key, new HashEntry[]
+                {
+                    new("name", stock.Name),
+                    new("exchange", stock.Exchange),
+                    new("currency", stock.Currency.ToString())
+                }));
+                tasks.Add(batch.KeyExpireAsync(key, DefaultExpiration));
+            }
+
+            batch.Execute();
+            await Task.WhenAll(tasks);
+
+            _logger.LogDebug("Saved chunk {Start}-{End} of {Total} stocks to Redis", i, Math.Min(i + ChunkSize, stockList.Count), stockList.Count);
         }
 
-        batch.Execute();
-        await Task.WhenAll(tasks);
-
-        _logger.LogDebug("Saved {Count} stocks to Redis", stocks.Count());
+        _logger.LogInformation("Successfully saved {Count} stocks to Redis in chunks.", stockList.Count);
     }
 
     public async Task<Stock?> GetByTickerAsync(string ticker, CancellationToken cancellationToken = default)

@@ -107,12 +107,11 @@ namespace yQuant.Infra.Notification.Discord
             return new DiscordWebhookPayload { Embeds = new List<DiscordEmbed> { embed! } };
         }
 
-        public DiscordWebhookPayload BuildStartupMessage(string appName, string version, string host)
+        public DiscordWebhookPayload BuildStartupMessage(string appName, string host)
         {
             var values = new Dictionary<string, string>
             {
                 { "AppName", appName },
-                { "Version", version },
                 { "Host", host },
                 { "Timestamp", DateTime.UtcNow.ToString("o") }
             };

@@ -130,7 +130,7 @@ namespace yQuant.Infra.Notification.Discord
                 string webhookUrl = _config.Channels.System?.Status ?? _config.Channels.Default ?? string.Empty;
                 if (string.IsNullOrEmpty(webhookUrl)) return;
 
-                var payload = _messageBuilder.BuildStartupMessage(appName, version, Environment.MachineName);
+                var payload = _messageBuilder.BuildStartupMessage(appName, Environment.MachineName);
                 await SendAsync(webhookUrl, payload);
             }
             catch (Exception ex)

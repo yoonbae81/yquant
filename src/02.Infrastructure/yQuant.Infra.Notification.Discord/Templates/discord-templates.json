@@ -143,11 +143,6 @@
                 "inline": true
             },
             {
-                "name": "Version",
-                "value": "{Version}",
-                "inline": true
-            },
-            {
                 "name": "Host",
                 "value": "{Host}",
                 "inline": true
