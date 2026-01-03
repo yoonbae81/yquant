@@ -1,8 +1,8 @@
 #!/bin/bash
-# scripts/build-dashboard.sh
+# scripts/build-web.sh
 set -e
 
-echo "🔨 Building yQuant Dashboard application..."
+echo "🔨 Building yQuant Web application..."
 
 # 프로젝트 루트 디렉토리
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -20,9 +20,9 @@ if [ ! -d "$DEPLOY_ROOT" ]; then
     }
 fi
 
-echo "📦 Publishing Dashboard..."
+echo "📦 Publishing Web..."
 dotnet publish src/03.Applications/yQuant.App.Web/yQuant.App.Web.csproj \
   -c Release \
   -o "$DEPLOY_ROOT/web"
 
-echo "✅ Dashboard application built successfully!"
+echo "✅ Web application built successfully!"

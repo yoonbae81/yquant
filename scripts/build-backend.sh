@@ -1,8 +1,8 @@
 #!/bin/bash
-# scripts/build-engine.sh
+# scripts/build-backend.sh
 set -e
 
-echo "🔨 Building yQuant Engine applications..."
+echo "🔨 Building yQuant Backend applications..."
 
 # 프로젝트 루트 디렉토리
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -45,4 +45,4 @@ dotnet publish src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj 
   -c Release \
   -o "$DEPLOY_ROOT/console"
 
-echo "✅ Engine applications built successfully!"
+echo "✅ Backend applications built successfully!"

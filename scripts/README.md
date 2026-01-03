@@ -6,16 +6,16 @@
 
 ```
 scripts/
-├── deploy-engine.sh       # [Engine 서버] 전체 배포 (Core 엔진 서비스들)
-├── deploy-dashboard.sh    # [Dashboard 서버] 전체 배포 (UI)
-├── setup-engine.sh        # [Engine 서버] systemd 서비스 설치
-├── setup-dashboard.sh     # [Dashboard 서버] systemd 서비스 설치
-├── build-engine.sh        # Engine 관련 앱 빌드
-├── build-dashboard.sh     # Dashboard 관련 앱 빌드
-├── restart-engine.sh      # Engine 서비스 재시작
-├── restart-dashboard.sh   # Dashboard 서비스 재시작
-├── health-check-engine.sh # [Engine 서버] 서비스 상태 확인
-├── health-check-dashboard.sh # [Dashboard 서버] 서비스 상태 확인
+├── deploy-backend.sh       # [Backend 서버] 전체 배포 (Core 엔진 서비스들)
+├── deploy-web.sh    # [Web 서버] 전체 배포 (UI)
+├── setup-backend.sh        # [Backend 서버] systemd 서비스 설치
+├── setup-web.sh     # [Web 서버] systemd 서비스 설치
+├── build-backend.sh        # Backend 관련 앱 빌드
+├── build-web.sh     # Web 관련 앱 빌드
+├── restart-backend.sh      # Backend 서비스 재시작
+├── restart-web.sh   # Web 서비스 재시작
+├── health-check-backend.sh # [Backend 서버] 서비스 상태 확인
+├── health-check-web.sh # [Web 서버] 서비스 상태 확인
 └── systemd/               # systemd 서비스 파일 템플릿
     ├── brokergateway.service
     ├── ordermanager.service
@@ -28,16 +28,16 @@ scripts/
 
 ## 🌐 서버별 구성 및 배포
 
-분산 환경(Engine + Dashboard)에서의 배포 프로세스입니다.
+분산 환경(Backend + Web)에서의 배포 프로세스입니다.
 
-### 1. Engine 서버 (A1.Flex 등)
+### 1. Backend 서버 (A1.Flex 등)
 핵심 트레이딩 엔진과 Redis를 가동합니다.
 
 #### 초기 설정
 ```bash
 cd ~/yquant
 # 1) 시스템 서비스 설치
-bash scripts/setup-engine.sh
+bash scripts/setup-backend.sh
 # 2) 서비스 활성화 및 시작
 systemctl --user enable brokergateway ordermanager notifier webhook console-sync.timer
 systemctl --user start brokergateway ordermanager notifier webhook console-sync.timer
@@ -45,19 +45,19 @@ systemctl --user start brokergateway ordermanager notifier webhook console-sync.
 
 #### 배포
 ```bash
-bash scripts/deploy-engine.sh
+bash scripts/deploy-backend.sh
 ```
 
-### 2. Dashboard 서버 (E2.Micro 등)
+### 2. Web 서버 (E2.Micro 등)
 대시보드 UI만 가동합니다.
 
-**중요:** `/srv/yquant/web/appsecrets.json`에서 **Redis 주소를 Engine 서버의 IP**로 수정해야 합니다.
+**중요:** `/srv/yquant/web/appsecrets.json`에서 **Redis 주소를 Backend 서버의 IP**로 수정해야 합니다.
 
 #### 초기 설정
 ```bash
 cd ~/yquant
 # 1) 시스템 서비스 설치
-bash scripts/setup-dashboard.sh
+bash scripts/setup-web.sh
 # 2) 서비스 활성화 및 시작
 systemctl --user enable web
 systemctl --user start web
@@ -65,7 +65,7 @@ systemctl --user start web
 
 #### 배포
 ```bash
-bash scripts/deploy-dashboard.sh
+bash scripts/deploy-web.sh
 ```
 
 ### 개별 스크립트 실행
@@ -73,52 +73,52 @@ bash scripts/deploy-dashboard.sh
 #### 빌드만 수행 (각 서버에서)
 
 ```bash
-# Engine 서버에서
-bash scripts/build-engine.sh
+# Backend 서버에서
+bash scripts/build-backend.sh
 
-# Dashboard 서버에서
-bash scripts/build-dashboard.sh
+# Web 서버에서
+bash scripts/build-web.sh
 ```
 
 #### 서비스 재시작만 수행 (각 서버에서)
 
 ```bash
-# Engine 서버에서
-bash scripts/restart-engine.sh
+# Backend 서버에서
+bash scripts/restart-backend.sh
 
-# Dashboard 서버에서
-bash scripts/restart-dashboard.sh
+# Web 서버에서
+bash scripts/restart-web.sh
 ```
 
 #### 서비스 상태 확인 (각 서버에서)
 
 ```bash
-# Engine 서버에서
-bash scripts/health-check-engine.sh
+# Backend 서버에서
+bash scripts/health-check-backend.sh
 
-# Dashboard 서버에서
-bash scripts/health-check-dashboard.sh
+# Web 서버에서
+bash scripts/health-check-web.sh
 ```
 
 ## 🔧 GitHub Actions 설정
 
 GitHub 저장소의 Settings > Secrets and variables > Actions에 다음 시크릿들을 추가하세요:
 
-#### 1. Engine 서버용 시크릿
+#### 1. Backend 서버용 시크릿
 | Secret Name | 설명 |
 |------------|------|
-| `ENGINE_HOST` | Engine 서버 호스트 (A1) |
-| `ENGINE_SSH_USER` | SSH 사용자명 |
-| `ENGINE_SSH_KEY` | SSH 개인 키 |
-| `ENGINE_SSH_PORT` | SSH 포트 (기본 22) |
+| `BACKEND_HOST` | Backend 서버 호스트 (A1) |
+| `BACKEND_SSH_USER` | SSH 사용자명 |
+| `BACKEND_SSH_KEY` | SSH 개인 키 |
+| `BACKEND_SSH_PORT` | SSH 포트 (기본 22) |
 
-#### 2. Dashboard 서버용 시크릿
+#### 2. Web 서버용 시크릿
 | Secret Name | 설명 |
 |------------|------|
-| `DASHBOARD_HOST` | Dashboard 서버 호스트 (E2) |
-| `DASHBOARD_SSH_USER` | SSH 사용자명 |
-| `DASHBOARD_SSH_KEY` | SSH 개인 키 |
-| `DASHBOARD_SSH_PORT` | SSH 포트 (기본 22) |
+| `WEB_HOST` | Web 서버 호스트 (E2) |
+| `WEB_SSH_USER` | SSH 사용자명 |
+| `WEB_SSH_KEY` | SSH 개인 키 |
+| `WEB_SSH_PORT` | SSH 포트 (기본 22) |
 
 ### SSH 키 생성 (서버에서)
 
@@ -213,8 +213,8 @@ systemctl --user restart brokergateway
 
 ```bash
 # appsecrets.json 파일 수정 후 서비스 재시작 (해당 서버에서)
-bash scripts/restart-engine.sh  # Engine 서버일 경우
-bash scripts/restart-dashboard.sh     # Dashboard 서버일 경우
+bash scripts/restart-backend.sh  # Backend 서버일 경우
+bash scripts/restart-web.sh     # Web 서버일 경우
 ```
 
 ## 📝 참고사항

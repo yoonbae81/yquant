@@ -1,8 +1,8 @@
 #!/bin/bash
-# scripts/setup-engine.sh
+# scripts/setup-backend.sh
 set -e
 
-echo "⚙️ Setting up yQuant Engine services (systemd)..."
+echo "⚙️ Setting up yQuant Backend services (systemd)..."
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
@@ -28,6 +28,6 @@ cp "$TEMPLATE_DIR/console-sync.timer" "$SYSTEMD_DIR/console-sync.timer"
 
 systemctl --user daemon-reload
 
-echo "✅ Engine services installed!"
+echo "✅ Backend services installed!"
 echo "💡 To enable: systemctl --user enable brokergateway ordermanager notifier webhook console-sync.timer"
 echo "💡 To start:  systemctl --user start brokergateway ordermanager notifier webhook console-sync.timer"

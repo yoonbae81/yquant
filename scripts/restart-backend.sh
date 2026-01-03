@@ -1,8 +1,8 @@
 #!/bin/bash
-# scripts/restart-engine.sh
+# scripts/restart-backend.sh
 set -e
 
-echo "🔄 Restarting yQuant Engine services..."
+echo "🔄 Restarting yQuant Backend services..."
 
 SERVICES=(
   "brokergateway"
@@ -23,4 +23,4 @@ for service in "${SERVICES[@]}"; do
   fi
 done
 
-echo "✅ Engine services restarted!"
+echo "✅ Backend services restarted!"

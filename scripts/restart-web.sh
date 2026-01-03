@@ -1,8 +1,8 @@
 #!/bin/bash
-# scripts/restart-dashboard.sh
+# scripts/restart-web.sh
 set -e
 
-echo "🔄 Restarting yQuant Dashboard service..."
+echo "🔄 Restarting yQuant Web service..."
 
 systemctl --user restart web.service
 
@@ -13,4 +13,4 @@ else
   exit 1
 fi
 
-echo "✅ Dashboard service restarted!"
+echo "✅ Web service restarted!"

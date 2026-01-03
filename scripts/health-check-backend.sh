@@ -1,8 +1,8 @@
 #!/bin/bash
-# scripts/health-check-engine.sh
+# scripts/health-check-backend.sh
 set -e
 
-echo "🏥 Checking health of yQuant Engine services..."
+echo "🏥 Checking health of yQuant Backend services..."
 
 SERVICES=(
   "brokergateway"
@@ -32,7 +32,7 @@ fi
 
 echo ""
 if [ "$ALL_HEALTHY" = true ]; then
-  echo "✅ All engine services are healthy!"
+  echo "✅ All backend services are healthy!"
   exit 0
 else
   echo "❌ Some services are not running. Check logs with:"
