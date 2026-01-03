@@ -6,15 +6,24 @@ using yQuant.Infra.Notification.Discord;
 using yQuant.Infra.Notification.Telegram;
 using yQuant.Core.Ports.Output.Infrastructure;
 
+// Find the configuration directory (climb up to find appsettings.json)
+var configDir = Directory.GetCurrentDirectory();
+while (configDir != null && !File.Exists(Path.Combine(configDir, "appsettings.json")))
+{
+    configDir = Path.GetDirectoryName(configDir);
+}
+configDir ??= AppContext.BaseDirectory;
+
 var settings = new HostApplicationBuilderSettings
 {
     Args = args,
-    ContentRootPath = AppContext.BaseDirectory
+    ContentRootPath = configDir
 };
 var builder = Host.CreateApplicationBuilder(settings);
 
 // Load configuration files
-builder.Configuration.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
+builder.Configuration.SetBasePath(configDir)
+                     .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile("appsecrets.json", optional: false, reloadOnChange: true);
 
 // Configure Notifier settings

@@ -50,10 +50,19 @@ class Program
             targetAccount = args[1];
         }
 
+        // Find the configuration directory (climb up to find appsettings.json)
+        var configDir = Directory.GetCurrentDirectory();
+        while (configDir != null && !File.Exists(Path.Combine(configDir, "appsettings.json")))
+        {
+            configDir = Path.GetDirectoryName(configDir);
+        }
+        configDir ??= AppContext.BaseDirectory;
+
         var host = Host.CreateDefaultBuilder(args)
+            .UseContentRoot(configDir)
             .ConfigureAppConfiguration((context, config) =>
             {
-                config.SetBasePath(AppContext.BaseDirectory);
+                config.SetBasePath(configDir);
                 config.AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                       .AddJsonFile("appsecrets.json", optional: false, reloadOnChange: true);
             })

@@ -22,29 +22,16 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.TypeInfoResolverChain.Insert(0, AppJsonSerializerContext.Default);
 });
 
-// Find the correct configuration path
-var currentDir = Directory.GetCurrentDirectory();
-var configPath = currentDir;
-
-if (!File.Exists(Path.Combine(currentDir, "appsettings.json")))
+// Find the configuration directory (climb up to find appsettings.json)
+var configDir = Directory.GetCurrentDirectory();
+while (configDir != null && !File.Exists(Path.Combine(configDir, "appsettings.json")))
 {
-    // Try to find the root directory where appsettings.json exists
-    var dir = currentDir;
-    for (int i = 0; i < 5; i++)
-    {
-        if (File.Exists(Path.Combine(dir, "appsettings.json")))
-        {
-            configPath = dir;
-            break;
-        }
-        var parent = Directory.GetParent(dir);
-        if (parent == null) break;
-        dir = parent.FullName;
-    }
+    configDir = Path.GetDirectoryName(configDir);
 }
+configDir ??= AppContext.BaseDirectory;
 
 // Load configuration files
-builder.Configuration.SetBasePath(configPath)
+builder.Configuration.SetBasePath(configDir)
                      .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile("appsecrets.json", optional: false, reloadOnChange: true);
 

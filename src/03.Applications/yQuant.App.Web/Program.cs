@@ -19,46 +19,25 @@ using yQuant.Infra.Notification.Discord;
 
 
 
-// Find the correct content root by looking for wwwroot directory
-var currentDir = Directory.GetCurrentDirectory();
-var contentRoot = currentDir;
-var webRoot = Path.Combine(currentDir, "wwwroot");
-
-// If wwwroot doesn't exist in current directory, try to find project root
-if (!Directory.Exists(webRoot))
+// Find the configuration directory (climb up to find appsettings.json)
+var configDir = Directory.GetCurrentDirectory();
+while (configDir != null && !File.Exists(Path.Combine(configDir, "appsettings.json")))
 {
-    // We're likely in bin/Debug/net10.0, go up to find project root
-    var projectRoot = currentDir;
-    for (int i = 0; i < 5; i++)
-    {
-        projectRoot = Path.GetDirectoryName(projectRoot);
-        if (projectRoot == null) break;
-
-        var testWebRoot = Path.Combine(projectRoot, "wwwroot");
-        if (Directory.Exists(testWebRoot))
-        {
-            contentRoot = projectRoot;
-            webRoot = testWebRoot;
-            break;
-        }
-    }
+    configDir = Path.GetDirectoryName(configDir);
 }
+configDir ??= AppContext.BaseDirectory;
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
-    ContentRootPath = contentRoot,
-    WebRootPath = webRoot
+    ContentRootPath = configDir,
+    WebRootPath = Path.Combine(configDir, "wwwroot")
 });
 
 builder.WebHost.UseStaticWebAssets();
 
-// Load configuration files - try current directory first, then AppContext.BaseDirectory
-var configPath = File.Exists(Path.Combine(currentDir, "appsettings.json"))
-    ? currentDir
-    : AppContext.BaseDirectory;
-
-builder.Configuration.SetBasePath(configPath)
+// Load configuration files
+builder.Configuration.SetBasePath(configDir)
                      .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile("appsecrets.json", optional: false, reloadOnChange: true);
 
