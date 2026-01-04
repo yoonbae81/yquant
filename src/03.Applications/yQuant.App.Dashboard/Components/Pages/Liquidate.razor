@@ -14,6 +14,7 @@
 @inject NavigationManager NavigationManager
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 <PageTitle>Liquidate Positions</PageTitle>
 
@@ -345,7 +346,8 @@ else
         SelectedAccountAlias = alias;
         AccountAlias = alias;
         CurrentSchedule.AccountAlias = alias;
-        NavigationManager.NavigateTo($"/liquidate/{alias}");
+        var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+        NavigationManager.NavigateTo($"{pathBase}/liquidate/{alias}");
         await LoadAccountData(alias);
         LoadScheduledLiquidations();
         ClearForm();

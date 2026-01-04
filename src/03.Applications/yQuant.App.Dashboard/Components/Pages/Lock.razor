@@ -2,6 +2,7 @@
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Authentication.Cookies
 @inject NavigationManager Navigation
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 <PageTitle>Locking Dashboard...</PageTitle>
 
@@ -20,6 +21,7 @@
 
     protected override void OnInitialized()
     {
-        Navigation.NavigateTo("/account/lock", forceLoad: true);
+        var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+        Navigation.NavigateTo($"{pathBase}/account/lock", forceLoad: true);
     }
 }

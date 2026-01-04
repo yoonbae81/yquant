@@ -10,6 +10,7 @@
 @inject StackExchange.Redis.IConnectionMultiplexer Valkey
 @inject AccountCacheService AccountCacheService
 @inject NavigationManager NavigationManager
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 <PageTitle>Performance Metrics - yQuant</PageTitle>
@@ -259,7 +260,8 @@
     private async Task OnAccountChanged(string alias)
     {
         AccountAlias = alias;
-        NavigationManager.NavigateTo($"/performance/{alias}");
+        var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+        NavigationManager.NavigateTo($"{pathBase}/performance/{alias}");
         _metrics = null; // Reset metrics when account changes
         _snapshots = new();
     }

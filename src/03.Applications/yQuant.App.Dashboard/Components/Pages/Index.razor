@@ -9,6 +9,7 @@
 @inject AccountCacheService AccountCacheService
 @inject NavigationManager NavigationManager
 @inject IJSRuntime JSRuntime
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 <PageTitle>Dashboard</PageTitle>
 
@@ -65,7 +66,8 @@ else
     private void HandleOrderAction((string ticker, OrderAction action, string accountAlias) args)
     {
         // Navigate to the order form with pre-filled details
-        NavigationManager.NavigateTo($"/orderform?ticker={args.ticker}&action={args.action}&accountAlias={args.accountAlias}");
+        var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+        NavigationManager.NavigateTo($"{pathBase}/orderform?ticker={args.ticker}&action={args.action}&accountAlias={args.accountAlias}");
     }
 
     private async Task ScrollToPosition(string accountAlias)

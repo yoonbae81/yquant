@@ -12,6 +12,7 @@
 @inject ISnackbar Snackbar
 @inject IJSRuntime JS
 @inject NavigationManager NavigationManager
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 <PageTitle>Scheduled Orders</PageTitle>
 
@@ -277,8 +278,8 @@ else
         else if (string.IsNullOrEmpty(SelectedAccountAlias) && AvailableAccounts.Any())
         {
             SelectedAccountAlias = AvailableAccounts.First().Alias;
-            // Navigate to URL with selected account
-            NavigationManager.NavigateTo($"/scheduled/{SelectedAccountAlias}");
+            var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+            NavigationManager.NavigateTo($"{pathBase}/scheduled/{SelectedAccountAlias}");
         }
 
         if (!string.IsNullOrEmpty(SelectedAccountAlias))
@@ -310,7 +311,8 @@ else
         CurrentSchedule.AccountAlias = alias;
 
         // Navigate to new URL
-        NavigationManager.NavigateTo($"/scheduled/{alias}");
+        var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+        NavigationManager.NavigateTo($"{pathBase}/scheduled/{alias}");
 
         // Reload schedules for the new account
         _scheduledOrders = SchedulerService.GetScheduledOrders()

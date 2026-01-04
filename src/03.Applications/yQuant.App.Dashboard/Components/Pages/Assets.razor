@@ -12,6 +12,7 @@
 @inject NavigationManager NavigationManager
 @inject OrderPublisher OrderPublisher
 @inject ISnackbar Snackbar
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 <AccountSelector Accounts="_availableAccounts" SelectedAccountAlias="@AccountAlias"
     SelectedAccountAliasChanged="@OnAccountChanged" />
@@ -151,7 +152,8 @@ else
     private async Task OnAccountChanged(string alias)
     {
         AccountAlias = alias;
-        NavigationManager.NavigateTo($"/assets/{alias}"); // Update URL
+        var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+        NavigationManager.NavigateTo($"{pathBase}/assets/{alias}"); // Update URL
         await LoadAccountData(alias);
     }
 

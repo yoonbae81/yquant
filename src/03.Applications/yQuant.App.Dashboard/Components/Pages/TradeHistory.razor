@@ -7,6 +7,7 @@
 @inject ILogger<TradeHistory> Logger
 @inject AccountCacheService AccountCacheService
 @inject NavigationManager NavigationManager
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 <AccountSelector Accounts="_availableAccounts" SelectedAccountAlias="@AccountAlias"
@@ -156,7 +157,8 @@
     private async Task OnAccountChanged(string alias)
     {
         AccountAlias = alias;
-        NavigationManager.NavigateTo($"/trades/{alias}");
+        var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+        NavigationManager.NavigateTo($"{pathBase}/trades/{alias}");
         await LoadTrades();
     }
 
