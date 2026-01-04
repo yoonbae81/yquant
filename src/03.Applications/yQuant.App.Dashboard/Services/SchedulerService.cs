@@ -34,11 +34,11 @@ public class SchedulerService
         _redis = redis;
 
         // Load data on construction
-        _ = LoadFromRedisAsync();
+        _ = LoadFromValkeyAsync();
     }
 
 
-    private async Task LoadFromRedisAsync()
+    private async Task LoadFromValkeyAsync()
     {
         try
         {
@@ -106,11 +106,11 @@ public class SchedulerService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load scheduled data from Redis");
+            _logger.LogError(ex, "Failed to load scheduled data from Valkey");
         }
     }
 
-    private async Task SaveToRedisAsync()
+    private async Task SaveToValkeyAsync()
     {
         try
         {
@@ -160,7 +160,7 @@ public class SchedulerService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to save scheduled data to Redis");
+            _logger.LogError(ex, "Failed to save scheduled data to Valkey");
         }
     }
 
@@ -195,7 +195,7 @@ public class SchedulerService
             _scheduledOrders.Add(order);
         }
         // Fire and forget save
-        _ = SaveToRedisAsync();
+        _ = SaveToValkeyAsync();
         NotifyStateChanged();
     }
 
@@ -209,7 +209,7 @@ public class SchedulerService
                 _scheduledOrders.Remove(order);
             }
         }
-        _ = SaveToRedisAsync();
+        _ = SaveToValkeyAsync();
         NotifyStateChanged();
     }
 
@@ -309,7 +309,7 @@ public class SchedulerService
                     }
                 }
             }
-            _ = SaveToRedisAsync();
+            _ = SaveToValkeyAsync();
             NotifyStateChanged();
         }
         catch (Exception ex)
@@ -419,7 +419,7 @@ public class SchedulerService
 
             _scheduledLiquidations.Add(liquidation);
         }
-        _ = SaveToRedisAsync();
+        _ = SaveToValkeyAsync();
         NotifyStateChanged();
     }
 
@@ -433,7 +433,7 @@ public class SchedulerService
                 _scheduledLiquidations.Remove(liquidation);
             }
         }
-        _ = SaveToRedisAsync();
+        _ = SaveToValkeyAsync();
         NotifyStateChanged();
     }
 
@@ -517,7 +517,7 @@ public class SchedulerService
                     }
                 }
             }
-            _ = SaveToRedisAsync();
+            _ = SaveToValkeyAsync();
             NotifyStateChanged();
         }
         catch (Exception ex)

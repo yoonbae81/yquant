@@ -41,13 +41,13 @@ namespace yQuant.App.BrokerGateway
             _logger.LogInformation("BrokerGateway Worker started.");
             var subscriber = _redis.GetSubscriber();
 
-            await subscriber.SubscribeAsync(RedisChannel.Literal("order"), (channel, message) =>
+            await subscriber.SubscribeAsync(ValkeyChannel.Literal("order"), (channel, message) =>
             {
                 // Handle concurrently
                 _ = HandleRequestAsync(message);
             });
 
-            await subscriber.SubscribeAsync(RedisChannel.Literal("query"), (channel, message) =>
+            await subscriber.SubscribeAsync(ValkeyChannel.Literal("query"), (channel, message) =>
             {
                 // Handle query requests concurrently
                 _ = HandleQueryAsync(message);
@@ -81,12 +81,12 @@ namespace yQuant.App.BrokerGateway
 
                 if (!silent && _logger.IsEnabled(LogLevel.Information))
                 {
-                    _logger.LogInformation("Synced all account data to Redis for: {Accounts}", string.Join(", ", _adapters.Keys));
+                    _logger.LogInformation("Synced all account data to Valkey for: {Accounts}", string.Join(", ", _adapters.Keys));
                 }
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Failed to sync account data to Redis.");
+                _logger.LogError(ex, "Failed to sync account data to Valkey.");
             }
         }
 
@@ -141,7 +141,7 @@ namespace yQuant.App.BrokerGateway
 
                 // Clear old positions first? Or just overwrite?
                 // If we sold everything, we need to remove the field.
-                // Redis Hash doesn't support "replace all".
+                // Valkey Hash doesn't support "replace all".
                 // Strategy: Delete key then set new? Or strict field management.
                 // For simplicity/safety, let's delete and re-set to avoid ghost positions.
                 // But deleting might cause a split-second "no position" state.
@@ -188,7 +188,7 @@ namespace yQuant.App.BrokerGateway
 
 
 
-        private async Task HandleRequestAsync(RedisValue message)
+        private async Task HandleRequestAsync(ValkeyValue message)
         {
             try
             {
@@ -217,7 +217,7 @@ namespace yQuant.App.BrokerGateway
 
                     // Publish to 'execution'
                     var db = _redis.GetDatabase();
-                    await db.PublishAsync(RedisChannel.Literal("execution"), JsonSerializer.Serialize(result));
+                    await db.PublishAsync(ValkeyChannel.Literal("execution"), JsonSerializer.Serialize(result));
 
                     // Schedule debounced Account Sync (5 seconds after last order)
                     if (_adapters.TryGetValue(order.AccountAlias, out var adapter))
@@ -236,7 +236,7 @@ namespace yQuant.App.BrokerGateway
                         Message = ex.Message
                     };
                     var db = _redis.GetDatabase();
-                    await db.PublishAsync(RedisChannel.Literal("execution"), JsonSerializer.Serialize(failureResult));
+                    await db.PublishAsync(ValkeyChannel.Literal("execution"), JsonSerializer.Serialize(failureResult));
                 }
             }
             catch (Exception ex)
@@ -245,7 +245,7 @@ namespace yQuant.App.BrokerGateway
             }
         }
 
-        private async Task HandleQueryAsync(RedisValue message)
+        private async Task HandleQueryAsync(ValkeyValue message)
         {
             try
             {
@@ -302,22 +302,22 @@ namespace yQuant.App.BrokerGateway
                 }
 
 
-                // Prepare Redis access
+                // Prepare Valkey access
                 var db = _redis.GetDatabase();
                 var key = $"stock:{ticker}";
 
                 // Check for cached exchange info
-                RedisValue exchangeValue = await db.HashGetAsync(key, "exchange");
+                ValkeyValue exchangeValue = await db.HashGetAsync(key, "exchange");
                 yQuant.Core.Models.PriceInfo? priceInfo;
 
                 if (exchangeValue.HasValue && Enum.TryParse<yQuant.Core.Models.ExchangeCode>(exchangeValue.ToString(), true, out var exchange))
                 {
-                    _logger.LogInformation("Found exchange {Exchange} for {Ticker} in Redis. Querying directly.", exchange, ticker);
+                    _logger.LogInformation("Found exchange {Exchange} for {Ticker} in Valkey. Querying directly.", exchange, ticker);
                     priceInfo = await adapter.GetPriceAsync(ticker, exchange);
                 }
                 else
                 {
-                    _logger.LogInformation("Exchange not found for {Ticker} in Redis. Querying all possible exchanges.", ticker);
+                    _logger.LogInformation("Exchange not found for {Ticker} in Valkey. Querying all possible exchanges.", ticker);
                     priceInfo = await adapter.GetPriceAsync(ticker);
                 }
 
@@ -519,7 +519,7 @@ namespace yQuant.App.BrokerGateway
                 var key = $"deposit:{alias}";
 
                 // Estimate amount: Qty * Price
-                // If Market Order (Price is null/0), try to get last price from Redis
+                // If Market Order (Price is null/0), try to get last price from Valkey
                 decimal executionPrice = order.Price ?? 0;
                 if (executionPrice == 0)
                 {
@@ -544,9 +544,9 @@ namespace yQuant.App.BrokerGateway
                 var actionStr = order.Action.ToString();
 
                 var result = await db.ScriptEvaluateAsync(
-                    RedisLuaScripts.UpdateDepositScript,
-                    new RedisKey[] { key },
-                    new RedisValue[] { currencyField, actionStr, amountChange.ToString() }
+                    ValkeyLuaScripts.UpdateDepositScript,
+                    new ValkeyKey[] { key },
+                    new ValkeyValue[] { currencyField, actionStr, amountChange.ToString() }
                 );
 
                 if (_logger.IsEnabled(LogLevel.Debug))
@@ -571,7 +571,7 @@ namespace yQuant.App.BrokerGateway
                 decimal executionPrice = order.Price ?? 0;
                 if (executionPrice == 0)
                 {
-                    // Try to get from Redis stock price
+                    // Try to get from Valkey stock price
                     var priceVal = await db.HashGetAsync($"stock:{order.Ticker}", "price");
                     if (priceVal.HasValue && decimal.TryParse(priceVal.ToString(), out var p))
                     {
@@ -587,9 +587,9 @@ namespace yQuant.App.BrokerGateway
 
                 // Use Lua script for atomic update to prevent race conditions
                 var result = await db.ScriptEvaluateAsync(
-                    RedisLuaScripts.UpdatePositionScript,
-                    new RedisKey[] { key },
-                    new RedisValue[]
+                    ValkeyLuaScripts.UpdatePositionScript,
+                    new ValkeyKey[] { key },
+                    new ValkeyValue[]
                     {
                         order.Ticker,                      // ARGV[1]
                         order.Action.ToString(),           // ARGV[2]

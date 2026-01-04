@@ -7,11 +7,9 @@
     <BlazorDisableThrowNavigationException>true</BlazorDisableThrowNavigationException>
     <UserSecretsId>yquant-dashboard-secrets</UserSecretsId>
     <NoWarn>$(NoWarn);MUD0002</NoWarn>
-    <StaticWebAssetBasePath>/</StaticWebAssetBasePath>
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="BCrypt.Net-Next" Version="4.0.3" />
     <PackageReference Include="MudBlazor" Version="8.15.0" />
   </ItemGroup>
 
@@ -19,7 +17,7 @@
     <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Reporting\yQuant.Infra.Reporting.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Broker.KIS\yQuant.Infra.Broker.KIS.csproj" />
-    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Valkey\yQuant.Infra.Valkey.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification\yQuant.Infra.Notification.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification.Discord\yQuant.Infra.Notification.Discord.csproj" />
 

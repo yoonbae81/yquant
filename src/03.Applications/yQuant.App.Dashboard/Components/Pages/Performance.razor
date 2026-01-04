@@ -7,7 +7,7 @@
 @inject IDailySnapshotRepository SnapshotRepository
 @inject ITradeRepository TradeRepository
 @inject ILogger<Performance> Logger
-@inject StackExchange.Redis.IConnectionMultiplexer Redis
+@inject StackExchange.Redis.IConnectionMultiplexer Valkey
 @inject AccountCacheService AccountCacheService
 @inject NavigationManager NavigationManager
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]

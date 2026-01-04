@@ -6,12 +6,12 @@ using yQuant.Core.Extensions;
 
 namespace yQuant.App.OrderManager.Adapters;
 
-public class RedisAccountRepository : IAccountRepository
+public class ValkeyAccountRepository : IAccountRepository
 {
     private readonly IConnectionMultiplexer _redis;
-    private readonly ILogger<RedisAccountRepository> _logger;
+    private readonly ILogger<ValkeyAccountRepository> _logger;
 
-    public RedisAccountRepository(IConnectionMultiplexer redis, ILogger<RedisAccountRepository> logger)
+    public ValkeyAccountRepository(IConnectionMultiplexer redis, ILogger<ValkeyAccountRepository> logger)
     {
         _redis = redis;
         _logger = logger;
@@ -27,7 +27,7 @@ public class RedisAccountRepository : IAccountRepository
 
         if (accountEntries.Length == 0)
         {
-            _logger.LogWarning("Account {AccountAlias} not found in Redis.", accountAlias);
+            _logger.LogWarning("Account {AccountAlias} not found in Valkey.", accountAlias);
             return null;
         }
 

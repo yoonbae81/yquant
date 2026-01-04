@@ -717,7 +717,7 @@ public class KISBrokerAdapter : IBrokerAdapter
 
     /// <summary>
     /// Determines if a 6-digit ticker is ambiguous (could be Korean or Chinese).
-    /// Only tickers starting with 0 or 3 are ambiguous and need cache/Redis lookup.
+    /// Only tickers starting with 0 or 3 are ambiguous and need cache/Valkey lookup.
     /// - 6, 9: Definitely overseas (Chinese)
     /// - 1, 2, 4, 5, 7, 8: Definitely domestic (Korean)
     /// - 0, 3: Ambiguous (need lookup)
@@ -842,14 +842,14 @@ public class KISBrokerAdapter : IBrokerAdapter
     /// Classifies 6-digit ticker codes to distinguish between KRX and Chinese exchanges (SSE/SZSE).
     /// Returns the most likely exchange based on number ranges and patterns observed in Stock data.
     /// 
-    /// Based on actual Redis stock:{ticker} data patterns:
+    /// Based on actual Valkey stock:{ticker} data patterns:
     /// - Korean stocks (KOSPI/KOSDAQ): Generally 005000-999999, excluding Chinese ranges
     /// - Chinese SSE A-shares: 600000-603999 (Shanghai Stock Exchange)
     /// - Chinese SZSE A-shares: 000001-003999 (Shenzhen main board)
     /// - Chinese SZSE ChiNext: 300000-399999 (Shenzhen growth board)
     /// 
     /// Accuracy: ~90-95% for most cases
-    /// NOTE: This is a fallback heuristic. Prefer GetTickerExchangeAsync() which checks Redis first.
+    /// NOTE: This is a fallback heuristic. Prefer GetTickerExchangeAsync() which checks Valkey first.
     /// </summary>
     /// <param name="ticker">6-digit ticker code</param>
     /// <returns>Tuple of (ExchangeCode, confidence level 0.0-1.0)</returns>

@@ -4,7 +4,7 @@ using yQuant.Core.Models;
 namespace yQuant.App.Dashboard.Services;
 
 /// <summary>
-/// Client-side cache service for account information to reduce redundant Redis calls
+/// Client-side cache service for account information to reduce redundant Valkey calls
 /// </summary>
 public class AccountCacheService
 {
@@ -25,7 +25,7 @@ public class AccountCacheService
     }
 
     /// <summary>
-    /// Get cached account list or fetch from Redis if cache is expired
+    /// Get cached account list or fetch from Valkey if cache is expired
     /// </summary>
     public virtual async Task<List<Account>> GetAccountsAsync(bool forceRefresh = false)
     {
@@ -42,8 +42,8 @@ public class AccountCacheService
                 return _cachedAccounts;
             }
 
-            // Cache expired or force refresh - fetch from Redis
-            _logger.LogInformation("Fetching accounts from Redis (cache expired or force refresh)");
+            // Cache expired or force refresh - fetch from Valkey
+            _logger.LogInformation("Fetching accounts from Valkey (cache expired or force refresh)");
             var aliases = await _assetService.GetAvailableAccountsAsync();
             var accounts = new List<Account>();
 

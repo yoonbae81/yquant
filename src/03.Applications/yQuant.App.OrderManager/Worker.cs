@@ -33,7 +33,7 @@ namespace yQuant.App.OrderManager
 
             // Subscribe to signal channel
             var subscriber = _redis.GetSubscriber();
-            await subscriber.SubscribeAsync(RedisChannel.Literal("signal"), async (channel, message) =>
+            await subscriber.SubscribeAsync(ValkeyChannel.Literal("signal"), async (channel, message) =>
             {
                 _logger.LogInformation("Received signal: {Message}", message);
                 try

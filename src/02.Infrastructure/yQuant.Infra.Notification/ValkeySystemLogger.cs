@@ -2,11 +2,11 @@ using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.Infra.Notification
 {
-    public class RedisSystemLogger : ISystemLogger
+    public class ValkeySystemLogger : ISystemLogger
     {
         private readonly NotificationPublisher _publisher;
 
-        public RedisSystemLogger(NotificationPublisher publisher)
+        public ValkeySystemLogger(NotificationPublisher publisher)
         {
             _publisher = publisher;
         }

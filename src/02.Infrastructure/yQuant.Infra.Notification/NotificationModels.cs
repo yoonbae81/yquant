@@ -1,7 +1,7 @@
 namespace yQuant.Infra.Notification;
 
 /// <summary>
-/// Redis 알림 채널 상수 정의
+/// Valkey 알림 채널 상수 정의
 /// 시스템의 핵심 도메인 규약이므로 코드에 하드코딩
 /// </summary>
 public static class NotificationChannels
@@ -44,7 +44,7 @@ public enum NotificationType
 }
 
 /// <summary>
-/// Redis로 전송되는 알림 메시지 구조
+/// Valkey로 전송되는 알림 메시지 구조
 /// </summary>
 public class NotificationMessage
 {
@@ -54,7 +54,7 @@ public class NotificationMessage
     /// <summary>계정 별칭 (계정별 라우팅에 사용)</summary>
     public string? AccountAlias { get; set; }
 
-    /// <summary>Redis 채널 (Notifier에서 설정)</summary>
+    /// <summary>Valkey 채널 (Notifier에서 설정)</summary>
     public string? Channel { get; set; }
 
     /// <summary>메시지 생성 시각 (UTC)</summary>

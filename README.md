@@ -117,7 +117,7 @@ cp appsecrets.example.json appsecrets.json
 
 # appsecrets.json 파일에 Valkey 접속 정보 설정
 # {
-#   "Redis": {
+#   "Valkey": {
 #     "Message": "localhost:6379",
 #     "Token": "your-shared-valkey-url"
 #   },

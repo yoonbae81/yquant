@@ -38,7 +38,7 @@ description: Setup systemd services for all yQuant applications on Arch Linux
 
 이 프로젝트는 **`appsecrets.json`**을 사용하여 설정을 관리합니다. 각 애플리케이션 유닛(Web, BrokerGateway 등)은 실행 시 배포 디렉토리에 있는 `appsecrets.json` 파일에서 Valkey 연결 정보 및 API 키 등을 읽어옵니다.
 
-**주요 설정 항목 (`Redis` 섹션):**
+**주요 설정 항목 (`Valkey` 섹션):**
 - **`Message`**: 각 유닛간의 메시징 및 로컬 캐시용 Valkey 주소.
 - **`Token`**: 전 환경 공용 KIS 토큰 저장용 Valkey 주소 (Valkey Cloud 등 공유 서비스 이용 권장).
 

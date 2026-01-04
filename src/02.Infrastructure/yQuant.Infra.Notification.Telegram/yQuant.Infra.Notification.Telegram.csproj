@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.0" />
     <PackageReference Include="Telegram.Bot" Version="22.7.5" />
     <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
-    <ProjectReference Include="..\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj" />
+    <ProjectReference Include="..\yQuant.Infra.Valkey\yQuant.Infra.Valkey.csproj" />
   </ItemGroup>
 
   <ItemGroup>

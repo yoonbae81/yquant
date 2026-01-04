@@ -4,19 +4,19 @@ using System.Collections.Concurrent;
 
 namespace yQuant.Infra.Notification
 {
-    public class RedisNotificationLoggerProvider : ILoggerProvider
+    public class ValkeyNotificationLoggerProvider : ILoggerProvider
     {
         private readonly NotificationPublisher _publisher;
-        private readonly ConcurrentDictionary<string, RedisNotificationLogger> _loggers = new();
+        private readonly ConcurrentDictionary<string, ValkeyNotificationLogger> _loggers = new();
 
-        public RedisNotificationLoggerProvider(NotificationPublisher publisher)
+        public ValkeyNotificationLoggerProvider(NotificationPublisher publisher)
         {
             _publisher = publisher;
         }
 
         public ILogger CreateLogger(string categoryName)
         {
-            return _loggers.GetOrAdd(categoryName, name => new RedisNotificationLogger(name, _publisher));
+            return _loggers.GetOrAdd(categoryName, name => new ValkeyNotificationLogger(name, _publisher));
         }
 
         public void Dispose()
@@ -25,12 +25,12 @@ namespace yQuant.Infra.Notification
         }
     }
 
-    public class RedisNotificationLogger : ILogger
+    public class ValkeyNotificationLogger : ILogger
     {
         private readonly string _categoryName;
         private readonly NotificationPublisher _publisher;
 
-        public RedisNotificationLogger(string categoryName, NotificationPublisher publisher)
+        public ValkeyNotificationLogger(string categoryName, NotificationPublisher publisher)
         {
             _categoryName = categoryName;
             _publisher = publisher;
@@ -62,11 +62,11 @@ namespace yQuant.Infra.Notification
         }
     }
 
-    public static class RedisNotificationLoggerExtensions
+    public static class ValkeyNotificationLoggerExtensions
     {
-        public static ILoggingBuilder AddRedisNotification(this ILoggingBuilder builder)
+        public static ILoggingBuilder AddValkeyNotification(this ILoggingBuilder builder)
         {
-            builder.Services.AddSingleton<ILoggerProvider, RedisNotificationLoggerProvider>();
+            builder.Services.AddSingleton<ILoggerProvider, ValkeyNotificationLoggerProvider>();
             return builder;
         }
     }

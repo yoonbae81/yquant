@@ -2,7 +2,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Interfaces;
 using StackExchange.Redis;
 using System.Text.Json;
 using yQuant.Core.Extensions;
@@ -12,14 +12,14 @@ namespace yQuant.App.Dashboard.Services;
 public class AssetService
 {
     private readonly IConnectionMultiplexer _redis;
-    private readonly IRedisService _redisService;
+    private readonly IValkeyService _redisService;
     private readonly IConfiguration _configuration;
     private readonly ILogger<AssetService> _logger;
     private readonly TimeSpan _cacheDuration;
 
     public AssetService(
         IConnectionMultiplexer redis,
-        IRedisService redisService,
+        IValkeyService redisService,
         IConfiguration configuration,
         ILogger<AssetService> logger)
     {
@@ -44,7 +44,7 @@ public class AssetService
                 var accounts = members.Select(m => m.ToString()).ToList();
                 if (_logger.IsEnabled(LogLevel.Information))
                 {
-                    _logger.LogInformation("Fetched {Count} accounts from Redis Index: {Accounts}", accounts.Count, string.Join(", ", accounts));
+                    _logger.LogInformation("Fetched {Count} accounts from Valkey Index: {Accounts}", accounts.Count, string.Join(", ", accounts));
                 }
                 return accounts;
             }
@@ -53,7 +53,7 @@ public class AssetService
         {
             if (_logger.IsEnabled(LogLevel.Error))
             {
-                _logger.LogError(ex, "Failed to fetch available accounts from Redis");
+                _logger.LogError(ex, "Failed to fetch available accounts from Valkey");
             }
         }
         return [];
@@ -91,10 +91,10 @@ public class AssetService
 
     public virtual async Task<Account?> GetAccountOverviewAsync(string accountAlias)
     {
-        // Direct Redis Read (Aggregation)
-        // No local caching needed here if we consider Redis as the "State Store".
-        // But if we want to reduce Redis calls, we can cache the aggregated object.
-        // Given the requirement for "Real-time", let's read directly from Redis State keys.
+        // Direct Valkey Read (Aggregation)
+        // No local caching needed here if we consider Valkey as the "State Store".
+        // But if we want to reduce Valkey calls, we can cache the aggregated object.
+        // Given the requirement for "Real-time", let's read directly from Valkey State keys.
         // They are updated by BrokerGateway periodically (e.g. 10s).
 
         try

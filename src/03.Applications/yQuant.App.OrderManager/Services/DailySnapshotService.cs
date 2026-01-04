@@ -101,7 +101,7 @@ public class DailySnapshotService : BackgroundService
 
             if (accountAliases.Length == 0)
             {
-                _logger.LogWarning("No accounts found in Redis index");
+                _logger.LogWarning("No accounts found in Valkey index");
                 return;
             }
 

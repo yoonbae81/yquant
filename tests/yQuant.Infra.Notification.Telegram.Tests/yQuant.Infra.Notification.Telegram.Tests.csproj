@@ -15,7 +15,7 @@
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.4" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="10.0.0" />
     <ProjectReference Include="..\..\src\02.Infrastructure\yQuant.Infra.Notification.Telegram\yQuant.Infra.Notification.Telegram.csproj" />
-    <ProjectReference Include="..\..\src\02.Infrastructure\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj" />
+    <ProjectReference Include="..\..\src\02.Infrastructure\yQuant.Infra.Valkey\yQuant.Infra.Valkey.csproj" />
   </ItemGroup>
 
   <ItemGroup>

@@ -297,7 +297,7 @@ Web의 통신 패턴 분석:
 #### VM1 설정 (`appsecrets.json`)
 ```json
 {
-  "Redis": {
+  "Valkey": {
     "Message": "localhost:6379",
     "Token": "localhost:6379"
      }
@@ -307,7 +307,7 @@ Web의 통신 패턴 분석:
 #### VM2 설정 (`appsecrets.json`)
 ```json
 {
-  "Redis": {
+  "Valkey": {
     "Message": "<VM1_PRIVATE_IP>:6379",
     "Token": "<VM1_PRIVATE_IP>:6379"
   }
@@ -319,7 +319,7 @@ Web의 통신 패턴 분석:
 #### VM1 설정 (`appsecrets.json`)
 ```json
 {
-  "Redis": {
+  "Valkey": {
     "Message": "localhost:6379",
     "Token": "localhost:6379"
   }
@@ -329,7 +329,7 @@ Web의 통신 패턴 분석:
 #### VM2 설정 (`appsecrets.json`)
 ```json
 {
-  "Redis": {
+  "Valkey": {
     "Message": "<VM1_PRIVATE_IP>:6379",
     "Token": "<VM1_PRIVATE_IP>:6379"
   }
@@ -339,7 +339,7 @@ Web의 통신 패턴 분석:
 #### VM3 설정 (`appsecrets.json`)
 ```json
 {
-  "Redis": {
+  "Valkey": {
     "Message": "<VM1_PRIVATE_IP>:6379",
     "Token": "<VM1_PRIVATE_IP>:6379"
   }

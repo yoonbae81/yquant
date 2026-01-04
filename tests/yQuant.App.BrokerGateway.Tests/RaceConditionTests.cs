@@ -14,7 +14,7 @@ namespace yQuant.App.BrokerGateway.Tests;
 /// These tests verify that concurrent order processing doesn't cause Lost Update problems.
 /// </summary>
 [TestClass]
-[Ignore("These tests require local Redis for reliable concurrent testing. Cloud Redis has network latency that makes these tests unreliable.")]
+[Ignore("These tests require local Valkey for reliable concurrent testing. Cloud Valkey has network latency that makes these tests unreliable.")]
 public class RaceConditionTests
 {
     private IConnectionMultiplexer? _redis;
@@ -27,16 +27,16 @@ public class RaceConditionTests
     {
         try
         {
-            // Connect to Redis Labs cloud instance for testing
+            // Connect to Valkey Labs cloud instance for testing
             _redis = await ConnectionMultiplexer.ConnectAsync("redis-12848.c340.ap-northeast-2-1.ec2.cloud.redislabs.com:12848,password=pTr1iIWzFNfLiExY9t0IXLw5hVWDnLpg");
             _db = _redis.GetDatabase();
 
             // Clean up test data
             await CleanupTestDataAsync();
         }
-        catch (RedisConnectionException)
+        catch (ValkeyConnectionException)
         {
-            Assert.Inconclusive("Redis server is not available. Please check the connection string.");
+            Assert.Inconclusive("Valkey server is not available. Please check the connection string.");
         }
     }
 
@@ -309,9 +309,9 @@ public class RaceConditionTests
     private async Task ExecutePositionUpdateAsync(OrderAction action, decimal qty, decimal price)
     {
         var result = await _db!.ScriptEvaluateAsync(
-            RedisLuaScripts.UpdatePositionScript,
-            new RedisKey[] { $"position:{TestAccountAlias}" },
-            new RedisValue[]
+            ValkeyLuaScripts.UpdatePositionScript,
+            new ValkeyKey[] { $"position:{TestAccountAlias}" },
+            new ValkeyValue[]
             {
                 TestTicker,                    // ARGV[1]
                 action.ToString(),             // ARGV[2]
@@ -329,9 +329,9 @@ public class RaceConditionTests
         var amountChange = qty * price;
 
         var result = await _db!.ScriptEvaluateAsync(
-            RedisLuaScripts.UpdateDepositScript,
-            new RedisKey[] { $"deposit:{TestAccountAlias}" },
-            new RedisValue[]
+            ValkeyLuaScripts.UpdateDepositScript,
+            new ValkeyKey[] { $"deposit:{TestAccountAlias}" },
+            new ValkeyValue[]
             {
                 currency,                      // ARGV[1]
                 action.ToString(),             // ARGV[2]

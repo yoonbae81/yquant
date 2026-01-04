@@ -4,7 +4,7 @@ using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS.Models;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Interfaces;
 using yQuant.Infra.Notification;
 
 namespace yQuant.Infra.Broker.KIS;
@@ -16,7 +16,7 @@ public class KISClient : IKISClient
     private readonly Account _account;
     private readonly KISApiConfig _apiConfig;
     private readonly RateLimiter _rateLimiter;
-    private readonly ITokenRedisService? _tokenRedis;
+    private readonly ITokenValkeyService? _tokenValkey;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
 
     private string? _accessToken;
@@ -36,13 +36,13 @@ public class KISClient : IKISClient
 
     public Account Account => _account;
 
-    public KISClient(HttpClient httpClient, ILogger<KISClient> logger, Account account, KISApiConfig apiConfig, string baseUrl, ITokenRedisService? tokenRedis = null, int rateLimit = 20)
+    public KISClient(HttpClient httpClient, ILogger<KISClient> logger, Account account, KISApiConfig apiConfig, string baseUrl, ITokenValkeyService? tokenValkey = null, int rateLimit = 20)
     {
         _httpClient = httpClient;
         _logger = logger;
         _account = account;
         _apiConfig = apiConfig;
-        _tokenRedis = tokenRedis;
+        _tokenValkey = tokenValkey;
 
         _httpClient.BaseAddress = new Uri(baseUrl);
 
@@ -80,16 +80,16 @@ public class KISClient : IKISClient
                 return;
             }
 
-            // 3. Check Global Token Redis (Shared across environments)
-            if (_tokenRedis != null)
+            // 3. Check Global Token Valkey (Shared across environments)
+            if (_tokenValkey != null)
             {
-                var tokenFromRedis = await _tokenRedis.GetAsync<TokenCacheEntry>($"Token:KIS:{_account.Alias}");
-                if (tokenFromRedis != null && tokenFromRedis.Expiration > DateTime.UtcNow.AddMinutes(1))
+                var tokenFromValkey = await _tokenValkey.GetAsync<TokenCacheEntry>($"Token:KIS:{_account.Alias}");
+                if (tokenFromValkey != null && tokenFromValkey.Expiration > DateTime.UtcNow.AddMinutes(1))
                 {
-                    _accessToken = tokenFromRedis.Token;
-                    _accessTokenExpiration = tokenFromRedis.Expiration;
+                    _accessToken = tokenFromValkey.Token;
+                    _accessTokenExpiration = tokenFromValkey.Expiration;
                     _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
-                    _logger.LogInformation("Loaded KIS access token from GLOBAL Redis cache for account {Alias}.", _account.Alias);
+                    _logger.LogInformation("Loaded KIS access token from GLOBAL Valkey cache for account {Alias}.", _account.Alias);
 
                     // Also update local file cache as fallback
                     await SaveTokenToFileAsync(_accessToken, _accessTokenExpiration);
@@ -97,7 +97,7 @@ public class KISClient : IKISClient
                 }
             }
 
-            // 4. Check local file cache (fallback when Redis is unavailable)
+            // 4. Check local file cache (fallback when Valkey is unavailable)
             var tokenFromFile = await LoadTokenFromFileAsync();
             if (tokenFromFile != null && tokenFromFile.Expiration > DateTime.UtcNow.AddMinutes(1))
             {
@@ -165,10 +165,10 @@ public class KISClient : IKISClient
         _accessTokenExpiration = DateTime.MinValue;
 
 
-        // Clear from Global Redis
-        if (_tokenRedis != null)
+        // Clear from Global Valkey
+        if (_tokenValkey != null)
         {
-            await _tokenRedis.DeleteAsync($"Token:KIS:{_account.Alias}");
+            await _tokenValkey.DeleteAsync($"Token:KIS:{_account.Alias}");
         }
 
         // Clear from local file
@@ -229,10 +229,10 @@ public class KISClient : IKISClient
             _accessTokenExpiration = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn - 60);
 
 
-            // Store in Global Redis
-            if (_tokenRedis != null)
+            // Store in Global Valkey
+            if (_tokenValkey != null)
             {
-                await _tokenRedis.SetAsync($"Token:KIS:{_account.Alias}", new TokenCacheEntry { Token = _accessToken, Expiration = _accessTokenExpiration }, TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
+                await _tokenValkey.SetAsync($"Token:KIS:{_account.Alias}", new TokenCacheEntry { Token = _accessToken, Expiration = _accessTokenExpiration }, TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
             }
 
             // Store in local file cache

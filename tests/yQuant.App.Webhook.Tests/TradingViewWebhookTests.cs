@@ -46,7 +46,7 @@ public class TradingViewWebhookTests
                 });
                 builder.ConfigureTestServices(services =>
                 {
-                    // Remove the real Redis connection and add mock
+                    // Remove the real Valkey connection and add mock
                     var descriptor = services.SingleOrDefault(d => d.ServiceType == typeof(IConnectionMultiplexer));
                     if (descriptor != null)
                     {
@@ -60,8 +60,8 @@ public class TradingViewWebhookTests
     }
 
     [TestMethod]
-    [Ignore("Requires full application configuration including Redis connection string")]
-    public async Task Webhook_WithValidPayload_ReturnsOkAndPublishesToRedis()
+    [Ignore("Requires full application configuration including Valkey connection string")]
+    public async Task Webhook_WithValidPayload_ReturnsOkAndPublishesToValkey()
     {
         // Arrange
         var client = _factory!.CreateClient();
@@ -86,14 +86,14 @@ public class TradingViewWebhookTests
 
         _dbMock!.Verify(
             db => db.PublishAsync(
-                It.Is<RedisChannel>(c => c == "signal"),
-                It.IsAny<RedisValue>(),
+                It.Is<ValkeyChannel>(c => c == "signal"),
+                It.IsAny<ValkeyValue>(),
                 CommandFlags.None),
             Times.Once);
     }
 
     [TestMethod]
-    [Ignore("Requires full application configuration including Redis connection string")]
+    [Ignore("Requires full application configuration including Valkey connection string")]
     public async Task Webhook_WithInvalidSecret_ReturnsUnauthorized()
     {
         // Arrange

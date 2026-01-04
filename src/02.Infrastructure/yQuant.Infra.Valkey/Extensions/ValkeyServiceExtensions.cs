@@ -3,21 +3,21 @@ using Microsoft.Extensions.DependencyInjection;
 using System.Linq;
 using StackExchange.Redis;
 using Microsoft.Extensions.Logging;
-using yQuant.Infra.Redis.Interfaces;
-using yQuant.Infra.Redis.Services;
+using yQuant.Infra.Valkey.Interfaces;
+using yQuant.Infra.Valkey.Services;
 
-namespace yQuant.Infra.Redis.Extensions;
+namespace yQuant.Infra.Valkey.Extensions;
 
-public static class RedisServiceExtensions
+public static class ValkeyServiceExtensions
 {
-    public static IServiceCollection AddRedisMiddleware(this IServiceCollection services, IConfiguration configuration)
+    public static IServiceCollection AddValkeyMiddleware(this IServiceCollection services, IConfiguration configuration)
     {
-        // 1. Messaging Redis (for Pub/Sub, Heartbeats, Trades, and general app state)
-        var msgConnectionString = configuration["Redis:Message"];
+        // 1. Messaging Valkey (for Pub/Sub, Heartbeats, Trades, and general app state)
+        var msgConnectionString = configuration["Valkey:Message"];
 
         if (string.IsNullOrEmpty(msgConnectionString))
         {
-            throw new InvalidOperationException("Redis Messaging connection string (Redis:Message) is missing. Please check appsecrets.json.");
+            throw new InvalidOperationException("Valkey Messaging connection string (Valkey:Message) is missing. Please check appsecrets.json.");
         }
 
         var options = ConfigurationOptions.Parse(msgConnectionString);
@@ -25,22 +25,22 @@ public static class RedisServiceExtensions
         var multiplexer = ConnectionMultiplexer.Connect(options);
 
         services.AddSingleton<IConnectionMultiplexer>(multiplexer);
-        services.AddSingleton<IRedisService, RedisService>();
+        services.AddSingleton<IValkeyService, ValkeyService>();
 
-        // 2. Token Redis (Shared across environments specifically for KIS access tokens)
-        var tokenConnectionString = configuration["Redis:Token"];
+        // 2. Token Valkey (Shared across environments specifically for KIS access tokens)
+        var tokenConnectionString = configuration["Valkey:Token"];
 
         if (string.IsNullOrEmpty(tokenConnectionString))
         {
-            throw new InvalidOperationException("Redis Token connection string (Redis:Token) is missing. Please check appsecrets.json.");
+            throw new InvalidOperationException("Valkey Token connection string (Valkey:Token) is missing. Please check appsecrets.json.");
         }
 
         var tokenOptions = ConfigurationOptions.Parse(tokenConnectionString);
         tokenOptions.AbortOnConnectFail = false;
         var tokenMultiplexer = ConnectionMultiplexer.Connect(tokenOptions);
 
-        services.AddSingleton<ITokenRedisService>(sp =>
-            new TokenRedisService(tokenMultiplexer, sp.GetRequiredService<ILogger<TokenRedisService>>()));
+        services.AddSingleton<ITokenValkeyService>(sp =>
+            new TokenValkeyService(tokenMultiplexer, sp.GetRequiredService<ILogger<TokenValkeyService>>()));
 
         return services;
     }

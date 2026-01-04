@@ -86,7 +86,7 @@ public class StockCatalogSyncService
 
                 _logger.LogInformation("[{Country}] Stock Catalog Sync Completed Successfully (Repository Updated).", country);
 
-                // Additional: Save Korean domestic tickers to file for Redis-independent classification
+                // Additional: Save Korean domestic tickers to file for Valkey-independent classification
                 if (country == CountryCode.KR)
                 {
                     await SaveDomesticTickersToFileAsync(allStocks);
@@ -121,7 +121,7 @@ public class StockCatalogSyncService
     }
 
     /// <summary>
-    /// Saves Korean domestic tickers to a plain text file for Redis-independent classification.
+    /// Saves Korean domestic tickers to a plain text file for Valkey-independent classification.
     /// File is saved to system temp directory for cross-application access.
     /// </summary>
     private async Task SaveDomesticTickersToFileAsync(IEnumerable<Stock> stocks)

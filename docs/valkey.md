@@ -5,24 +5,24 @@ This document details the Valkey implementation for the `yQuant` system, serving
 ## 1. Overview
 Valkey is used in `yQuant` in two distinct logical roles, which are configured via `appsecrets.json`:
 
-1.  **Messaging Valkey (`Redis:Message`)**: 
+1.  **Messaging Valkey (`Valkey:Message`)**: 
     - Facilitates real-time, event-driven communication (Pub/Sub: `signal`, `order`, etc.).
     - Stores environment-specific state (Heartbeats, Trade logs, Market data cache).
-2.  **Token Valkey (`Redis:Token`)**:
+2.  **Token Valkey (`Valkey:Token`)**:
     - Shared across all environments (Production, Staging, Local Dev).
     - Specifically caches **KIS Access Tokens** to comply with daily issuance limits.
 
-> **Note**: While the configuration keys still use `Redis` for backward compatibility with the used libraries, the underlying service is Valkey.
+> **Note**: While the configuration keys still use `Valkey` for backward compatibility with the used libraries, the underlying service is Valkey.
 
 ## 2. Connection & Configuration
 ### 2.1. Messaging & Ops Valkey
-- **Configuration Path**: `Redis:Message` in `appsecrets.json`
-- **Library**: `StackExchange.Redis` (compatible with Valkey) via `IRedisService`
+- **Configuration Path**: `Valkey:Message` in `appsecrets.json`
+- **Library**: `StackExchange.Redis` (compatible with Valkey) via `IValkeyService`
 - **Scope**: Specific to each deployment environment.
 
 ### 2.2. Global Token Valkey
-- **Configuration Path**: `Redis:Token` in `appsecrets.json`
-- **Library**: `StackExchange.Redis` via `ITokenRedisService`
+- **Configuration Path**: `Valkey:Token` in `appsecrets.json`
+- **Library**: `StackExchange.Redis` via `ITokenValkeyService`
 - **Scope**: Shared across ALL environments (Production, Staging, Local).
 
 > **Note**: These two can point to the same Valkey instance if desired. The key namespacing is designed to avoid conflicts.

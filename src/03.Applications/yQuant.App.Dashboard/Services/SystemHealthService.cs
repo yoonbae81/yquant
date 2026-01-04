@@ -16,7 +16,7 @@ public class SystemHealthService
         _logger = logger;
     }
 
-    public async Task<bool> CheckRedisAsync()
+    public async Task<bool> CheckValkeyAsync()
     {
         try
         {

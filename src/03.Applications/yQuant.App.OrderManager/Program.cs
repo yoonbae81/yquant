@@ -8,7 +8,7 @@ using yQuant.App.OrderManager.Adapters;
 using yQuant.Core.Extensions;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Core.Ports.Output.Policies;
-using yQuant.Infra.Redis.Extensions;
+using yQuant.Infra.Valkey.Extensions;
 using yQuant.Infra.Notification.Discord;
 
 
@@ -36,7 +36,7 @@ builder.Configuration.SetBasePath(configDir)
 
 
 
-builder.Services.AddRedisMiddleware(builder.Configuration)
+builder.Services.AddValkeyMiddleware(builder.Configuration)
                 .AddHeartbeat("OrderManager");
 
 // Register Notification Services
@@ -49,13 +49,13 @@ builder.AddDiscordDirectNotification();
 builder.Services.AddyQuantCore(includeManualTrading: false);
 
 // Register Infrastructure Adapters
-builder.Services.AddSingleton<IAccountRepository, RedisAccountRepository>();
+builder.Services.AddSingleton<IAccountRepository, ValkeyAccountRepository>();
 builder.Services.AddSingleton<IStrategyAccountMapper, ConfigStrategyAccountMapper>();
 builder.Services.AddSingleton<IStrategyPolicyMapper, ConfigStrategyPolicyMapper>();
-builder.Services.AddSingleton<IOrderPublisher, RedisOrderPublisher>();
+builder.Services.AddSingleton<IOrderPublisher, ValkeyOrderPublisher>();
 
 // Register Performance Tracking
-builder.Services.AddSingleton<IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.RedisDailySnapshotRepository>();
+builder.Services.AddSingleton<IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.ValkeyDailySnapshotRepository>();
 
 // Register Schedule Executor
 builder.Services.AddSingleton<yQuant.App.OrderManager.Services.ScheduleExecutor>();

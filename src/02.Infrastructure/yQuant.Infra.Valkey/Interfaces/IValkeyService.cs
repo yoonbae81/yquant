@@ -1,8 +1,8 @@
 using StackExchange.Redis;
 
-namespace yQuant.Infra.Redis.Interfaces;
+namespace yQuant.Infra.Valkey.Interfaces;
 
-public interface IRedisService
+public interface IValkeyService
 {
     Task<T?> GetAsync<T>(string key);
     Task SetAsync<T>(string key, T value, TimeSpan? expiry = null);
@@ -10,7 +10,7 @@ public interface IRedisService
     Task<bool> ExistsAsync(string key);
     
     /// <summary>
-    /// Gets the underlying Redis connection multiplexer for advanced operations.
+    /// Gets the underlying Valkey connection multiplexer for advanced operations.
     /// </summary>
     IConnectionMultiplexer Connection { get; }
 }

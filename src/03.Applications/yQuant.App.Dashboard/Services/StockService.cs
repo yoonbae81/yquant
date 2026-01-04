@@ -1,5 +1,5 @@
 using Microsoft.Extensions.Logging;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Interfaces;
 using StackExchange.Redis;
 
 namespace yQuant.App.Dashboard.Services;
@@ -7,12 +7,12 @@ namespace yQuant.App.Dashboard.Services;
 public class StockService
 {
     private readonly ILogger<StockService> _logger;
-    private readonly IRedisService _redisService;
+    private readonly IValkeyService _redisService;
     private const string KeyPrefix = "stock:";
 
     public StockService(
         ILogger<StockService> logger,
-        IRedisService redisService)
+        IValkeyService redisService)
     {
         _logger = logger;
         _redisService = redisService;
@@ -74,7 +74,7 @@ public class StockService
         var result = new Dictionary<string, string>();
         var db = _redisService.Connection.GetDatabase();
         var batch = db.CreateBatch();
-        var tasks = new List<Task<RedisValue>>();
+        var tasks = new List<Task<ValkeyValue>>();
         var tickerList = tickers.Distinct().ToList();
 
         foreach (var ticker in tickerList)
@@ -110,7 +110,7 @@ public class StockService
             var priceValue = await db.HashGetAsync(key, "price");
             var currencyValue = await db.HashGetAsync(key, "currency");
 
-            _logger.LogInformation("Redis read for {Ticker}: price={Price}, currency={Currency}",
+            _logger.LogInformation("Valkey read for {Ticker}: price={Price}, currency={Currency}",
                 ticker,
                 priceValue.HasValue ? priceValue.ToString() : "null",
                 currencyValue.HasValue ? currencyValue.ToString() : "null");
@@ -176,7 +176,7 @@ public class StockService
 
             var subscriber = _redisService.Connection.GetSubscriber();
             var message = System.Text.Json.JsonSerializer.Serialize(query);
-            await subscriber.PublishAsync(RedisChannel.Literal("query"), message);
+            await subscriber.PublishAsync(ValkeyChannel.Literal("query"), message);
 
             _logger.LogInformation("Published price query for {Ticker}", ticker);
         }

@@ -1,22 +1,22 @@
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using yQuant.Core.Models;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Interfaces;
 
 namespace yQuant.App.Console.Services;
 
 /// <summary>
-/// Redis-based repository for stock catalog data.
+/// Valkey-based repository for stock catalog data.
 /// </summary>
 public class StockCatalogRepository
 {
-    private readonly IRedisService _redisService;
+    private readonly IValkeyService _redisService;
     private readonly ILogger<StockCatalogRepository> _logger;
     private const string KeyPrefix = "stock:";
     private static readonly TimeSpan DefaultExpiration = TimeSpan.FromHours(25);
 
     public StockCatalogRepository(
-        IRedisService redisService,
+        IValkeyService redisService,
         ILogger<StockCatalogRepository> logger)
     {
         _redisService = redisService;
@@ -52,10 +52,10 @@ public class StockCatalogRepository
             batch.Execute();
             await Task.WhenAll(tasks);
 
-            _logger.LogDebug("Saved chunk {Start}-{End} of {Total} stocks to Redis", i, Math.Min(i + ChunkSize, stockList.Count), stockList.Count);
+            _logger.LogDebug("Saved chunk {Start}-{End} of {Total} stocks to Valkey", i, Math.Min(i + ChunkSize, stockList.Count), stockList.Count);
         }
 
-        _logger.LogInformation("Successfully saved {Count} stocks to Redis in chunks.", stockList.Count);
+        _logger.LogInformation("Successfully saved {Count} stocks to Valkey in chunks.", stockList.Count);
     }
 
     public async Task<Stock?> GetByTickerAsync(string ticker, CancellationToken cancellationToken = default)

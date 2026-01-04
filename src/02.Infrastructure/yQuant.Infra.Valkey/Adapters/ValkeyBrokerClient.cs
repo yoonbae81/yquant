@@ -5,12 +5,12 @@ using System.Threading.Tasks;
 using StackExchange.Redis;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Redis.Models;
+using yQuant.Infra.Valkey.Models;
 using Order = yQuant.Core.Models.Order;
 
-namespace yQuant.Infra.Redis.Adapters
+namespace yQuant.Infra.Valkey.Adapters
 {
-    public class RedisBrokerClient(IConnectionMultiplexer redis, string account) : IBrokerAdapter
+    public class ValkeyBrokerClient(IConnectionMultiplexer redis, string account) : IBrokerAdapter
     {
         private readonly IConnectionMultiplexer _redis = redis;
         private string _account = account;
@@ -19,7 +19,7 @@ namespace yQuant.Infra.Redis.Adapters
         public Account Account => new Account
         {
             Alias = _account,
-            Broker = "Redis",
+            Broker = "Valkey",
             Number = "N/A",
             AppKey = "N/A",
             AppSecret = "N/A",
@@ -54,7 +54,7 @@ namespace yQuant.Infra.Redis.Adapters
                     }
                 }
 
-                return (false, "Account not found in Redis Index");
+                return (false, "Account not found in Valkey Index");
             }
             catch (Exception ex)
             {
@@ -85,7 +85,7 @@ namespace yQuant.Infra.Redis.Adapters
             {
                 Alias = _account,
                 Number = "N/A",
-                Broker = "Redis",
+                Broker = "Valkey",
                 AppKey = "N/A",
                 AppSecret = "N/A",
                 Deposits = deposits,
@@ -115,7 +115,7 @@ namespace yQuant.Infra.Redis.Adapters
 
         public Task<List<Position>> GetPositionsAsync(CountryCode country, bool forceRefresh = false)
         {
-            // Redis doesn't support filtering by country easily in Hash.
+            // Valkey doesn't support filtering by country easily in Hash.
             // We fetch all and filter in memory.
             return GetPositionsAsync(); // Filtering logic should be in caller or we add it here if needed.
             // But Position model doesn't strictly have CountryCode, it has Exchange/Ticker.
@@ -138,12 +138,12 @@ namespace yQuant.Infra.Redis.Adapters
                 return new PriceInfo(price, change);
             }
 
-            throw new Exception($"Price not found for {ticker} in Redis.");
+            throw new Exception($"Price not found for {ticker} in Valkey.");
         }
 
         public Task<PriceInfo> GetPriceAsync(string ticker, ExchangeCode exchange)
         {
-            // Exchange doesn't matter for Redis lookup as keys are by ticker
+            // Exchange doesn't matter for Valkey lookup as keys are by ticker
             return GetPriceAsync(ticker);
         }
 
@@ -159,7 +159,7 @@ namespace yQuant.Infra.Redis.Adapters
             // But for Console/Dashboard usage, it's acceptable.
             // Ideally, we'd use a specific response channel, but the schema says 'execution' channel.
 
-            await sub.SubscribeAsync(RedisChannel.Literal("execution"), (channel, message) =>
+            await sub.SubscribeAsync(ValkeyChannel.Literal("execution"), (channel, message) =>
             {
                 try
                 {
@@ -175,7 +175,7 @@ namespace yQuant.Infra.Redis.Adapters
             try
             {
                 var orderJson = JsonSerializer.Serialize(order);
-                await db.PublishAsync(RedisChannel.Literal("order"), orderJson);
+                await db.PublishAsync(ValkeyChannel.Literal("order"), orderJson);
 
                 var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(_timeout));
                 if (completedTask == tcs.Task)
@@ -189,7 +189,7 @@ namespace yQuant.Infra.Redis.Adapters
             }
             finally
             {
-                await sub.UnsubscribeAsync(RedisChannel.Literal("execution"));
+                await sub.UnsubscribeAsync(ValkeyChannel.Literal("execution"));
             }
         }
 

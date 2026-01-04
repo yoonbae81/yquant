@@ -5,7 +5,7 @@ using yQuant.App.Notifier.Services;
 namespace yQuant.App.Notifier;
 
 /// <summary>
-/// Redis 채널을 구독하여 알림 메시지를 처리하는 백그라운드 워커
+/// Valkey 채널을 구독하여 알림 메시지를 처리하는 백그라운드 워커
 /// </summary>
 public class Worker : BackgroundService
 {
@@ -36,7 +36,7 @@ public class Worker : BackgroundService
             foreach (var channel in NotificationChannels.All)
             {
                 await _subscriber.SubscribeAsync(
-                    RedisChannel.Literal(channel),
+                    ValkeyChannel.Literal(channel),
                     async (ch, message) =>
                     {
                         _logger.LogDebug("Received message from channel {Channel}", ch);
@@ -71,7 +71,7 @@ public class Worker : BackgroundService
         {
             foreach (var channel in NotificationChannels.All)
             {
-                await _subscriber.UnsubscribeAsync(RedisChannel.Literal(channel));
+                await _subscriber.UnsubscribeAsync(ValkeyChannel.Literal(channel));
                 _logger.LogInformation("Unsubscribed from channel: {Channel}", channel);
             }
         }

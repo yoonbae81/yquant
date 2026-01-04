@@ -2,7 +2,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\01.Core\yQuant.Core\yQuant.Core.csproj" />
-    <ProjectReference Include="..\yQuant.Infra.Redis\yQuant.Infra.Redis.csproj" />
+    <ProjectReference Include="..\yQuant.Infra.Valkey\yQuant.Infra.Valkey.csproj" />
     <ProjectReference Include="..\yQuant.Infra.Notification\yQuant.Infra.Notification.csproj" />
   </ItemGroup>
 

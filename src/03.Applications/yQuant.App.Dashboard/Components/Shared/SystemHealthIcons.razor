@@ -3,7 +3,7 @@
 @implements IDisposable
 
 <div class="d-flex gap-2 align-center">
-    <MudTooltip Text="Redis">
+    <MudTooltip Text="Valkey">
         <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@(_redisOnline ? Color.Success : Color.Error)"
             Size="Size.Small" />
     </MudTooltip>
@@ -49,7 +49,7 @@
 
     private async Task CheckHealth()
     {
-        _redisOnline = await HealthService.CheckRedisAsync();
+        _redisOnline = await HealthService.CheckValkeyAsync();
         if (_redisOnline)
         {
             _brokerOnline = await HealthService.CheckServiceAsync("BrokerGateway");

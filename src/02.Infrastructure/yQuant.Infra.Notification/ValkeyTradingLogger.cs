@@ -3,11 +3,11 @@ using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.Infra.Notification
 {
-    public class RedisTradingLogger : ITradingLogger
+    public class ValkeyTradingLogger : ITradingLogger
     {
         private readonly NotificationPublisher _publisher;
 
-        public RedisTradingLogger(NotificationPublisher publisher)
+        public ValkeyTradingLogger(NotificationPublisher publisher)
         {
             _publisher = publisher;
         }

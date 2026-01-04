@@ -1,6 +1,6 @@
 using System;
 using System.Threading.Tasks;
-using yQuant.Infra.Redis.Adapters;
+using yQuant.Infra.Valkey.Adapters;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
 
@@ -8,9 +8,9 @@ namespace yQuant.App.Console.Commands
 {
     public class PositionsCommand : ICommand
     {
-        private readonly RedisBrokerClient _client;
+        private readonly ValkeyBrokerClient _client;
 
-        public PositionsCommand(RedisBrokerClient client)
+        public PositionsCommand(ValkeyBrokerClient client)
         {
             _client = client;
         }

@@ -4,7 +4,7 @@ using Moq;
 using Moq.Protected;
 using System.Net;
 using Xunit;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Interfaces;
 using yQuant.Infra.Notification.Telegram;
 
 namespace yQuant.Infra.Notification.Telegram.Tests;
@@ -12,7 +12,7 @@ namespace yQuant.Infra.Notification.Telegram.Tests;
 public class TelegramNotificationServiceTests
 {
     private readonly Mock<ILogger<TelegramNotificationService>> _mockLogger;
-    private readonly Mock<IRedisService> _mockRedis;
+    private readonly Mock<IValkeyService> _mockValkey;
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly IConfiguration _configuration;
     private readonly TelegramNotificationService _service;
@@ -20,7 +20,7 @@ public class TelegramNotificationServiceTests
     public TelegramNotificationServiceTests()
     {
         _mockLogger = new Mock<ILogger<TelegramNotificationService>>();
-        _mockRedis = new Mock<IRedisService>();
+        _mockValkey = new Mock<IValkeyService>();
         _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
 
         var inMemorySettings = new Dictionary<string, string> {
@@ -33,7 +33,7 @@ public class TelegramNotificationServiceTests
             .Build();
 
         var httpClient = new HttpClient(_mockHttpMessageHandler.Object);
-        _service = new TelegramNotificationService(_mockLogger.Object, _configuration, httpClient, _mockRedis.Object);
+        _service = new TelegramNotificationService(_mockLogger.Object, _configuration, httpClient, _mockValkey.Object);
     }
 
     [Fact]
@@ -41,7 +41,7 @@ public class TelegramNotificationServiceTests
     {
         // Arrange
         var message = "Test Message";
-        _mockRedis.Setup(r => r.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
+        _mockValkey.Setup(r => r.ExistsAsync(It.IsAny<string>())).ReturnsAsync(false);
 
         _mockHttpMessageHandler.Protected()
             .Setup<Task<HttpResponseMessage>>(
@@ -59,7 +59,7 @@ public class TelegramNotificationServiceTests
         await _service.SendNotificationAsync(message);
 
         // Assert
-        _mockRedis.Verify(r => r.SetAsync(It.IsAny<string>(), "1", It.IsAny<TimeSpan?>()), Times.Once);
+        _mockValkey.Verify(r => r.SetAsync(It.IsAny<string>(), "1", It.IsAny<TimeSpan?>()), Times.Once);
 
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",
@@ -74,13 +74,13 @@ public class TelegramNotificationServiceTests
     {
         // Arrange
         var message = "Test Message";
-        _mockRedis.Setup(r => r.ExistsAsync(It.IsAny<string>())).ReturnsAsync(true);
+        _mockValkey.Setup(r => r.ExistsAsync(It.IsAny<string>())).ReturnsAsync(true);
 
         // Act
         await _service.SendNotificationAsync(message);
 
         // Assert
-        _mockRedis.Verify(r => r.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>()), Times.Never);
+        _mockValkey.Verify(r => r.SetAsync(It.IsAny<string>(), It.IsAny<string>(), It.IsAny<TimeSpan?>()), Times.Never);
 
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",

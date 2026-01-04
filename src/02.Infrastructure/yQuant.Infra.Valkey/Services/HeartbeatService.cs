@@ -2,7 +2,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 
-namespace yQuant.Infra.Redis.Services;
+namespace yQuant.Infra.Valkey.Services;
 
 public class HeartbeatService : BackgroundService
 {

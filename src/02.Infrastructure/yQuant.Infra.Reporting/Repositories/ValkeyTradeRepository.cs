@@ -7,19 +7,19 @@ using yQuant.Core.Ports.Output.Infrastructure;
 namespace yQuant.Infra.Reporting.Repositories;
 
 /// <summary>
-/// Redis 기반 거래 실적 저장소
+/// Valkey 기반 거래 실적 저장소
 /// 키: trades:{account}:{YYYY-MM} (Sorted Set)
 /// Score: Unix timestamp, Value: TradeRecord JSON
 /// </summary>
-public class RedisTradeRepository : ITradeRepository
+public class ValkeyTradeRepository : ITradeRepository
 {
     private readonly IConnectionMultiplexer _redis;
-    private readonly ILogger<RedisTradeRepository> _logger;
+    private readonly ILogger<ValkeyTradeRepository> _logger;
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = false };
 
-    public RedisTradeRepository(
+    public ValkeyTradeRepository(
         IConnectionMultiplexer redis,
-        ILogger<RedisTradeRepository> logger)
+        ILogger<ValkeyTradeRepository> logger)
     {
         _redis = redis;
         _logger = logger;
@@ -37,7 +37,7 @@ public class RedisTradeRepository : ITradeRepository
             await db.SortedSetAddAsync(key, value, score);
 
             _logger.LogInformation(
-                "Saved trade {TradeId} for {Account} to Redis key {Key}",
+                "Saved trade {TradeId} for {Account} to Valkey key {Key}",
                 trade.Id, accountAlias, key);
         }
         catch (Exception ex)

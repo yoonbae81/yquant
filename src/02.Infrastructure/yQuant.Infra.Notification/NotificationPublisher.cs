@@ -4,7 +4,7 @@ using StackExchange.Redis;
 namespace yQuant.Infra.Notification;
 
 /// <summary>
-/// Redis Pub/Sub을 통해 알림 메시지를 발행하는 헬퍼 클래스
+/// Valkey Pub/Sub을 통해 알림 메시지를 발행하는 헬퍼 클래스
 /// 다른 애플리케이션에서 쉽게 알림을 발행할 수 있도록 지원
 /// </summary>
 public class NotificationPublisher
@@ -87,6 +87,6 @@ public class NotificationPublisher
 
         var json = JsonSerializer.Serialize(message);
         var db = _redis.GetDatabase();
-        await db.PublishAsync(RedisChannel.Literal(channel), json);
+        await db.PublishAsync(ValkeyChannel.Literal(channel), json);
     }
 }

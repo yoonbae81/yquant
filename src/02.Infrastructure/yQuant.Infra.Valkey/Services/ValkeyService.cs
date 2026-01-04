@@ -1,17 +1,17 @@
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Interfaces;
 
-namespace yQuant.Infra.Redis.Services;
+namespace yQuant.Infra.Valkey.Services;
 
-public class RedisService : IRedisService
+public class ValkeyService : IValkeyService
 {
     private readonly IConnectionMultiplexer _connectionMultiplexer;
-    private readonly ILogger<RedisService> _logger;
+    private readonly ILogger<ValkeyService> _logger;
     private readonly IDatabase _database;
 
-    public RedisService(IConnectionMultiplexer connectionMultiplexer, ILogger<RedisService> logger)
+    public ValkeyService(IConnectionMultiplexer connectionMultiplexer, ILogger<ValkeyService> logger)
     {
         _connectionMultiplexer = connectionMultiplexer;
         _logger = logger;
@@ -34,7 +34,7 @@ public class RedisService : IRedisService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error getting value from Redis for key: {Key}", key);
+            _logger.LogError(ex, "Error getting value from Valkey for key: {Key}", key);
             return default;
         }
     }
@@ -48,7 +48,7 @@ public class RedisService : IRedisService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error setting value in Redis for key: {Key}", key);
+            _logger.LogError(ex, "Error setting value in Valkey for key: {Key}", key);
         }
     }
 
@@ -60,7 +60,7 @@ public class RedisService : IRedisService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error deleting key from Redis: {Key}", key);
+            _logger.LogError(ex, "Error deleting key from Valkey: {Key}", key);
             return false;
         }
     }
@@ -73,7 +73,7 @@ public class RedisService : IRedisService
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Error checking existence in Redis for key: {Key}", key);
+            _logger.LogError(ex, "Error checking existence in Valkey for key: {Key}", key);
             return false;
         }
     }

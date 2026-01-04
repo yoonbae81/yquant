@@ -6,7 +6,7 @@ using System.Text.Json;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Notification;
 using yQuant.Infra.Notification.Discord;
-using yQuant.Infra.Redis.Extensions;
+using yQuant.Infra.Valkey.Extensions;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -35,14 +35,14 @@ builder.Configuration.SetBasePath(configDir)
                      .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile("appsecrets.json", optional: false, reloadOnChange: true);
 
-// Register Redis Middleware (uses AddRedisMiddleware from yQuant.Infra.Redis)
-builder.Services.AddRedisMiddleware(builder.Configuration)
+// Register Valkey Middleware (uses AddValkeyMiddleware from yQuant.Infra.Valkey)
+builder.Services.AddValkeyMiddleware(builder.Configuration)
                 .AddHeartbeat("Webhook");
 
-// Register Notification Services (Redis based)
+// Register Notification Services (Valkey based)
 builder.Services.AddSingleton<NotificationPublisher>();
-builder.Services.AddSingleton<ITradingLogger, RedisTradingLogger>();
-builder.Services.AddSingleton<ISystemLogger, RedisSystemLogger>();
+builder.Services.AddSingleton<ITradingLogger, ValkeyTradingLogger>();
+builder.Services.AddSingleton<ISystemLogger, ValkeySystemLogger>();
 
 // Discord Direct Notification (for Startup/System status)
 builder.AddDiscordDirectNotification();
@@ -56,11 +56,11 @@ app.MapGet("/health", async (IConnectionMultiplexer redis) =>
     {
         var db = redis.GetDatabase();
         await db.PingAsync();
-        return Results.Ok(new { Status = "Healthy", Redis = "Connected", Timestamp = DateTime.UtcNow, Service = "yQuant.App.Webhook" });
+        return Results.Ok(new { Status = "Healthy", Valkey = "Connected", Timestamp = DateTime.UtcNow, Service = "yQuant.App.Webhook" });
     }
     catch (Exception ex)
     {
-        return Results.Json(new { Status = "Unhealthy", Redis = "Disconnected", Error = ex.Message }, statusCode: 503);
+        return Results.Json(new { Status = "Unhealthy", Valkey = "Disconnected", Error = ex.Message }, statusCode: 503);
     }
 });
 
@@ -165,10 +165,10 @@ app.MapPost("/webhook", async (HttpContext context, TradingViewPayload payload, 
     // Fire-and-forget logging
     _ = tradingLogger.LogSignalAsync(signal);
 
-    // Message Publishing to Redis
+    // Message Publishing to Valkey
     var db = redis.GetDatabase();
     var signalJson = JsonSerializer.Serialize(signal);
-    await db.PublishAsync(RedisChannel.Literal("signal"), signalJson);
+    await db.PublishAsync(ValkeyChannel.Literal("signal"), signalJson);
 
     return Results.Ok("Signal received and published.");
 });

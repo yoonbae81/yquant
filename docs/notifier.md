@@ -317,7 +317,7 @@ var message = new NotificationMessage
 
 var json = JsonSerializer.Serialize(message);
 await valkey.GetDatabase().PublishAsync(
-    RedisChannel.Literal("notifications:schedules"), 
+    ValkeyChannel.Literal("notifications:schedules"), 
     json
 );
 ```

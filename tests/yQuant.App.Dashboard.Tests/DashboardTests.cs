@@ -27,13 +27,13 @@ public class DashboardTests : Bunit.BunitContext
     {
         var loggerMock = new Mock<ILogger<AssetService>>();
         var redisMultiplexerMock = new Mock<IConnectionMultiplexer>();
-        var redisServiceMock = new Mock<yQuant.Infra.Redis.Interfaces.IRedisService>();
-        // Setup Redis mocks
+        var redisServiceMock = new Mock<yQuant.Infra.Valkey.Interfaces.IValkeyService>();
+        // Setup Valkey mocks
         var mockDb = new Mock<IDatabase>();
         var mockBatch = new Mock<IBatch>();
         mockDb.Setup(db => db.CreateBatch(It.IsAny<object>())).Returns(mockBatch.Object);
-        mockBatch.Setup(b => b.HashGetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(RedisValue.Null);
+        mockBatch.Setup(b => b.HashGetAsync(It.IsAny<ValkeyKey>(), It.IsAny<ValkeyValue>(), It.IsAny<CommandFlags>()))
+            .ReturnsAsync(ValkeyValue.Null);
 
         redisMultiplexerMock.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>())).Returns(mockDb.Object);
         redisServiceMock.Setup(r => r.Connection).Returns(redisMultiplexerMock.Object);

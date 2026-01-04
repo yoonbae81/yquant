@@ -1,10 +1,10 @@
 # yQuant.App.Notifier
 
-Redis Pub/Sub 채널을 구독하여 시스템의 모든 operational notification을 Discord 및 Telegram으로 전송하는 전용 서비스입니다.
+Valkey Pub/Sub 채널을 구독하여 시스템의 모든 operational notification을 Discord 및 Telegram으로 전송하는 전용 서비스입니다.
 
 ## 기능
 
-- Redis 채널 구독: `notifications:orders`, `notifications:schedules`, `notifications:positions`, `notifications:system`
+- Valkey 채널 구독: `notifications:orders`, `notifications:schedules`, `notifications:positions`, `notifications:system`
 - 메시지 타입별 라우팅 (Discord/Telegram)
 - **Telegram 필터링**: 중요한 메시지만 Telegram으로 전송
 - Rate limiting 및 retry 로직
@@ -82,10 +82,10 @@ sudo systemctl status yquant-notifier
 
 ## 테스트
 
-Redis에 테스트 메시지 발행:
+Valkey에 테스트 메시지 발행:
 
 ```bash
-redis-cli
+valkey-cli
 
 # System 메시지 테스트 (Discord만)
 PUBLISH notifications:system '{"Type":"TestMessage","Data":{"message":"Hello from Notifier"}}'
@@ -104,7 +104,7 @@ PUBLISH notifications:orders '{"Type":"OrderExecuted","AccountAlias":"Trading","
 ## 아키텍처
 
 ```
-Redis Pub/Sub → Worker → MessageRouter → DiscordLogger → Discord
+Valkey Pub/Sub → Worker → MessageRouter → DiscordLogger → Discord
                                        → TelegramNotificationService → Telegram (필터링됨)
 ```
 
@@ -113,5 +113,5 @@ Redis Pub/Sub → Worker → MessageRouter → DiscordLogger → Discord
 - `yQuant.Infra.Notification`: 공통 notification 모델
 - `yQuant.Infra.Notification.Discord`: Discord 전송 서비스
 - `yQuant.Infra.Notification.Telegram`: Telegram 전송 서비스
-- `yQuant.Infra.Redis`: Redis 연결 및 Pub/Sub
-- `StackExchange.Redis`: Redis 클라이언트
+- `yQuant.Infra.Valkey`: Valkey 연결 및 Pub/Sub
+- `StackExchange.Redis`: Valkey 클라이언트

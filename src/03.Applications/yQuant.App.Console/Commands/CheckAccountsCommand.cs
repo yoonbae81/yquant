@@ -13,7 +13,7 @@ public class CheckAccountsCommand : ICommand
     }
 
     public string Name => "checkaccounts";
-    public string Description => "Checks the registered accounts in Redis.";
+    public string Description => "Checks the registered accounts in Valkey.";
 
     public async Task ExecuteAsync(string[] args)
     {
@@ -22,11 +22,11 @@ public class CheckAccountsCommand : ICommand
 
         if (json.HasValue)
         {
-            System.Console.WriteLine($"Found accounts in Redis (broker:accounts): {json}");
+            System.Console.WriteLine($"Found accounts in Valkey (broker:accounts): {json}");
         }
         else
         {
-            System.Console.WriteLine("No accounts found in Redis (broker:accounts key is empty).");
+            System.Console.WriteLine("No accounts found in Valkey (broker:accounts key is empty).");
         }
     }
 }

@@ -5,7 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Interfaces;
 using System.Security.Cryptography;
 
 namespace yQuant.Infra.Notification.Telegram;
@@ -14,11 +14,11 @@ public class TelegramNotificationService : INotificationService
 {
     private readonly ILogger<TelegramNotificationService> _logger;
     private readonly HttpClient _httpClient;
-    private readonly IRedisService _redisService;
+    private readonly IValkeyService _redisService;
     private readonly string _botToken;
     private readonly string _chatId;
 
-    public TelegramNotificationService(ILogger<TelegramNotificationService> logger, IConfiguration configuration, HttpClient httpClient, IRedisService redisService)
+    public TelegramNotificationService(ILogger<TelegramNotificationService> logger, IConfiguration configuration, HttpClient httpClient, IValkeyService redisService)
     {
         _logger = logger;
         _httpClient = httpClient;

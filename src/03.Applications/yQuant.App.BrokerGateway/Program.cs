@@ -1,5 +1,5 @@
 using yQuant.App.BrokerGateway;
-using yQuant.Infra.Redis.Extensions;
+using yQuant.Infra.Valkey.Extensions;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Notification;
@@ -33,22 +33,22 @@ builder.Configuration.SetBasePath(configDir)
 // Register KIS HttpClient
 builder.Services.AddHttpClient("KIS");
 
-// Redis
-builder.Services.AddRedisMiddleware(builder.Configuration)
+// Valkey
+builder.Services.AddValkeyMiddleware(builder.Configuration)
                 .AddHeartbeat("BrokerGateway");
 
-// Notifications (Redis based)
+// Notifications (Valkey based)
 builder.Services.AddSingleton<NotificationPublisher>();
-builder.Logging.AddRedisNotification();
-builder.Services.AddSingleton<ITradingLogger, RedisTradingLogger>();
+builder.Logging.AddValkeyNotification();
+builder.Services.AddSingleton<ITradingLogger, ValkeyTradingLogger>();
 
 // Discord Direct Notification (for Startup/System status)
 builder.AddDiscordDirectNotification();
 
 // Performance & Trade Tracking
 builder.Services.AddSingleton<IPerformanceRepository, yQuant.Infra.Reporting.Repositories.JsonPerformanceRepository>();
-builder.Services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.ITradeRepository, yQuant.Infra.Reporting.Repositories.RedisTradeRepository>();
-builder.Services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.RedisDailySnapshotRepository>();
+builder.Services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.ITradeRepository, yQuant.Infra.Reporting.Repositories.ValkeyTradeRepository>();
+builder.Services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.ValkeyDailySnapshotRepository>();
 // Register KIS Adapter Factory and Adapters
 builder.Services.AddSingleton<KISAdapterFactory>();
 builder.Services.AddSingleton<Dictionary<string, IBrokerAdapter>>(sp =>

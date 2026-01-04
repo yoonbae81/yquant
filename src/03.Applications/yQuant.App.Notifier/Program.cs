@@ -1,7 +1,7 @@
 using yQuant.App.Notifier;
 using yQuant.App.Notifier.Configuration;
 using yQuant.App.Notifier.Services;
-using yQuant.Infra.Redis.Extensions;
+using yQuant.Infra.Valkey.Extensions;
 using yQuant.Infra.Notification.Discord;
 using yQuant.Infra.Notification.Telegram;
 using yQuant.Core.Ports.Output.Infrastructure;
@@ -29,8 +29,8 @@ builder.Configuration.SetBasePath(configDir)
 // Configure Notifier settings
 builder.Services.Configure<NotifierConfiguration>(builder.Configuration.GetSection("Notifier"));
 
-// Register Redis
-builder.Services.AddRedisMiddleware(builder.Configuration)
+// Register Valkey
+builder.Services.AddValkeyMiddleware(builder.Configuration)
                 .AddHeartbeat("Notifier");
 
 // Register Discord Notification Services

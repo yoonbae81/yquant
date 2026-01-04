@@ -6,8 +6,8 @@ using MudBlazor.Services;
 using yQuant.App.Dashboard.Components;
 using yQuant.App.Dashboard.Services;
 using yQuant.Core.Ports.Output.Infrastructure;
-using yQuant.Infra.Redis.Extensions;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Extensions;
+using yQuant.Infra.Valkey.Interfaces;
 using yQuant.Infra.Reporting.Repositories;
 
 using StackExchange.Redis;
@@ -19,24 +19,40 @@ using yQuant.Infra.Notification.Discord;
 
 
 
-// Find the configuration directory (climb up to find appsettings.json)
-var configDir = Directory.GetCurrentDirectory();
-while (configDir != null && !File.Exists(Path.Combine(configDir, "appsettings.json")))
+// 🔍 Find the configuration directory (climb up to find appsettings.json)
+var searchDir = Directory.GetCurrentDirectory();
+string? configDir = null;
+
+while (searchDir != null)
 {
-    configDir = Path.GetDirectoryName(configDir);
+    if (File.Exists(Path.Combine(searchDir, "appsettings.json")))
+    {
+        configDir = searchDir;
+        break;
+    }
+    searchDir = Path.GetDirectoryName(searchDir);
 }
+
 configDir ??= AppContext.BaseDirectory;
+
+// 📁 Determine project and web root paths
+var isDev = Directory.Exists(Path.Combine(configDir, "src", "03.Applications", "yQuant.App.Dashboard"));
+var projectDir = isDev
+    ? Path.Combine(configDir, "src", "03.Applications", "yQuant.App.Dashboard")
+    : configDir;
+
+var webRootPath = Path.Combine(projectDir, "wwwroot");
 
 var builder = WebApplication.CreateBuilder(new WebApplicationOptions
 {
     Args = args,
-    ContentRootPath = configDir,
-    WebRootPath = Path.Combine(configDir, "wwwroot")
+    ContentRootPath = projectDir,
+    WebRootPath = webRootPath
 });
 
 builder.WebHost.UseStaticWebAssets();
 
-// Load configuration files
+// ⚙️ Load configuration files
 builder.Configuration.SetBasePath(configDir)
                      .AddJsonFile("appsettings.json", optional: false, reloadOnChange: true)
                      .AddJsonFile("appsecrets.json", optional: false, reloadOnChange: true);
@@ -68,13 +84,13 @@ builder.Services.AddAuthorization();
 builder.Services.AddCascadingAuthenticationState();
 builder.Services.AddSingleton<SimpleAuthService>();
 
-// Register Redis Middleware
-builder.Services.AddRedisMiddleware(builder.Configuration);
+// Register Valkey Middleware
+builder.Services.AddValkeyMiddleware(builder.Configuration);
 
-// Register Notification Services (Redis based)
+// Register Notification Services (Valkey based)
 builder.Services.AddSingleton<NotificationPublisher>();
-builder.Services.AddSingleton<ITradingLogger, RedisTradingLogger>();
-builder.Services.AddSingleton<ISystemLogger, RedisSystemLogger>();
+builder.Services.AddSingleton<ITradingLogger, ValkeyTradingLogger>();
+builder.Services.AddSingleton<ISystemLogger, ValkeySystemLogger>();
 
 // Discord Direct Notification (for Startup/System status)
 builder.AddDiscordDirectNotification();
@@ -84,8 +100,8 @@ builder.Services.AddSingleton<SchedulerService>();
 
 // Register Performance Repositories
 builder.Services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
-builder.Services.AddSingleton<ITradeRepository, yQuant.Infra.Reporting.Repositories.RedisTradeRepository>();
-builder.Services.AddSingleton<IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.RedisDailySnapshotRepository>();
+builder.Services.AddSingleton<ITradeRepository, yQuant.Infra.Reporting.Repositories.ValkeyTradeRepository>();
+builder.Services.AddSingleton<IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.ValkeyDailySnapshotRepository>();
 
 // Register Broker Adapter Factory and Order Publisher
 
@@ -100,6 +116,16 @@ builder.Services.AddHostedService<ExecutionListener>();
 
 var app = builder.Build();
 
+var pathBase = app.Configuration.GetValue<string>("Dashboard:PathBase");
+if (!string.IsNullOrWhiteSpace(pathBase) && pathBase != "/")
+{
+    app.UsePathBase(pathBase);
+}
+
+Console.WriteLine($"[Dashboard] PathBase: {pathBase ?? "None"}");
+Console.WriteLine($"[Dashboard] ContentRoot: {app.Environment.ContentRootPath}");
+Console.WriteLine($"[Dashboard] WebRoot: {app.Environment.WebRootPath}");
+
 // Configure the HTTP request pipeline.
 if (!app.Environment.IsDevelopment())
 {
@@ -111,13 +137,6 @@ app.UseStatusCodePagesWithReExecute("/not-found");
 // app.UseHttpsRedirection(); // Disabled for HAProxy TLS termination
 
 app.UseStaticFiles();
-
-// Apply PathBase if configured (for HAProxy reverse proxying like /staging or /demo)
-var pathBase = app.Configuration.GetValue<string>("Dashboard:PathBase");
-if (!string.IsNullOrWhiteSpace(pathBase) && pathBase != "/")
-{
-    app.UsePathBase(pathBase);
-}
 
 app.UseAntiforgery();
 
@@ -136,11 +155,11 @@ app.MapGet("/health", async (IConnectionMultiplexer redis) =>
     {
         var db = redis.GetDatabase();
         await db.PingAsync();
-        return Results.Ok(new { Status = "Healthy", Redis = "Connected", Timestamp = DateTime.UtcNow, Service = "yQuant.App.Dashboard" });
+        return Results.Ok(new { Status = "Healthy", Valkey = "Connected", Timestamp = DateTime.UtcNow, Service = "yQuant.App.Dashboard" });
     }
     catch (Exception ex)
     {
-        return Results.Json(new { Status = "Unhealthy", Redis = "Disconnected", Error = ex.Message }, statusCode: 503);
+        return Results.Json(new { Status = "Unhealthy", Valkey = "Disconnected", Error = ex.Message }, statusCode: 503);
     }
 });
 
@@ -148,19 +167,17 @@ app.MapGet("/health", async (IConnectionMultiplexer redis) =>
 app.MapPost("/account/login", async (HttpContext context, SimpleAuthService authService) =>
 {
     var form = await context.Request.ReadFormAsync();
-    var username = form["username"].ToString();
-    var password = form["password"].ToString();
+    var pin = form["pin"].ToString();
     var returnUrl = form["returnUrl"].ToString();
 
     if (string.IsNullOrWhiteSpace(returnUrl)) returnUrl = "/";
 
-    if (await authService.ValidateCredentialsAsync(username, password))
+    if (await authService.ValidatePinAsync(pin))
     {
-        var role = authService.GetUserRole(username);
         var claims = new List<System.Security.Claims.Claim>
         {
-            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, username),
-            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, role ?? "User")
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Name, "Admin"),
+            new System.Security.Claims.Claim(System.Security.Claims.ClaimTypes.Role, "Admin")
         };
 
         var claimsIdentity = new System.Security.Claims.ClaimsIdentity(claims, CookieAuthenticationDefaults.AuthenticationScheme);
@@ -179,7 +196,7 @@ app.MapPost("/account/login", async (HttpContext context, SimpleAuthService auth
     }
     else
     {
-        var errorUrl = $"/login?error=Invalid username or password&returnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}";
+        var errorUrl = $"/login?error=Invalid PIN&returnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}";
         context.Response.Redirect(errorUrl);
     }
 });

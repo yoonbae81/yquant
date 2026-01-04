@@ -5,16 +5,16 @@ using System.Text.Json;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using yQuant.App.Dashboard.Services;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Interfaces;
 
 namespace yQuant.App.Dashboard.Tests;
 
 [TestClass]
-public class RedisIntegrationTests
+public class ValkeyIntegrationTests
 {
-    private Mock<IConnectionMultiplexer>? _mockRedis;
+    private Mock<IConnectionMultiplexer>? _mockValkey;
     private Mock<IDatabase>? _mockDb;
-    private Mock<IRedisService>? _mockRedisService;
+    private Mock<IValkeyService>? _mockValkeyService;
     private Mock<IConfiguration>? _mockConfig;
     private Mock<ILogger<AssetService>>? _mockLogger;
     private AssetService? _assetService;
@@ -22,13 +22,13 @@ public class RedisIntegrationTests
     [TestInitialize]
     public void Setup()
     {
-        _mockRedis = new Mock<IConnectionMultiplexer>();
+        _mockValkey = new Mock<IConnectionMultiplexer>();
         _mockDb = new Mock<IDatabase>();
-        _mockRedisService = new Mock<IRedisService>();
+        _mockValkeyService = new Mock<IValkeyService>();
         _mockConfig = new Mock<IConfiguration>();
         _mockLogger = new Mock<ILogger<AssetService>>();
 
-        _mockRedis.Setup(x => x.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
+        _mockValkey.Setup(x => x.GetDatabase(It.IsAny<int>(), It.IsAny<object>()))
             .Returns(_mockDb.Object);
 
         // Fix: Setup configuration to return a default value for the cache duration
@@ -41,8 +41,8 @@ public class RedisIntegrationTests
             .Build();
 
         _assetService = new AssetService(
-            _mockRedis.Object,
-            _mockRedisService.Object,
+            _mockValkey.Object,
+            _mockValkeyService.Object,
             config,
             _mockLogger.Object
         );
@@ -54,7 +54,7 @@ public class RedisIntegrationTests
         // Arrange
         // This mimics the logic in BrokerGateway.Worker which uses account:index Set
         var accounts = new List<string> { "Trading", "Pension", "ISA", "IRP", "Yoonseo" };
-        var redisValues = accounts.Select(a => (RedisValue)a).ToArray();
+        var redisValues = accounts.Select(a => (ValkeyValue)a).ToArray();
 
         _mockDb!.Setup(x => x.SetMembersAsync("account:index", It.IsAny<CommandFlags>()))
             .ReturnsAsync(redisValues);

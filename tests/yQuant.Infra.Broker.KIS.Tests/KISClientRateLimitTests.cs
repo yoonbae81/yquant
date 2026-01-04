@@ -7,7 +7,7 @@ using Moq.Protected;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Broker.KIS.Models;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Interfaces;
 using Xunit;
 
 namespace yQuant.Infra.Broker.KIS.Tests;
@@ -16,7 +16,7 @@ public class KISClientRateLimitTests
 {
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly Mock<ILogger<KISClient>> _mockLogger;
-    private readonly Mock<ITokenRedisService> _mockTokenRedis;
+    private readonly Mock<ITokenValkeyService> _mockTokenValkey;
     private readonly KISApiConfig _apiConfig;
     private readonly Account _account;
 
@@ -24,7 +24,7 @@ public class KISClientRateLimitTests
     {
         _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         _mockLogger = new Mock<ILogger<KISClient>>();
-        _mockTokenRedis = new Mock<ITokenRedisService>();
+        _mockTokenValkey = new Mock<ITokenValkeyService>();
 
         _apiConfig = new KISApiConfig();
         _apiConfig.ExtensionData["Token"] = JsonSerializer.SerializeToElement(new EndpointConfig { Path = "/oauth2/tokenP", Method = "POST" });
@@ -78,7 +78,7 @@ public class KISClientRateLimitTests
             return null;
         });
 
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenRedis.Object, rateLimit);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object, rateLimit);
 
         // Act - Make requests up to the limit
         var tasks = new List<Task>();
@@ -128,7 +128,7 @@ public class KISClientRateLimitTests
             return null;
         });
 
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenRedis.Object, rateLimit);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object, rateLimit);
 
         // Act & Assert
         // The rate limiter has QueueLimit=100, so we need to exceed that to get exceptions
@@ -193,7 +193,7 @@ public class KISClientRateLimitTests
             return null;
         });
 
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenRedis.Object, rateLimit);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object, rateLimit);
 
         // Act - First batch
         var firstBatch = new List<Task>();
@@ -254,7 +254,7 @@ public class KISClientRateLimitTests
         });
 
         // Act - Create client without specifying rate limit (should use default 20)
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenRedis.Object);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object);
 
         // Make 20 requests (default limit)
         var tasks = new List<Task>();
@@ -304,7 +304,7 @@ public class KISClientRateLimitTests
             return null;
         });
 
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenRedis.Object, rateLimit);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object, rateLimit);
 
         // Act - Measure time to complete rate limit requests
         var stopwatch = Stopwatch.StartNew();

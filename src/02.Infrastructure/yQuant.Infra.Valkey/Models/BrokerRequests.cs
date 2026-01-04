@@ -2,7 +2,7 @@ using System;
 using System.Text.Json.Serialization;
 using yQuant.Core.Models;
 
-namespace yQuant.Infra.Redis.Models;
+namespace yQuant.Infra.Valkey.Models;
 
 [JsonConverter(typeof(JsonStringEnumConverter))]
 public enum BrokerRequestType

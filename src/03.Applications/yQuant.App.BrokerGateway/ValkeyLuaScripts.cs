@@ -1,15 +1,15 @@
 namespace yQuant.App.BrokerGateway;
 
 /// <summary>
-/// Contains Lua scripts for atomic Redis operations to prevent race conditions.
+/// Contains Lua scripts for atomic Valkey operations to prevent race conditions.
 /// </summary>
-public static class RedisLuaScripts
+public static class ValkeyLuaScripts
 {
     /// <summary>
-    /// Atomically updates a position in Redis Hash.
+    /// Atomically updates a position in Valkey Hash.
     /// This script prevents Lost Update problems when multiple orders are processed concurrently.
     /// 
-    /// KEYS[1]: Redis hash key (e.g., "position:{alias}")
+    /// KEYS[1]: Valkey hash key (e.g., "position:{alias}")
     /// ARGV[1]: Ticker symbol (hash field)
     /// ARGV[2]: Order action ("Buy" or "Sell")
     /// ARGV[3]: Order quantity (decimal)
@@ -86,10 +86,10 @@ return cjson.encode({ position = updatedJson, buyReasonChanged = buyReasonChange
 ";
 
     /// <summary>
-    /// Atomically updates deposit balance in Redis Hash.
+    /// Atomically updates deposit balance in Valkey Hash.
     /// This script prevents race conditions when multiple orders update the same currency balance.
     /// 
-    /// KEYS[1]: Redis hash key (e.g., "deposit:{alias}")
+    /// KEYS[1]: Valkey hash key (e.g., "deposit:{alias}")
     /// ARGV[1]: Currency field (e.g., "USD", "KRW")
     /// ARGV[2]: Order action ("Buy" or "Sell")
     /// ARGV[3]: Amount change (quantity * price)

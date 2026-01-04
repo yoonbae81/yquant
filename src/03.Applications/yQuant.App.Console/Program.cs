@@ -5,12 +5,12 @@ using Microsoft.Extensions.Logging;
 using yQuant.App.Console.Commands;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS;
-using yQuant.Infra.Redis.Extensions;
-using yQuant.Infra.Redis.Interfaces;
+using yQuant.Infra.Valkey.Extensions;
+using yQuant.Infra.Valkey.Interfaces;
 using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Reporting.Repositories;
 using StackExchange.Redis;
-using yQuant.Infra.Redis.Adapters;
+using yQuant.Infra.Valkey.Adapters;
 
 
 namespace yQuant.App.Console;
@@ -68,14 +68,14 @@ class Program
             })
             .ConfigureServices((context, services) =>
             {
-                // Redis Connection
-                services.AddRedisMiddleware(context.Configuration);
+                // Valkey Connection
+                services.AddValkeyMiddleware(context.Configuration);
 
-                // Register RedisBrokerClient
-                services.AddSingleton<RedisBrokerClient>(sp =>
-                    new RedisBrokerClient(sp.GetRequiredService<IConnectionMultiplexer>(), targetAccount));
+                // Register ValkeyBrokerClient
+                services.AddSingleton<ValkeyBrokerClient>(sp =>
+                    new ValkeyBrokerClient(sp.GetRequiredService<IConnectionMultiplexer>(), targetAccount));
 
-                services.AddSingleton<IBrokerAdapter>(sp => sp.GetRequiredService<RedisBrokerClient>());
+                services.AddSingleton<IBrokerAdapter>(sp => sp.GetRequiredService<ValkeyBrokerClient>());
 
                 // Notification Services (required by Catalog sync)
                 services.Configure<yQuant.Infra.Notification.Discord.DiscordConfiguration>(context.Configuration.GetSection("Notifier:Discord"));
@@ -94,11 +94,11 @@ class Program
                 // Register Commands
                 services.AddTransient<ICommand>(sp =>
                 {
-                    return new DepositCommand(sp.GetRequiredService<RedisBrokerClient>());
+                    return new DepositCommand(sp.GetRequiredService<ValkeyBrokerClient>());
                 });
                 services.AddTransient<ICommand>(sp =>
                 {
-                    return new PositionsCommand(sp.GetRequiredService<RedisBrokerClient>());
+                    return new PositionsCommand(sp.GetRequiredService<ValkeyBrokerClient>());
                 });
                 services.AddTransient<ICommand>(sp => new InfoCommand(sp.GetRequiredService<IBrokerAdapter>()));
                 services.AddTransient<ICommand>(sp =>
@@ -121,7 +121,7 @@ class Program
         // Startup Check (only if account is required)
         if (needsAccount)
         {
-            var client = host.Services.GetRequiredService<RedisBrokerClient>();
+            var client = host.Services.GetRequiredService<ValkeyBrokerClient>();
             var pingResult = await client.PingAsync();
             if (!pingResult.Success)
             {
@@ -151,7 +151,7 @@ class Program
         System.Console.WriteLine("  sell <account> <ticker> <qty> [price]");
         System.Console.WriteLine("\nCommands that don't require account:");
         System.Console.WriteLine("  catalog [country]  - Sync stock catalog data");
-        System.Console.WriteLine("  checkaccounts       - List registered accounts in Redis");
+        System.Console.WriteLine("  checkaccounts       - List registered accounts in Valkey");
         System.Console.WriteLine("  info <ticker>       - Check price for a ticker");
     }
 }

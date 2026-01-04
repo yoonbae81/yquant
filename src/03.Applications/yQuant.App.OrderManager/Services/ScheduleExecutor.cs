@@ -9,7 +9,7 @@ using CoreOrder = yQuant.Core.Models.Order;
 namespace yQuant.App.OrderManager.Services;
 
 /// <summary>
-/// Executes scheduled orders and liquidations by reading from Redis and publishing to order channel
+/// Executes scheduled orders and liquidations by reading from Valkey and publishing to order channel
 /// </summary>
 public class ScheduleExecutor
 {
@@ -94,7 +94,7 @@ public class ScheduleExecutor
                     }
                 }
 
-                // Save back to Redis if modified
+                // Save back to Valkey if modified
                 if (modified)
                 {
                     var updatedJson = JsonSerializer.Serialize(orders, _jsonOptions);

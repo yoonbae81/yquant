@@ -7,19 +7,19 @@ using yQuant.Core.Ports.Output.Infrastructure;
 namespace yQuant.Infra.Reporting.Repositories;
 
 /// <summary>
-/// Redis 기반 일별 스냅샷 저장소
+/// Valkey 기반 일별 스냅샷 저장소
 /// 키: snapshots:{account}:{YYYY-MM-DD} (Hash)
 /// Field: {currency}, Value: DailySnapshot JSON (positions 포함)
 /// </summary>
-public class RedisDailySnapshotRepository : IDailySnapshotRepository
+public class ValkeyDailySnapshotRepository : IDailySnapshotRepository
 {
     private readonly IConnectionMultiplexer _redis;
-    private readonly ILogger<RedisDailySnapshotRepository> _logger;
+    private readonly ILogger<ValkeyDailySnapshotRepository> _logger;
     private readonly JsonSerializerOptions _jsonOptions = new() { WriteIndented = false };
 
-    public RedisDailySnapshotRepository(
+    public ValkeyDailySnapshotRepository(
         IConnectionMultiplexer redis,
-        ILogger<RedisDailySnapshotRepository> logger)
+        ILogger<ValkeyDailySnapshotRepository> logger)
     {
         _redis = redis;
         _logger = logger;

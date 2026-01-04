@@ -5,11 +5,11 @@ using CoreOrder = yQuant.Core.Models.Order;
 
 namespace yQuant.App.OrderManager.Adapters;
 
-public class RedisOrderPublisher : IOrderPublisher
+public class ValkeyOrderPublisher : IOrderPublisher
 {
     private readonly IConnectionMultiplexer _redis;
 
-    public RedisOrderPublisher(IConnectionMultiplexer redis)
+    public ValkeyOrderPublisher(IConnectionMultiplexer redis)
     {
         _redis = redis;
     }
@@ -20,6 +20,6 @@ public class RedisOrderPublisher : IOrderPublisher
         var orderJson = JsonSerializer.Serialize(order);
 
         // Publish directly to 'order' channel
-        await db.PublishAsync(RedisChannel.Literal("order"), orderJson);
+        await db.PublishAsync(ValkeyChannel.Literal("order"), orderJson);
     }
 }
