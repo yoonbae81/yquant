@@ -25,9 +25,11 @@
 
             <MudForm @ref="_form" @bind-IsValid="@_isValid">
                 <MudStack Spacing="3">
-                    <MudTextField @bind-Value="_pin" Label="PIN" InputType="InputType.Password" Required="true"
+                    <MudTextField @bind-Value="_pin" Label="PIN" InputType="InputType.Password"
+                        Required="true" RequiredError="PIN is required"
+                        Validation="@(new Func<string, string?>(ValidatePinInput))"
                         Variant="Variant.Outlined" Adornment="Adornment.Start"
-                        AdornmentIcon="@Icons.Material.Filled.Key" OnKeyDown="HandleKeyDown"
+                        AdornmentIcon="@Icons.Material.Filled.Key" OnKeyDown="HandleKeyDown" 
                         HelperText="Enter your 4-digit PIN" MaxLength="4" />
 
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
@@ -69,6 +71,14 @@
     private string? ReturnUrl { get; set; }
 
     @inject IJSRuntime JSRuntime
+
+    private string? ValidatePinInput(string value)
+    {
+        if (string.IsNullOrEmpty(value)) return "PIN is required";
+        if (value.Length != 4) return "PIN must be 4 digits";
+        if (!value.All(char.IsDigit)) return "PIN must be numeric";
+        return null;
+    }
 
     private async Task HandleLogin()
     {
