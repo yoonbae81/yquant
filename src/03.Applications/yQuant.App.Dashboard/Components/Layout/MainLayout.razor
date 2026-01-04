@@ -25,8 +25,8 @@
     <MudDrawer @bind-Open="_drawerOpen" Elevation="1" Width="190px">
         <MudDrawerHeader
             Style="@($"background-color: {(_isDarkMode ? "#1a1a1a" : "white")}; height: 64px; padding: 0 16px; display: flex; align-items: center; border-bottom: 1px solid {(_isDarkMode ? "#2d2d2d" : "#e0e0e0")};")">
-            <MudLink Href="/" Underline="Underline.None" Style="display: flex; align-items: center; height: 100%;">
-                <img src="@(_isDarkMode ? "/images/logo_dark.png" : "/images/logo.png")" alt="yQuant Logo"
+            <MudLink Href="" Underline="Underline.None" Style="display: flex; align-items: center; height: 100%;">
+                <img src="@(_isDarkMode ? "images/logo_dark.png" : "images/logo.png")" alt="yQuant Logo"
                     style="height: 40px; cursor: pointer;" />
             </MudLink>
         </MudDrawerHeader>
@@ -98,15 +98,18 @@
 
     private string GetPageTitle()
     {
-        var uri = new Uri(NavigationManager.Uri);
-        var path = uri.AbsolutePath.ToLower();
+        var relativePath = NavigationManager.ToBaseRelativePath(NavigationManager.Uri).ToLower();
+        
+        // Remove query parameters
+        var path = relativePath.Split('?')[0];
 
-        if (path == "/" || path.StartsWith("/dashboard")) return "Dashboard";
-        if (path.StartsWith("/assets")) return "Assets";
-        if (path.StartsWith("/scheduled")) return "Scheduled Orders";
-        if (path.StartsWith("/orderform")) return "Buy Order";
-        if (path.StartsWith("/trades")) return "Trade History";
-        if (path.StartsWith("/performance")) return "Performance";
+        if (string.IsNullOrWhiteSpace(path) || path == "dashboard") return "Dashboard";
+        if (path.StartsWith("assets")) return "Assets";
+        if (path.StartsWith("scheduled")) return "Scheduled Orders";
+        if (path.StartsWith("orderform")) return "Buy Order";
+        if (path.StartsWith("trades")) return "Trade History";
+        if (path.StartsWith("performance")) return "Performance";
+        if (path.StartsWith("liquidate")) return "Liquidate";
 
         return "yQuant";
     }
@@ -122,9 +125,9 @@
 
             Snackbar.Add(message, severity, config =>
     {
-        config.ShowCloseIcon = true;
-        config.VisibleStateDuration = 5000;
-    });
+    config.ShowCloseIcon = true;
+    config.VisibleStateDuration = 5000;
+            });
             StateHasChanged();
         });
     }

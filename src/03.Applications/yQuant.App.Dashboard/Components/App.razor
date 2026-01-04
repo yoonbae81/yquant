@@ -3,7 +3,7 @@
 @using Microsoft.Extensions.Configuration
 @inject IConfiguration Configuration
 @{
-    var pathBase = Configuration.GetValue<string>("Web:PathBase")?.TrimEnd('/');
+    var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/');
     var baseHref = string.IsNullOrWhiteSpace(pathBase) ? "/" : $"{pathBase}/";
 }
 <html lang="en">
