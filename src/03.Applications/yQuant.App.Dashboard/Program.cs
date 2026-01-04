@@ -70,8 +70,8 @@ builder.Services.Configure<UserAuthSettings>(builder.Configuration.GetSection("D
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/login";
-        options.LogoutPath = "/logout";
+        options.LoginPath = "/unlock";
+        options.LogoutPath = "/lock";
         options.ExpireTimeSpan = TimeSpan.FromMinutes(
             builder.Configuration.GetValue<int>("Dashboard:SessionTimeout", 480));
         options.SlidingExpiration = true;
@@ -196,7 +196,7 @@ app.MapPost("/account/login", async (HttpContext context, SimpleAuthService auth
     }
     else
     {
-        var errorUrl = $"/login?error=Invalid PIN&returnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}";
+        var errorUrl = $"/unlock?error=Invalid PIN&returnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}";
         context.Response.Redirect(errorUrl);
     }
 });
@@ -204,7 +204,7 @@ app.MapPost("/account/login", async (HttpContext context, SimpleAuthService auth
 app.MapGet("/account/logout", async (HttpContext context) =>
 {
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    context.Response.Redirect("/login");
+    context.Response.Redirect("/unlock");
 });
 
 // Notify systemd that the service is ready (Linux only)

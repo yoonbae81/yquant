@@ -1,4 +1,4 @@
-@page "/login"
+@page "/unlock"
 @using Microsoft.AspNetCore.Authentication
 @using Microsoft.AspNetCore.Authentication.Cookies
 @using System.Security.Claims
@@ -6,14 +6,14 @@
 @inject NavigationManager Navigation
 @inject SimpleAuthService AuthService
 
-<PageTitle>Login - yQuant</PageTitle>
+<PageTitle>Unlock - yQuant</PageTitle>
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
     <MudPaper Elevation="3" Class="pa-8">
         <MudStack Spacing="4">
             <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">
                 <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Class="mr-2" />
-                Login
+                Unlock Dashboard
             </MudText>
 
             @if (!string.IsNullOrEmpty(_errorMessage))
@@ -23,26 +23,26 @@
                 </MudAlert>
             }
 
-            <MudForm @ref="_form" @bind-IsValid="@_isValid">
+            <MudForm @ref="_form" @bind-IsValid="@_isValid" ValidationDelay="0">
                 <MudStack Spacing="3">
                     <MudTextField @bind-Value="_pin" Label="PIN" InputType="InputType.Password"
                         Required="true" RequiredError="PIN is required"
                         Validation="@(new Func<string, string?>(ValidatePinInput))"
                         Variant="Variant.Outlined" Adornment="Adornment.Start"
                         AdornmentIcon="@Icons.Material.Filled.Key" OnKeyDown="HandleKeyDown" 
-                        HelperText="Enter your 4-digit PIN" MaxLength="4" />
+                        HelperText="Enter your 4-digit PIN" MaxLength="4" Immediate="true" />
 
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
                         OnClick="HandleLogin" Disabled="@(!_isValid || _isLoading)">
                         @if (_isLoading)
                         {
                             <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                            <span>Logging in...</span>
+                            <span>Unlocking...</span>
                         }
                         else
                         {
-                            <MudIcon Icon="@Icons.Material.Filled.Login" Class="mr-2" />
-                            <span>Login</span>
+                            <MudIcon Icon="@Icons.Material.Filled.LockOpen" Class="mr-2" />
+                            <span>Unlock</span>
                         }
                     </MudButton>
                 </MudStack>
@@ -69,6 +69,17 @@
 
     [SupplyParameterFromQuery(Name = "returnUrl")]
     private string? ReturnUrl { get; set; }
+
+    [SupplyParameterFromQuery(Name = "error")]
+    private string? ErrorFromQuery { get; set; }
+
+    protected override void OnInitialized()
+    {
+        if (!string.IsNullOrEmpty(ErrorFromQuery))
+        {
+            _errorMessage = ErrorFromQuery;
+        }
+    }
 
     @inject IJSRuntime JSRuntime
 
