@@ -164,13 +164,17 @@ app.MapGet("/health", async (IConnectionMultiplexer redis) =>
 });
 
 // Authentication Endpoints
-app.MapPost("/account/login", async (HttpContext context, SimpleAuthService authService) =>
+app.MapPost("/account/unlock", async (HttpContext context, SimpleAuthService authService) =>
 {
     var form = await context.Request.ReadFormAsync();
     var pin = form["pin"].ToString();
     var returnUrl = form["returnUrl"].ToString();
+    var pathBase = context.Request.PathBase.Value ?? "";
 
-    if (string.IsNullOrWhiteSpace(returnUrl)) returnUrl = "/";
+    if (string.IsNullOrWhiteSpace(returnUrl) || returnUrl == "/")
+    {
+        returnUrl = string.IsNullOrWhiteSpace(pathBase) ? "/" : pathBase;
+    }
 
     if (await authService.ValidatePinAsync(pin))
     {
@@ -196,15 +200,18 @@ app.MapPost("/account/login", async (HttpContext context, SimpleAuthService auth
     }
     else
     {
-        var errorUrl = $"/unlock?error=Invalid PIN&returnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}";
+        var errorBase = string.IsNullOrWhiteSpace(pathBase) ? "/unlock" : $"{pathBase}/unlock";
+        var errorUrl = $"{errorBase}?error=Invalid PIN&returnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}";
         context.Response.Redirect(errorUrl);
     }
-});
+})
+.DisableAntiforgery();
 
-app.MapGet("/account/logout", async (HttpContext context) =>
+app.MapGet("/account/lock", async (HttpContext context) =>
 {
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    context.Response.Redirect("/unlock");
+    var pathBase = context.Request.PathBase.Value ?? "";
+    context.Response.Redirect(string.IsNullOrWhiteSpace(pathBase) ? "/unlock" : $"{pathBase}/unlock");
 });
 
 // Notify systemd that the service is ready (Linux only)

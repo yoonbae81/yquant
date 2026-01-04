@@ -51,7 +51,7 @@
         </MudStack>
     </MudPaper>
 
-    <form id="loginForm" action="account/login" method="post" style="display:none">
+    <form id="unlockForm" action="account/unlock" method="post" style="display:none">
         <input type="hidden" name="pin" value="@_pin" />
         <input type="hidden" name="returnUrl" value="@ReturnUrl" />
     </form>
@@ -105,7 +105,7 @@
             }
 
             // If valid, submit the hidden form to create the cookie
-            await JSRuntime.InvokeVoidAsync("submitForm", "loginForm");
+            await JSRuntime.InvokeVoidAsync("submitForm", "unlockForm");
         }
         catch (Exception ex)
         {
