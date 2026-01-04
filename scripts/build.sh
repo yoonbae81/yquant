@@ -11,13 +11,11 @@ cd "$PROJECT_ROOT"
 # 배포 대상 디렉토리
 DEPLOY_ROOT="${DEPLOY_ROOT:-/srv/yquant}"
 
-# 권한 확인 및 디렉토리 생성 시도
+# 권한 확인 및 디렉토리 생성 시도 (필요시 sudo 사용)
 if [ ! -d "$DEPLOY_ROOT" ]; then
-    echo "📂 Creating deploy directory: $DEPLOY_ROOT"
-    mkdir -p "$DEPLOY_ROOT" || {
-        echo "❌ Error: Cannot create directory $DEPLOY_ROOT"
-        exit 1
-    }
+    echo "📂 Creating deploy directory with sudo: $DEPLOY_ROOT"
+    sudo mkdir -p "$DEPLOY_ROOT"
+    sudo chown -R $(id -u):$(id -g) "$DEPLOY_ROOT"
 fi
 
 echo "📦 Publishing BrokerGateway..."
