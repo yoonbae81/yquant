@@ -1,4 +1,4 @@
-1. **JSON Files** (solution root): Application settings, secrets, and market rules. Redis connection strings are now managed in `appsecrets.json`.
+1. **JSON Files** (solution root): Application settings, secrets, and market rules. Valkey connection strings are now managed in `appsecrets.json`.
 
 ## Configuration Sources
 
@@ -7,7 +7,7 @@
 | File | Purpose | Version Control |
 |------|---------|-----------------|
 | `appsettings.json` | Application settings, market configurations, catalog URLs | ✅ Committed to Git |
-| `appsecrets.json` | Sensitive credentials (broker API keys, accounts, webhooks, notifications, **Redis connections**) | ❌ Gitignored |
+| `appsecrets.json` | Sensitive credentials (broker API keys, accounts, webhooks, notifications, **Valkey connections**) | ❌ Gitignored |
 | `appsecrets.example.json` | Template for secrets file | ✅ Committed to Git |
 
 ## Setup Guide
@@ -37,7 +37,7 @@ cd /path/to/yQuant
 # Create secrets file from template
 cp appsecrets.example.json appsecrets.json
 
-# Edit secrets file with your credentials (accounts, API keys, notifications, and Redis)
+# Edit secrets file with your credentials (accounts, API keys, notifications, and Valkey)
 nano appsecrets.json  # or use your preferred editor
 ```
 

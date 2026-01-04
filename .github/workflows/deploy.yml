@@ -1,0 +1,67 @@
+name: Deploy yQuant Node (Blue/Green)
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      target_node:
+        description: 'Target Node to deploy (Blue or Green)'
+        required: true
+        default: 'green'
+        type: choice
+        options:
+          - blue
+          - green
+
+jobs:
+  deploy:
+    name: Deploy All Services to ${{ github.event.inputs.target_node || 'blue' }}
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: � Connect to Tailscale
+        uses: tailscale/github-action@v4
+        with:
+          oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
+          oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
+          tags: tag:github
+          
+      - name: �🚀 Set Target Host
+        id: set-host
+        run: |
+          if [ "${{ github.event.inputs.target_node }}" == "green" ]; then
+            echo "host=${{ secrets.HOST_GREEN }}" >> $GITHUB_OUTPUT
+          else
+            echo "host=${{ secrets.HOST_BLUE }}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: 🚀 Deploy via Tailscale SSH
+        run: |
+          tailscale ssh ${{ secrets.SSH_USER }}@${{ steps.set-host.outputs.host }} << 'EOF'
+            cd ~/yquant
+            git fetch --all
+            git checkout ${{ github.ref_name }}
+            git pull origin ${{ github.ref_name }}
+            bash scripts/deploy.sh
+          EOF
+      
+      - name: 🏥 Health Check
+        run: |
+          tailscale ssh ${{ secrets.SSH_USER }}@${{ steps.set-host.outputs.host }} "cd ~/yquant && bash scripts/health-check.sh"
+      
+      - name: 📢 Notify Success
+        if: success()
+        run: |
+          echo "✅ yQuant Deployment to ${{ github.event.inputs.target_node || 'blue' }} successful!"
+          echo "Ref: ${{ github.ref_name }}"
+          echo "Commit: ${{ github.sha }}"
+      
+      - name: 📢 Notify Failure
+        if: failure()
+        run: |
+          echo "❌ yQuant Deployment to ${{ github.event.inputs.target_node || 'blue' }} failed!"
+          echo "Check the logs above for details."

@@ -12,7 +12,7 @@ description: Setup systemd services for all yQuant applications on Arch Linux
 |------------|------|------|
 | **BrokerGateway** | 상시 실행 서비스 | 브로커 API와 연동하여 주문 처리 및 계좌 정보 동기화 |
 | **OrderManager** | 상시 실행 서비스 | 예약 주문 및 청산 스케줄 관리 |
-| **Notifier** | 상시 실행 서비스 | Redis Pub/Sub을 통해 알림을 수신하여 Discord/Telegram으로 전송 |
+| **Notifier** | 상시 실행 서비스 | Valkey Pub/Sub을 통해 알림을 수신하여 Discord/Telegram으로 전송 |
 | **Console** | 주기적 실행 (Timer) | 종목 마스터 데이터를 주기적으로 업데이트 |
 | **Web** | 상시 실행 서비스 | Blazor 기반 웹 대시보드 UI |
 | **Webhook** | 상시 실행 서비스 | TradingView 등 외부 시그널을 수신하는 웹훅 서버 |
@@ -21,7 +21,7 @@ description: Setup systemd services for all yQuant applications on Arch Linux
 
 1. .NET SDK가 설치되어 있어야 합니다
 2. 프로젝트가 정상적으로 빌드되어야 합니다
-3. Redis 도커 컨테이너가 실행 중이어야 합니다
+3. Valkey 도커 컨테이너(또는 서비스)가 실행 중이어야 합니다
 4. 필요한 환경 변수와 설정 파일이 준비되어 있어야 합니다
 
 ## systemd User 모드
@@ -36,11 +36,11 @@ description: Setup systemd services for all yQuant applications on Arch Linux
 
 ## 설정 관리 방식
 
-이 프로젝트는 **`appsecrets.json`**을 사용하여 설정을 관리합니다. 각 애플리케이션 유닛(Web, BrokerGateway 등)은 실행 시 배포 디렉토리에 있는 `appsecrets.json` 파일에서 Redis 연결 정보 및 API 키 등을 읽어옵니다.
+이 프로젝트는 **`appsecrets.json`**을 사용하여 설정을 관리합니다. 각 애플리케이션 유닛(Web, BrokerGateway 등)은 실행 시 배포 디렉토리에 있는 `appsecrets.json` 파일에서 Valkey 연결 정보 및 API 키 등을 읽어옵니다.
 
 **주요 설정 항목 (`Redis` 섹션):**
-- **`Message`**: 각 유닛간의 메시징 및 로컬 캐시용 Redis 주소.
-- **`Token`**: 전 환경 공용 KIS 토큰 저장용 Redis 주소 (Redis Cloud 등 공유 서비스 이용 권장).
+- **`Message`**: 각 유닛간의 메시징 및 로컬 캐시용 Valkey 주소.
+- **`Token`**: 전 환경 공용 KIS 토큰 저장용 Valkey 주소 (Valkey Cloud 등 공유 서비스 이용 권장).
 
 > **Tip**: 보안을 위해 `appsecrets.json`은 소스 제어(Git)에서 제외되어 있으며, 운영 환경에 직접 배포하거나 비밀 관리 도구를 사용해야 합니다.
 
@@ -50,13 +50,13 @@ description: Setup systemd services for all yQuant applications on Arch Linux
 
 ```bash
 cd ~/yquant
-bash scripts/build-all.sh
+bash scripts/build.sh
 ```
 
 ### 2단계: systemd 서비스 설치
 
 ```bash
-bash scripts/setup-systemd.sh
+bash scripts/setup.sh
 ```
 
 이 스크립트는 다음을 자동으로 수행합니다:
@@ -65,7 +65,7 @@ bash scripts/setup-systemd.sh
 
 ### 3단계: 설정 파일 확인
 
-모든 애플리케이션 디렉토리에 `appsecrets.json` 파일이 올바르게 위치하고 Redis 주소가 설정되어 있는지 확인하세요.
+모든 애플리케이션 디렉토리에 `appsecrets.json` 파일이 올바르게 위치하고 Valkey 주소가 설정되어 있는지 확인하세요.
 
 ### 4단계: 서비스 활성화 및 시작
 
@@ -95,10 +95,11 @@ git push origin v1.0.0
 또는 GitHub Actions에서 수동으로 트리거할 수 있습니다 (Actions 탭 → Deploy to Production → Run workflow).
 
 **GitHub Secrets 설정 필요:**
-- `DEPLOY_SERVER_HOST` - 배포 서버 호스트
-- `DEPLOY_SSH_USER` - SSH 사용자명
-- `DEPLOY_SSH_KEY` - SSH 개인 키
-- `DEPLOY_SSH_PORT` - SSH 포트 (선택사항, 기본값: 22)
+- `YQUANT_HOST_BLUE` - 블루 노드 서버 호스트
+- `YQUANT_HOST_GREEN` - 그린 노드 서버 호스트
+- `YQUANT_SSH_USER` - SSH 사용자명
+- `YQUANT_SSH_KEY` - SSH 개인 키
+- `YQUANT_SSH_PORT` - SSH 포트 (선택사항, 기본값: 22)
 
 ### 수동 배포 (서버에서)
 
@@ -117,10 +118,10 @@ bash scripts/deploy.sh
 
 ```bash
 # 빌드만 수행
-bash scripts/build-all.sh
+bash scripts/build.sh
 
 # 서비스 재시작만 수행
-bash scripts/restart-services.sh
+bash scripts/restart.sh
 
 # 서비스 상태 확인
 bash scripts/health-check.sh
@@ -194,14 +195,14 @@ systemctl --user disable brokergateway
 
 4. **의존성 확인**
    ```bash
-   docker ps | grep redis
+   valkey-cli ping
    ```
 
 ### 설정 정보 변경 후
 
 ```bash
 # appsecrets.json 파일 수정 후 서비스 재시작
-bash scripts/restart-services.sh
+bash scripts/restart.sh
 ```
 
 ### 서비스 파일 수정 후
@@ -217,7 +218,7 @@ systemctl --user restart brokergateway
 ### 서비스 실행 순서
 
 권장 실행 순서:
-1. Redis (Docker 컨테이너)
+1. Valkey
 2. BrokerGateway (계좌 정보 제공)
 3. OrderManager (주문 생성)
 4. Notifier (알림 전송)

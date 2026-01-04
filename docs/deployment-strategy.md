@@ -3,7 +3,7 @@
 ## 1. 시스템 요구사항
 - **VM 사양**: Oracle Cloud, 1 OCPU, 1GB RAM
 - **VM 수량**: 2대 (최소) ~ 3대 (권장)
-- **상시 실행 프로세스**: Redis, BrokerGateway, Web, Webhook, OrderManager
+- **상시 실행 프로세스**: Valkey, BrokerGateway, Web, Webhook, OrderManager
 - **지리적 배치**: 
   - VM1 + VM3 (Webhook): 같은 리전 필수 (트레이딩 크리티컬 패스)
   - VM2 (Web): 위치 유연 (다른 리전 배치 가능)
@@ -16,7 +16,7 @@
 │  (저지연 필수: VM1 + VM3는 같은 리전)                              │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  TradingView ──(인터넷)──▶ VM3 Webhook ──(1-2ms)──▶ VM1 Redis  │
+│  TradingView ──(인터넷)──▶ VM3 Webhook ──(1-2ms)──▶ VM1 Valkey  │
 │                                            │                    │
 │                                            ▼                    │
 │                                      OrderManager (로컬)        │
@@ -33,7 +33,7 @@
 │  (지연 허용: VM2는 다른 리전 가능)                                 │
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                 │
-│  사용자 ──(인터넷)──▶ VM2 Web ──(30-100ms 허용)──▶ VM1 Redis    │
+│  사용자 ──(인터넷)──▶ VM2 Web ──(30-100ms 허용)──▶ VM1 Valkey    │
 │                         │                                       │
 │                         └─ 계좌/포지션/주식 정보 조회 (읽기)      │
 │                         └─ 수동 주문 발행 (저빈도)                │
@@ -42,7 +42,7 @@
 
 ## 2. 각 컴포넌트 분석
 
-### 2.1. Redis
+### 2.1. Valkey
 - **메모리 풋프린트**: ~50-100MB (데이터 크기에 따라 변동)
 - **역할**: Pub/Sub 메시징 허브 + 상태 캐싱
 - **통신 패턴**: 모든 애플리케이션과 통신 (중앙 허브)
@@ -54,19 +54,19 @@
 - **메모리 풋프린트**: ~150-200MB (ASP.NET Core 런타임 + KIS API 클라이언트)
 - **역할**: 증권사 API 연동, 계좌/포지션 동기화
 - **통신 패턴**:
-  - Redis와 **매우 빈번한 통신** (order, query 채널 구독, execution 발행)
+  - Valkey와 **매우 빈번한 통신** (order, query 채널 구독, execution 발행)
   - 외부 KIS API 호출
 - **특징**:
-  - Redis와의 저지연 통신 필수
+  - Valkey와의 저지연 통신 필수
   - CPU 사용량 중간 (API 호출 처리)
 
 ### 2.3. Web (Dashboard)
 - **메모리 풋프린트**: ~200-250MB (ASP.NET Core + Blazor Server + SignalR + Webhook)
 - **역할**: 웹 UI, 실시간 모니터링, 수동 주문, TradingView Webhook 수신
 - **통신 패턴**:
-  - Redis와 **빈번한 읽기** (계좌, 포지션, 주식 정보 조회)
-  - Redis로 **가끔 쓰기** (수동 주문, 예약 주문 설정)
-  - Redis로 **신호 발행** (TradingView webhook → signal 채널)
+  - Valkey와 **빈번한 읽기** (계좌, 포지션, 주식 정보 조회)
+  - Valkey로 **가끔 쓰기** (수동 주문, 예약 주문 설정)
+  - Valkey로 **신호 발행** (TradingView webhook → signal 채널)
   - 사용자 브라우저와 WebSocket 연결
 - **특징**:
   - 가장 큰 메모리 풋프린트 (Blazor Server 런타임)
@@ -76,21 +76,21 @@
 - **메모리 풋프린트**: ~100-150MB (.NET 콘솔 앱 + 비즈니스 로직)
 - **역할**: 신호 → 주문 변환, 예약 주문 실행, 청산 관리
 - **통신 패턴**:
-  - Redis와 **빈번한 통신** (signal 구독, order 발행)
-  - Redis에서 계좌/포지션 읽기 (리스크 체크)
+  - Valkey와 **빈번한 통신** (signal 구독, order 발행)
+  - Valkey에서 계좌/포지션 읽기 (리스크 체크)
 - **특징**:
   - 중간 수준의 메모리 사용
   - 비즈니스 로직 처리로 CPU 사용
 
 ### 2.5. Webhook (분리 시 - Minimal API)
-- **메모리 풋프린트**: ~40-60MB (Minimal API + Redis 클라이언트만)
-- **역할**: TradingView 신호 수신 및 Redis 발행
+- **메모리 풋프린트**: ~40-60MB (Minimal API + Valkey 클라이언트만)
+- **역할**: TradingView 신호 수신 및 Valkey 발행
 - **통신 패턴**:
-  - Redis로 **저빈도 쓰기** (신호 발생 시에만 signal 채널 발행)
+  - Valkey로 **저빈도 쓰기** (신호 발생 시에만 signal 채널 발행)
   - 외부 TradingView로부터 HTTP POST 수신
 - **특징**:
   - **극도로 경량**: Blazor/SignalR 없이 순수 Minimal API만 사용
-  - **단순 로직**: 페이로드 검증 → Redis 발행만 수행
+  - **단순 로직**: 페이로드 검증 → Valkey 발행만 수행
   - **낮은 CPU 사용**: 이벤트 기반, 대기 상태가 대부분
   - **메모리 절감 효과**: Web에서 분리 시 Web은 ~160-200MB로 감소
 
@@ -101,7 +101,7 @@
   ├─ Blazor Server:        ~80MB
   ├─ SignalR:              ~30MB
   ├─ MudBlazor:            ~40MB
-  ├─ Redis Client:         ~10MB
+  ├─ Valkey Client:         ~10MB
   ├─ Services:             ~20MB
   └─ Webhook Logic:        ~10MB
 
@@ -109,7 +109,7 @@
   Web (Dashboard):         ~170MB (Webhook 로직 제거)
   Webhook (Minimal):       ~50MB
     ├─ ASP.NET Core:       ~35MB
-    ├─ Redis Client:       ~10MB
+    ├─ Valkey Client:       ~10MB
     └─ Webhook Logic:      ~5MB
 ```
 
@@ -122,7 +122,7 @@
 ┌─────────────────────────────────────┐
 │ VM1: 1 OCPU, 1GB RAM                │
 ├─────────────────────────────────────┤
-│ • Redis            (~80MB)          │
+│ • Valkey            (~80MB)          │
 │ • BrokerGateway    (~180MB)         │
 │ • OrderManager     (~120MB)         │
 ├─────────────────────────────────────┤
@@ -148,7 +148,7 @@
 - ✅ VM 비용 절감 (2대만 사용)
 - ✅ 관리 포인트 최소화
 - ✅ 충분한 메모리 여유 (각 VM 60-70% 사용률)
-- ✅ 고빈도 통신(BrokerGateway ↔ Redis) 로컬화
+- ✅ 고빈도 통신(BrokerGateway ↔ Valkey) 로컬화
 
 **단점**:
 - ⚠️ Webhook 장애 시 전체 Web 서비스 영향
@@ -166,7 +166,7 @@ Oracle Cloud Free Tier는 최대 4개의 ARM 인스턴스를 무료로 제공하
 ┌─────────────────────────────────────┐
 │ VM1: 1 OCPU, 1GB RAM                │
 ├─────────────────────────────────────┤
-│ • Redis            (~80MB)          │
+│ • Valkey            (~80MB)          │
 │ • BrokerGateway    (~180MB)         │
 │ • OrderManager     (~120MB)         │
 ├─────────────────────────────────────┤
@@ -209,18 +209,18 @@ Oracle Cloud Free Tier는 최대 4개의 ARM 인스턴스를 무료로 제공하
 
 **단점**:
 - ⚠️ 관리 포인트 증가 (3대의 VM)
-- ⚠️ 네트워크 홉 증가 (Webhook → VM1 Redis는 원격 통신)
+- ⚠️ 네트워크 홉 증가 (Webhook → VM1 Valkey는 원격 통신)
   - 하지만 Webhook은 저빈도 통신이므로 영향 미미 (1-2ms 추가)
 
 **Webhook 네트워크 지연 분석**:
 ```
 신호 수신 경로:
-TradingView → VM3 Webhook → VM1 Redis (원격) → VM1 OrderManager (로컬)
+TradingView → VM3 Webhook → VM1 Valkey (원격) → VM1 OrderManager (로컬)
 
 예상 지연:
   - TradingView → VM3: ~100-300ms (인터넷)
-  - VM3 → VM1 Redis: ~1-2ms (Oracle 내부 네트워크)
-  - VM1 Redis → OrderManager: <1ms (로컬)
+  - VM3 → VM1 Valkey: ~1-2ms (Oracle 내부 네트워크)
+  - VM1 Valkey → OrderManager: <1ms (로컬)
   
 총 지연: ~101-303ms (대부분 인터넷 구간)
 결론: VM3 분리로 인한 추가 지연은 1-2ms로 무시 가능
@@ -230,7 +230,7 @@ TradingView → VM3 Webhook → VM1 Redis (원격) → VM1 OrderManager (로컬)
 ```
 Web의 통신 패턴 분석:
 1. 사용자 → VM2 Web: 브라우저 접속 (지연 무관)
-2. VM2 → VM1 Redis: 계좌/포지션/주식 정보 조회 (읽기 중심)
+2. VM2 → VM1 Valkey: 계좌/포지션/주식 정보 조회 (읽기 중심)
    - 빈도: 사용자 페이지 로드 시, 수동 주문 시 (저빈도)
    - 데이터 크기: 수 KB ~ 수십 KB
    - 지연 허용도: 100-200ms까지 사용자 경험에 영향 없음
@@ -346,9 +346,9 @@ Web의 통신 패턴 분석:
 }
 ```
 
-### 4.3. Redis 설정 (`/etc/redis/redis.conf`)
+### 4.3. Valkey 설정 (`/etc/valkey/valkey.conf`)
 ```conf
-# VM1에서 Redis가 외부 접속을 받을 수 있도록 설정
+# VM1에서 Valkey가 외부 접속을 받을 수 있도록 설정
 bind 0.0.0.0
 protected-mode yes
 requirepass <STRONG_PASSWORD>
@@ -360,24 +360,24 @@ maxmemory-policy allkeys-lru
 
 ## 5. 대안 방안 비교 (비권장)
 
-### ❌ **대안 1: VM1 (Redis + Web) + VM2 (BrokerGateway + OrderManager)**
+### ❌ **대안 1: VM1 (Valkey + Web) + VM2 (BrokerGateway + OrderManager)**
 ```
-VM1: Redis(80MB) + Web(230MB) = ~310MB
+VM1: Valkey(80MB) + Web(230MB) = ~310MB
 VM2: BrokerGateway(180MB) + OrderManager(120MB) = ~300MB
 ```
 
 **단점**:
-- BrokerGateway ↔ Redis 간 **고빈도 통신이 네트워크를 경유**하여 지연 발생
-- 주문 실행 경로(OrderManager → Redis → BrokerGateway)가 VM 간 왕복하여 **레이턴시 증가**
+- BrokerGateway ↔ Valkey 간 **고빈도 통신이 네트워크를 경유**하여 지연 발생
+- 주문 실행 경로(OrderManager → Valkey → BrokerGateway)가 VM 간 왕복하여 **레이턴시 증가**
 
-### ❌ **대안 2: VM1 (Redis + OrderManager) + VM2 (BrokerGateway + Web)**
+### ❌ **대안 2: VM1 (Valkey + OrderManager) + VM2 (BrokerGateway + Web)**
 ```
-VM1: Redis(80MB) + OrderManager(120MB) = ~200MB
+VM1: Valkey(80MB) + OrderManager(120MB) = ~200MB
 VM2: BrokerGateway(180MB) + Web(230MB) = ~410MB
 ```
 
 **단점**:
-- BrokerGateway ↔ Redis 간 **가장 빈번한 통신이 네트워크 경유**
+- BrokerGateway ↔ Valkey 간 **가장 빈번한 통신이 네트워크 경유**
 - VM2의 메모리 압박 (410MB, 여유 공간 부족)
 
 ## 6. 운영 가이드
@@ -388,8 +388,8 @@ VM2: BrokerGateway(180MB) + Web(230MB) = ~410MB
 free -h
 ps aux --sort=-%mem | head -10
 
-# Redis 메모리 사용량 확인 (VM1)
-redis-cli -a <PASSWORD> INFO memory
+# Valkey 메모리 사용량 확인 (VM1)
+valkey-cli -a <PASSWORD> INFO memory
 ```
 
 ### 6.2. 프로세스 관리 (systemd)
@@ -397,7 +397,7 @@ redis-cli -a <PASSWORD> INFO memory
 #### 방안 A (2-VM)
 ```bash
 # VM1
-sudo systemctl start redis
+sudo systemctl start valkey
 sudo systemctl start yquant-brokergateway
 sudo systemctl start yquant-ordermanager
 
@@ -408,7 +408,7 @@ sudo systemctl start yquant-web
 #### 방안 B (3-VM)
 ```bash
 # VM1
-sudo systemctl start redis
+sudo systemctl start valkey
 sudo systemctl start yquant-brokergateway
 sudo systemctl start yquant-ordermanager
 
@@ -423,14 +423,14 @@ sudo systemctl start yquant-webhook
 
 #### 방안 A (2-VM) 방화벽 설정
 ```bash
-# VM1: Redis 포트를 VM2에서만 접근 허용
+# VM1: Valkey 포트를 VM2에서만 접근 허용
 sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="<VM2_PRIVATE_IP>" port protocol="tcp" port="6379" accept'
 sudo firewall-cmd --reload
 ```
 
 #### 방안 B (3-VM) 방화벽 설정
 ```bash
-# VM1: Redis 포트를 VM2, VM3에서만 접근 허용
+# VM1: Valkey 포트를 VM2, VM3에서만 접근 허용
 sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="<VM2_PRIVATE_IP>" port protocol="tcp" port="6379" accept'
 sudo firewall-cmd --permanent --add-rich-rule='rule family="ipv4" source address="<VM3_PRIVATE_IP>" port protocol="tcp" port="6379" accept'
 sudo firewall-cmd --reload
@@ -443,11 +443,11 @@ sudo firewall-cmd --reload
 
 ### 6.4. 장애 대응
 
-#### Redis 연결 실패 시
-- **증상**: Web/Webhook에서 "Redis connection failed" 에러
-- **확인**: VM1에서 `redis-cli -a <PASSWORD> ping` 실행
+#### Valkey 연결 실패 시
+- **증상**: Web/Webhook에서 "Valkey connection failed" 에러
+- **확인**: VM1에서 `valkey-cli -a <PASSWORD> ping` 실행
 - **조치**: 
-  1. VM1 Redis 재시작: `sudo systemctl restart redis`
+  1. VM1 Valkey 재시작: `sudo systemctl restart valkey`
   2. 방화벽 규칙 확인
   3. 연결 문자열 확인
 
@@ -455,7 +455,7 @@ sudo firewall-cmd --reload
 - **증상**: OOM Killer 발동, 프로세스 강제 종료
 - **확인**: `dmesg | grep -i "out of memory"`
 - **조치**:
-  1. Redis maxmemory 설정 축소
+  1. Valkey maxmemory 설정 축소
   2. Web의 SignalR 연결 수 제한
   3. 불필요한 프로세스 종료
 
@@ -465,30 +465,30 @@ sudo firewall-cmd --reload
 
 #### 방안 A (2-VM)
 ```
-TradingView → VM2 Web/Webhook → VM1 Redis → VM1 OrderManager → VM1 BrokerGateway
+TradingView → VM2 Web/Webhook → VM1 Valkey → VM1 OrderManager → VM1 BrokerGateway
 예상 지연: ~102ms (인터넷 100ms + 내부망 2ms)
 ```
 
 #### 방안 B (3-VM)
 ```
-TradingView → VM3 Webhook → VM1 Redis → VM1 OrderManager → VM1 BrokerGateway
+TradingView → VM3 Webhook → VM1 Valkey → VM1 OrderManager → VM1 BrokerGateway
 예상 지연: ~103ms (인터넷 100ms + 내부망 3ms)
 ```
 
 **결론**: 두 방안의 레이턴시 차이는 1ms로 무시 가능
 
 ### 7.2. 처리량
-- **초당 주문 처리**: ~100 orders/sec (Redis Pub/Sub 기준)
+- **초당 주문 처리**: ~100 orders/sec (Valkey Pub/Sub 기준)
 - **동시 사용자**: ~10명 (Web, Blazor Server 기준)
 
 ## 8. 향후 확장 고려사항
 
 ### 8.1. 메모리 부족 시
 1. **Web을 정적 파일 + API로 분리** (Blazor WASM 전환)
-2. **Redis를 외부 관리형 서비스로 이전** (Redis Cloud, AWS ElastiCache)
+2. **Valkey를 외부 관리형 서비스로 이전** (Valkey Cloud, AWS ElastiCache)
 
 ### 8.2. 고가용성 필요 시
-1. **VM4 추가**: Redis Sentinel 구성 (자동 페일오버)
+1. **VM4 추가**: Valkey Sentinel 구성 (자동 페일오버)
 2. **BrokerGateway 이중화**: Active-Standby 구성
 3. **Webhook 로드밸런싱**: VM3 복제 + Nginx 리버스 프록시
 
@@ -534,12 +534,12 @@ VM2: Mumbai / Singapore (Free Tier 여유 있는 리전)
 ### 최종 권장 배포 구성: **방안 B (3-VM)**
 
 **구성**:
-- **VM1**: Redis + BrokerGateway + OrderManager (백엔드 허브)
+- **VM1**: Valkey + BrokerGateway + OrderManager (백엔드 허브)
 - **VM2**: Web Dashboard (프론트엔드)
 - **VM3**: Webhook Minimal API (신호 수신)
 
 **핵심 이유**:
-1. ✅ **저지연 통신**: 고빈도 통신(BrokerGateway ↔ Redis)을 로컬화
+1. ✅ **저지연 통신**: 고빈도 통신(BrokerGateway ↔ Valkey)을 로컬화
 2. ✅ **메모리 여유**: 각 VM이 50-90% 여유 공간 확보
 3. ✅ **장애 격리**: 각 계층이 독립적으로 동작
 4. ✅ **보안 강화**: 외부 노출 최소화 (Webhook만)
@@ -566,17 +566,17 @@ VM2: 위치 자유
 **실전 배치 예시**:
 ```
 기본 구성 (권장):
-  VM1: Seoul (Redis + BrokerGateway + OrderManager)
+  VM1: Seoul (Valkey + BrokerGateway + OrderManager)
   VM2: Seoul (Web Dashboard)
   VM3: Seoul (Webhook)
 
 비용 최적화:
-  VM1: Seoul (Redis + BrokerGateway + OrderManager)
+  VM1: Seoul (Valkey + BrokerGateway + OrderManager)
   VM2: Tokyo (Web Dashboard) ← 다른 리전 Free Tier 활용
   VM3: Seoul (Webhook)
 
 글로벌 사용자:
-  VM1: Seoul (Redis + BrokerGateway + OrderManager)
+  VM1: Seoul (Valkey + BrokerGateway + OrderManager)
   VM2-KR: Tokyo (Web Dashboard - 아시아 사용자)
   VM2-US: San Jose (Web Dashboard - 미국 사용자)
   VM3: Seoul (Webhook)
@@ -592,8 +592,8 @@ VM2: 위치 자유
 1. **Web의 통신 패턴**: 읽기 중심, 저빈도 (페이지 로드, 수동 주문)
 2. **지연 허용도**: 100-200ms 추가 지연도 사용자 경험에 영향 없음
 3. **트레이딩 경로 분리**: 
-   - **크리티컬**: TradingView → VM3 → VM1 (Redis) → OrderManager → BrokerGateway
-   - **비크리티컬**: 사용자 → VM2 → VM1 (Redis 조회)
+   - **크리티컬**: TradingView → VM3 → VM1 (Valkey) → OrderManager → BrokerGateway
+   - **비크리티컬**: 사용자 → VM2 → VM1 (Valkey 조회)
 4. **비용 최적화**: VM2를 다른 리전에 배치하여 Free Tier 한도 분산 가능
 
 **Webhook 메모리 답변**:

@@ -15,6 +15,9 @@
         <MudSpacer />
         <MudIconButton Icon="@(_isDarkMode ? Icons.Material.Filled.LightMode : Icons.Material.Filled.DarkMode)"
             Color="Color.Inherit" OnClick="@ToggleTheme" />
+        <MudChip T="string" Color="Color.Info" Variant="Variant.Outlined" Size="Size.Small" Class="mr-2">
+            @Environment.MachineName
+        </MudChip>
         <MudLink Href="https://github.com/yoonbae81/yquant/README.md" Target="_blank"
             Style="@($"color: {(_isDarkMode ? "#fff" : "#333")}; display: flex; align-items: center;")">About
         </MudLink>
@@ -119,9 +122,9 @@
 
             Snackbar.Add(message, severity, config =>
     {
-    config.ShowCloseIcon = true;
-    config.VisibleStateDuration = 5000;
-            });
+        config.ShowCloseIcon = true;
+        config.VisibleStateDuration = 5000;
+    });
             StateHasChanged();
         });
     }

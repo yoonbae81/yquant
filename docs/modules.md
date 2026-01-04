@@ -48,16 +48,16 @@ Core의 인터페이스를 구현하고 실제 기술(DB, API, Network)을 다�
     - **Token Caching**: Access Token을 메모리 및 로컬 파일(`%LocalAppData%/yQuant/KIS/tokens`)에 캐싱하여 재사용
     - **US Market Order Emulation**: 미국 주식 시장가 주문 미지원으로 인해, 현재가 기준 Buffer(매수 +5%, 매도 -5%)를 적용한 지정가 주문으로 에뮬레이션
 
-### 2.2. yQuant.Infra.Redis
+### 2.2. yQuant.Infra.Valkey (Valkey Messaging & Caching)
 - **역할**: 시스템의 신경망 역할을 하는 메시지 브로커 및 상태 저장소
 - **주요 컴포넌트**:
-    - **RedisService**: Redis 연결 관리 및 기본 작업
-    - **RedisBrokerClient**: Pub/Sub 메시징 클라이언트
-    - **HeartbeatService**: Redis 연결 상태 모니터링
+    - **ValkeyService**: Valkey 연결 관리 및 기본 작업
+    - **ValkeyBrokerClient**: Pub/Sub 메시징 클라이언트
+    - **HeartbeatService**: Valkey 연결 상태 모니터링
 - **Pub/Sub Channels**:
-    - `signal`: Webhook에서 수신한 Raw Signal을 OrderManager로 전달하는 Redis 채널
-    - `order`: OrderManager가 생성한 Executable Order를 BrokerGateway로 전달하는 Redis 채널
-    - `execution`: BrokerGateway가 체결 결과를 Web 및 Notification 서비스로 전파하는 Redis 채널
+    - `signal`: Webhook에서 수신한 Raw Signal을 OrderManager로 전달하는 Valkey 채널
+    - `order`: OrderManager가 생성한 Executable Order를 BrokerGateway로 전달하는 Valkey 채널
+    - `execution`: BrokerGateway가 체결 결과를 Web 및 Notification 서비스로 전파하는 Valkey 채널
 - **Caching Keys**:
     - `account:index`: 계좌 인덱스 (Set)
     - `account:{Alias}`: 계좌 상세 정보 (Hash)
@@ -71,7 +71,7 @@ Core의 인터페이스를 구현하고 실제 기술(DB, API, Network)을 다�
     - `.Discord`: Discord Webhook을 통한 알림 (Structured Logging 지원)
     - `.Telegram`: Telegram Bot API를 통한 알림
 - **특징**: 
-    - `NotificationPublisher`: Redis를 통한 비동기 알림 발행 지원 (`common:notifications`)
+    - `NotificationPublisher`: Valkey를 통한 비동기 알림 발행 지원 (`common:notifications`)
     - `ISystemLogger`, `ITradingLogger` 인터페이스 구현
 
 ### 2.4. yQuant.Infra.Reporting
@@ -128,17 +128,17 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
     - **Secret Key**: Payload 내의 Secret 값 검증
 - **로직**:
     - JSON Payload를 `Signal` 객체로 변환 (수량 계산은 하지 않음)
-    - Redis 채널 `signal`로 변환된 Signal 객체 발행(Publish)
+    - Valkey 채널 `signal`로 변환된 Signal 객체 발행(Publish)
 
 ### 4.2. yQuant.App.OrderManager (Logic Engine)
 - **유형**: Worker Service (Background Process)
 - **역할**: Signal을 Order로 변환하고 예약 주문 및 청산을 관리하는 핵심 엔진
 - **프로세스**:
-    1. **Signal 수신**: Redis 채널 `signal`을 구독(Subscribe)하여 메시지 수신
+    1. **Signal 수신**: Valkey 채널 `signal`을 구독(Subscribe)하여 메시지 수신
     2. **정책 적용**: Signal의 Exchange 정보에 맞는 `ConfigurableMarketRule` 선택 (appsettings.json 기반)
-    3. **상태 동기화**: Redis Cache(`deposit:{Alias}`, `position:{Alias}`)에서 현재 계좌 잔고 및 포지션 조회
+    3. **상태 동기화**: Valkey Cache(`deposit:{Alias}`, `position:{Alias}`)에서 현재 계좌 잔고 및 포지션 조회
     4. **Sizing**: 전략별로 매핑된 `IPositionSizer` 구현체를 통해 자금 관리 규칙 적용 및 수량 계산
-    5. **Order 발행**: 유효한 주문 객체를 Redis 채널 `order`로 발행(Publish)
+    5. **Order 발행**: 유효한 주문 객체를 Valkey 채널 `order`로 발행(Publish)
     6. **예약 주문 관리**: 시간 기반 스케줄에 따라 예약 주문 자동 실행 및 Discord 알림
     7. **청산 관리**: 청산 조건 충족 시 자동 청산 주문 생성
     8. **성과 기록**: 체결 이벤트를 `IPerformanceRepository`에 기록
@@ -147,13 +147,13 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
 - **유형**: Worker Service
 - **역할**: 증권사와의 물리적 연결 및 상태 동기화 전담
 - **주요 기능**:
-    - **Order Dispatching**: Redis 채널 `order`를 구독(Subscribe)하고, 계좌 ID에 맞는 Broker Adapter로 주문 전송
+    - **Order Dispatching**: Valkey 채널 `order`를 구독(Subscribe)하고, 계좌 ID에 맞는 Broker Adapter로 주문 전송
     - **State Synchronization (Hybrid)**: 
         - **Throttled Sync**: 설정된 주기(기본 1분)마다 증권사 API를 호출하여 정확한 잔고 및 포지션 동기화
-        - **Local Update**: 주기 내 주문 체결 시, Redis Cache(`deposit:{Alias}`, `position:{Alias}`)를 즉시 로컬 업데이트(추정치)하여 초고속 반응성 확보
-    - **Execution Feedback**: 체결 결과를 Redis 채널 `execution`으로 발행하여 다른 서비스에 전파
+        - **Local Update**: 주기 내 주문 체결 시, Valkey Cache(`deposit:{Alias}`, `position:{Alias}`)를 즉시 로컬 업데이트(추정치)하여 초고속 반응성 확보
+    - **Execution Feedback**: 체결 결과를 Valkey 채널 `execution`으로 발행하여 다른 서비스에 전파
     - **Error Handling**: 주문 실패나 네트워크 오류 발생 시 Discord/Telegram 알림 발송 및 로그 기록
-    - **Health Monitoring**: Redis heartbeat를 통한 서비스 상태 보고
+    - **Health Monitoring**: Valkey heartbeat를 통한 서비스 상태 보고
 
 ### 4.4. yQuant.App.Console (Manual Control)
 - **유형**: Console Application (CLI)
@@ -167,16 +167,16 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
     - `catalog [country]`: 종목 카탈로그 동기화 (전체 또는 특정 국가)
 - **종목 카탈로그 동기화**:
     - **지원 국가**: KR, US, CN, JP, HK, VN
-    - **동작**: `yQuant.Infra.Master.KIS`를 통해 증권사 API로부터 거래 가능 종목 리스트를 가져와 Redis에 캐싱
+    - **동작**: `yQuant.Infra.Master.KIS`를 통해 증권사 API로부터 거래 가능 종목 리스트를 가져와 Valkey에 캐싱
     - **활용**: systemd timer를 통한 주기적 자동 실행 지원
 
 ### 4.5. yQuant.App.Web (Web Dashboard)
 - **유형**: Blazor Server Application
 - **역할**: 웹 기반 통합 모니터링, 제어 및 리포팅 대시보드
 - **주요 기능**:
-    - **자산 현황**: Redis Cache(`account:{Alias}`, `deposit:{Alias}`, `position:{Alias}`)를 조회하여 실시간 예수금, 보유 종목, 평가손익 표시
+    - **자산 현황**: Valkey Cache(`account:{Alias}`, `deposit:{Alias}`, `position:{Alias}`)를 조회하여 실시간 예수금, 보유 종목, 평가손익 표시
     - **포지션 관리**: 보유 종목별 상세 정보 및 수익률 시각화
-    - **수동 거래**: 웹 UI를 통한 즉시 매수/매도 주문 실행 (Redis `order` 채널로 발행)
+    - **수동 거래**: 웹 UI를 통한 즉시 매수/매도 주문 실행 (Valkey `order` 채널로 발행)
     - **예약 주문 관리**: 시간 기반 스케줄링(특정 시각, 요일별 반복)을 지원하는 자동 주문 관리 UI
     - **성과 분석 리포팅**:
         - 계좌별 Equity Curve 및 일간 수익률 차트 시각화
@@ -187,10 +187,10 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
 
 ### 4.6. yQuant.App.Notifier (Notification Dispatcher)
 - **유형**: Worker Service (Background Process)
-- **역할**: Redis 이벤트를 구독하여 Discord 및 Telegram으로 알림을 전파하는 중앙 집중식 알림 서비스
+- **역할**: Valkey 이벤트를 구독하여 Discord 및 Telegram으로 알림을 전파하는 중앙 집중식 알림 서비스
 - **아키텍처**: `yQuant.Infra.Notification` 라이브러리를 기반으로 구축되어 다른 애플리케이션과 유기적으로 연동
 - **주요 기능**:
-    - **Multi-Channel Subscription**: Redis Pub/Sub 채널 구독
+    - **Multi-Channel Subscription**: Valkey Pub/Sub 채널 구독
         - `notifications:orders` - 주문 요청/체결/실패 알림
         - `notifications:schedules` - 예약 주문 관리 알림
         - `notifications:positions` - 포지션 변경 알림

@@ -8,7 +8,7 @@ The OrderManager application uses dynamic policy loading and market rules config
 OrderManager loads configuration from JSON files:
 
 1. **`appsettings.json`**: Application settings, market configurations, and policy definitions
-2. **`appsecrets.json`**: Sensitive notification settings, account credentials, and **Redis connection strings**
+2. **`appsecrets.json`**: Sensitive notification settings, account credentials, and **Valkey connection strings**
 
 ## Market Configuration
 
@@ -157,4 +157,4 @@ To add a custom position sizing policy:
 ## Notes
 
 - Market and Policy configurations are stored in `appsettings.json`
-- Sensitive information (including Redis connections) is stored in `appsecrets.json`
+- Sensitive information (including Valkey connections) is stored in `appsecrets.json`

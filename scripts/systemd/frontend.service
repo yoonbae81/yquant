@@ -1,15 +1,15 @@
 [Unit]
-Description=yQuant Web Dashboard Service
+Description=yQuant Frontend Dashboard Service
 After=network.target
 
 [Service]
 Type=notify
-WorkingDirectory=/srv/yquant/web
-ExecStart=/usr/bin/dotnet /srv/yquant/web/yQuant.App.Web.dll
+WorkingDirectory=/srv/yquant/frontend
+ExecStart=/usr/bin/dotnet /srv/yquant/frontend/yQuant.App.Web.dll
 Restart=always
 RestartSec=10
 KillSignal=SIGINT
-SyslogIdentifier=web
+SyslogIdentifier=frontend
 Environment=ASPNETCORE_URLS=http://0.0.0.0:5000
 
 [Install]

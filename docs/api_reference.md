@@ -1,6 +1,6 @@
 # API Reference
 
-yQuant 시스템은 내부적으로 Redis Pub/Sub 메시징을 사용하며, 외부 증권사 연동은 한국투자증권(KIS) Open API를 기반으로 함
+yQuant 시스템은 내부적으로 Valkey Pub/Sub 메시징을 사용하며, 외부 증권사 연동은 한국투자증권(KIS) Open API를 기반으로 함
 
 ## Broker API (Korea Investment & Securities)
 
@@ -9,9 +9,9 @@ yQuant 시스템은 내부적으로 Redis Pub/Sub 메시징을 사용하며, 외
 - **한국투자증권 개발자 센터**: [https://apiportal.koreainvestment.com/](https://apiportal.koreainvestment.com/)
 - **API 문서 (Wiki)**: [https://wikidocs.net/book/1173](https://wikidocs.net/book/1173)
 
-## Internal Messaging Protocol (Redis)
+## Internal Messaging Protocol (Valkey)
 
-시스템 내부 컴포넌트 간 통신은 Redis Pub/Sub 사용
+시스템 내부 컴포넌트 간 통신은 Valkey Pub/Sub 사용
 
 ### Pub/Sub Channels
 - `yquant:signals`: TradingView Webhook에서 수신된 원본 신호 (Webhook → OrderComposer)

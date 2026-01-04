@@ -2,7 +2,7 @@
 
 ## Overview
 
-The `KisBrokerAdapter` uses intelligent binary classification to distinguish between **Domestic (Korean)** and **Overseas** stocks for correct API endpoint routing, **without Redis dependency**.
+The `KisBrokerAdapter` uses intelligent binary classification to distinguish between **Domestic (Korean)** and **Overseas** stocks for correct API endpoint routing, **without Valkey dependency**.
 
 ## Problem
 
@@ -72,7 +72,7 @@ When file is unavailable for ambiguous tickers (0 or 3):
 ```csharp
 public async Task SyncCountryAsync(CountryCode country, ...)
 {
-    // ... existing Redis save logic ...
+    // ... existing Valkey save logic ...
     await _repository.SaveBatchAsync(allStocks, cancellationToken);
     
     // Additional: Save Korean domestic tickers to file
@@ -238,7 +238,7 @@ Console catalog command runs daily (can be automated via cron/Task Scheduler) an
 
 ## Advantages
 
-✅ **No Redis Dependency** - KisBrokerAdapter works standalone  
+✅ **No Valkey Dependency** - KisBrokerAdapter works standalone  
 ✅ **No Manual File Copying** - System temp directory shared automatically  
 ✅ **Fast** - 80%+ tickers classified instantly  
 ✅ **Accurate** - 100% with file, 90-95% without  

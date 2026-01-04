@@ -1,230 +1,100 @@
-# yQuant Deployment Scripts
+# yQuant Operational Scripts
 
-이 디렉토리는 yQuant 애플리케이션의 배포 및 관리를 위한 스크립트들을 포함합니다.
+이 디렉토리는 yQuant 애플리케이션의 빌드, 설치, 배포 및 통합 관리를 위한 단일화된 스크립트들을 포함합니다.
 
 ## 📁 디렉토리 구조
 
 ```
 scripts/
-├── deploy-backend.sh       # [Backend 서버] 전체 배포 (Core 엔진 서비스들)
-├── deploy-web.sh    # [Web 서버] 전체 배포 (UI)
-├── setup-backend.sh        # [Backend 서버] systemd 서비스 설치
-├── setup-web.sh     # [Web 서버] systemd 서비스 설치
-├── build-backend.sh        # Backend 관련 앱 빌드
-├── build-web.sh     # Web 관련 앱 빌드
-├── restart-backend.sh      # Backend 서비스 재시작
-├── restart-web.sh   # Web 서비스 재시작
-├── health-check-backend.sh # [Backend 서버] 서비스 상태 확인
-├── health-check-web.sh # [Web 서버] 서비스 상태 확인
-└── systemd/               # systemd 서비스 파일 템플릿
-    ├── brokergateway.service
-    ├── ordermanager.service
-    ├── notifier.service
-    ├── console-sync.service
-    ├── console-sync.timer
-    ├── web.service
-    └── webhook.service
+├── build.sh            # 모든 애플리케이션 빌드
+├── setup.sh            # systemd 서비스 및 타이머 설치
+├── restart.sh          # 모든 서비스 재시작
+├── health-check.sh     # 서비스 및 Valkey/Sentinel 상태 점검
+├── deploy.sh           # 로컬 노드 배포 (build + restart)
+├── switch-active.sh    # Active 노드 전환 (HAProxy 설정 업데이트)
+├── haproxy/            # HAProxy 설정 예시
+├── valkey/             # Valkey/Sentinel 설정 예시
+└── systemd/            # systemd 서비스 파일 템플릿
 ```
 
-## 🌐 서버별 구성 및 배포
+## 🔵🟢 Blue/Green 배포 아키텍처
 
-분산 환경(Backend + Web)에서의 배포 프로세스입니다.
+yQuant는 무중단 배포와 고가용성을 위해 Blue/Green 모델을 채택하고 있습니다.
 
-### 1. Backend 서버 (A1.Flex 등)
-핵심 트레이딩 엔진과 Redis를 가동합니다.
+- **yq-gate**: HAProxy (L7 Load Balancer) 및 Token Valkey 운영
+- **yq-blue**: Blue 환경 (애플리케이션 전체 운영)
+- **yq-green**: Green 환경 (애플리케이션 전체 운영)
 
-#### 초기 설정
+### 고가용성 구성 (HA)
+- **HAProxy**: Blue/Green 노드 간 트래픽 라우팅 및 장애 감지
+- **Valkey Sentinel**: Message Valkey 클러스터의 마스터 선정 및 Failover 자동화
+
+## 🚀 주요 스크립트 사용법
+
+모든 스크립트는 프로젝트 루트 디렉토리에서 실행해야 합니다.
+
+### 1. 초기 설정 (`setup.sh`)
+새로운 노드에서 systemd 서비스를 최초로 등록할 때 사용합니다.
 ```bash
-cd ~/yquant
-# 1) 시스템 서비스 설치
-bash scripts/setup-backend.sh
-# 2) 서비스 활성화 및 시작
-systemctl --user enable brokergateway ordermanager notifier webhook console-sync.timer
-systemctl --user start brokergateway ordermanager notifier webhook console-sync.timer
+bash scripts/setup.sh
 ```
 
-#### 배포
+### 2. 통합 빌드 (`build.sh`)
+모든 .NET 프로젝트를 빌드하고 배포용 바이너리를 생성합니다.
 ```bash
-bash scripts/deploy-backend.sh
+bash scripts/build.sh
 ```
 
-### 2. Web 서버 (E2.Micro 등)
-대시보드 UI만 가동합니다.
-
-**중요:** `/srv/yquant/web/appsecrets.json`에서 **Redis 주소를 Backend 서버의 IP**로 수정해야 합니다.
-
-#### 초기 설정
+### 3. 노드 배포 (`deploy.sh`)
+로컬 노드에서 `build.sh`와 `restart.sh`를 순차적으로 실행하여 배포를 완료합니다. GitHub Actions에서 자동으로 호출됩니다.
 ```bash
-cd ~/yquant
-# 1) 시스템 서비스 설치
-bash scripts/setup-web.sh
-# 2) 서비스 활성화 및 시작
-systemctl --user enable web
-systemctl --user start web
+bash scripts/deploy.sh
 ```
 
-#### 배포
+### 4. 상태 점검 (`health-check.sh`)
+애플리케이션 서비스, Valkey 마스터/슬레이브 상태, Sentinel 모니터링 상태를 종합적으로 점검합니다.
 ```bash
-bash scripts/deploy-web.sh
+bash scripts/health-check.sh
 ```
 
-### 개별 스크립트 실행
-
-#### 빌드만 수행 (각 서버에서)
-
+### 5. Active 노드 전환 (`switch-active.sh`)
+배포 완료 후, HAProxy의 백엔드 설정을 변경하여 실 서비스 트래픽을 전환합니다.
 ```bash
-# Backend 서버에서
-bash scripts/build-backend.sh
-
-# Web 서버에서
-bash scripts/build-web.sh
+# Green 노드를 Active로 전환
+bash scripts/switch-active.sh green
 ```
 
-#### 서비스 재시작만 수행 (각 서버에서)
+## 🔧 GitHub Actions 연동
+
+`.github/workflows/deploy.yml` 워크플로우를 통해 Blue 또는 Green 노드에 원클릭 배포가 가능합니다.
+
+### 필수 Secrets 설정
+- `YQUANT_HOST_BLUE`: Blue 노드 IP/호스트
+- `YQUANT_HOST_GREEN`: Green 노드 IP/호스트
+- `YQUANT_SSH_USER`: SSH 접속 계정
+- `YQUANT_SSH_KEY`: SSH 개인 키
+- `YQUANT_SSH_PORT`: SSH 포트 (기본 22)
+
+## 📊 서비스 관리 (systemd)
+
+스크립트 내부적으로 사용되거나 수동 관리에 유용한 명령어들입니다.
 
 ```bash
-# Backend 서버에서
-bash scripts/restart-backend.sh
-
-# Web 서버에서
-bash scripts/restart-web.sh
-```
-
-#### 서비스 상태 확인 (각 서버에서)
-
-```bash
-# Backend 서버에서
-bash scripts/health-check-backend.sh
-
-# Web 서버에서
-bash scripts/health-check-web.sh
-```
-
-## 🔧 GitHub Actions 설정
-
-GitHub 저장소의 Settings > Secrets and variables > Actions에 다음 시크릿들을 추가하세요:
-
-#### 1. Backend 서버용 시크릿
-| Secret Name | 설명 |
-|------------|------|
-| `BACKEND_HOST` | Backend 서버 호스트 (A1) |
-| `BACKEND_SSH_USER` | SSH 사용자명 |
-| `BACKEND_SSH_KEY` | SSH 개인 키 |
-| `BACKEND_SSH_PORT` | SSH 포트 (기본 22) |
-
-#### 2. Web 서버용 시크릿
-| Secret Name | 설명 |
-|------------|------|
-| `WEB_HOST` | Web 서버 호스트 (E2) |
-| `WEB_SSH_USER` | SSH 사용자명 |
-| `WEB_SSH_KEY` | SSH 개인 키 |
-| `WEB_SSH_PORT` | SSH 포트 (기본 22) |
-
-### SSH 키 생성 (서버에서)
-
-```bash
-# 서버에서 SSH 키 생성
-ssh-keygen -t ed25519 -C "github-actions-deploy" -f ~/.ssh/github_deploy
-
-# 공개 키를 authorized_keys에 추가
-cat ~/.ssh/github_deploy.pub >> ~/.ssh/authorized_keys
-
-# 개인 키 내용을 GitHub Secret에 추가
-cat ~/.ssh/github_deploy
-```
-
-## 📊 유용한 명령어
-
-### 서비스 상태 확인
-
-```bash
-# 모든 서비스 상태
-systemctl --user status
-
-# 특정 서비스 상태
-systemctl --user status brokergateway
-
-# 실시간 로그 확인
+# 특정 서비스 로그 실시간 확인
 journalctl --user -u brokergateway -f
 
-# 최근 로그 확인
-journalctl --user -u brokergateway -n 50
-```
-
-### 타이머 확인
-
-```bash
-# 타이머 상태
-systemctl --user status console-sync.timer
-
-# 다음 실행 시간
-systemctl --user list-timers console-sync.timer
-
-# 마지막 실행 로그
-journalctl --user -u console-sync.service -n 100
-```
-
-### 서비스 제어
-
-```bash
-# 서비스 중지
-systemctl --user stop brokergateway
-
-# 서비스 재시작
-systemctl --user restart brokergateway
-
-# 서비스 비활성화
-systemctl --user disable brokergateway
+# 모든 사용자 서비스 상태 요약
+systemctl --user list-units --type=service
 ```
 
 ## 🐛 트러블슈팅
 
-### 배포 실패 시
-
-1. **로그 확인**
-   ```bash
-   journalctl --user -u brokergateway -n 100
-   ```
-
-2. **권한 확인**
-   ```bash
-   ls -la /srv/yquant
-   ```
-
-3. **설정 확인**
-   ```bash
-   cat /srv/yquant/brokergateway/appsecrets.json
-   ```
-
-4. **Redis 연결 확인**
-   ```bash
-   docker ps | grep redis
-   ```
-
-### 서비스 파일 수정 후
-
-```bash
-# 데몬 리로드 필요
-systemctl --user daemon-reload
-systemctl --user restart brokergateway
-```
-
-### 설정 정보 변경 후
-
-```bash
-# appsecrets.json 파일 수정 후 서비스 재시작 (해당 서버에서)
-bash scripts/restart-backend.sh  # Backend 서버일 경우
-bash scripts/restart-web.sh     # Web 서버일 경우
-```
+1. **Valkey 연결 실패**: `valkey-cli ping`으로 응답 확인 및 `appsecrets.json` 설정 재확인.
+2. **권한 오류**: 스크립트 실행 권한(`chmod +x scripts/*.sh`) 및 `loginctl enable-linger` 설정 확인.
+3. **HAProxy 전환 미반영**: `yq-gate` 서버에서 HAProxy 설정 파일 및 서비스 상태 확인.
 
 ## 📝 참고사항
 
-- 모든 스크립트는 실행 권한이 필요합니다: `chmod +x scripts/*.sh`
-- 배포 경로 기본값: `/srv/yquant`
-- systemd 사용자 서비스 디렉토리: `~/.config/systemd/user`
-- 로그 저장 위치: `~/.local/share/systemd/journal/` (systemd-journald)
-
-## 🔗 관련 문서
-
-- [setup-systemd-services.md](../docs/setup-systemd-services.md) - systemd 서비스 상세 설정 가이드
-- [GitHub Actions Documentation](https://docs.github.com/en/actions)
+- 모든 애플리케이션은 **systemd user mode**로 실행됩니다.
+- 배포 경로는 기본적으로 사용자의 홈 디렉토리를 기준으로 합니다.
+- `appsecrets.json`은 보안상 Git에 포함되지 않으므로 각 노드에 수동으로 배치해야 합니다.

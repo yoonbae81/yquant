@@ -1,29 +1,31 @@
-# Redis Implementation Guide
+# Valkey Implementation Guide
 
-This document details the Redis implementation for the `yQuant` system, serving as a reference for future development and maintenance.
+This document details the Valkey implementation for the `yQuant` system, serving as a reference for future development and maintenance.
 
 ## 1. Overview
-Redis is used in `yQuant` in two distinct logical roles, which are configured via `appsecrets.json`:
+Valkey is used in `yQuant` in two distinct logical roles, which are configured via `appsecrets.json`:
 
-1.  **Messaging Redis (`Redis:Message`)**: 
+1.  **Messaging Valkey (`Redis:Message`)**: 
     - Facilitates real-time, event-driven communication (Pub/Sub: `signal`, `order`, etc.).
     - Stores environment-specific state (Heartbeats, Trade logs, Market data cache).
-2.  **Token Redis (`Redis:Token`)**:
+2.  **Token Valkey (`Redis:Token`)**:
     - Shared across all environments (Production, Staging, Local Dev).
     - Specifically caches **KIS Access Tokens** to comply with daily issuance limits.
 
+> **Note**: While the configuration keys still use `Redis` for backward compatibility with the used libraries, the underlying service is Valkey.
+
 ## 2. Connection & Configuration
-### 2.1. Messaging & Ops Redis
+### 2.1. Messaging & Ops Valkey
 - **Configuration Path**: `Redis:Message` in `appsecrets.json`
-- **Library**: `StackExchange.Redis` via `IRedisService`
+- **Library**: `StackExchange.Redis` (compatible with Valkey) via `IRedisService`
 - **Scope**: Specific to each deployment environment.
 
-### 2.2. Global Token Redis
+### 2.2. Global Token Valkey
 - **Configuration Path**: `Redis:Token` in `appsecrets.json`
 - **Library**: `StackExchange.Redis` via `ITokenRedisService`
 - **Scope**: Shared across ALL environments (Production, Staging, Local).
 
-> **Note**: These two can point to the same Redis instance if desired. The key namespacing is designed to avoid conflicts.
+> **Note**: These two can point to the same Valkey instance if desired. The key namespacing is designed to avoid conflicts.
 
 ## 3. Schema Reference
 
@@ -38,7 +40,7 @@ Redis is used in `yQuant` in two distinct logical roles, which are configured vi
 | `signal` | `App.Webhook` | `App.OrderManager` | `Signal` | Raw trading signals from TradingView. |
 | `order` | `App.OrderManager`, `App.Web`, `App.Console` | `App.BrokerGateway` | `Order` | Executable orders. |
 | `execution` | `App.BrokerGateway` | `App.Web`, `Notification` | `OrderResult` | Execution results (fill/reject). |
-| `query` | `App.Web`, `App.Console` | `App.BrokerGateway` | `Query` | Information requests (price, account data, etc.). BrokerGateway fetches from Broker and updates Redis. |
+| `query` | `App.Web`, `App.Console` | `App.BrokerGateway` | `Query` | Information requests (price, account data, etc.). BrokerGateway fetches from Broker and updates Valkey. |
 
 ### 3.3. Keys (State)
 | Key Pattern | Type | Writer | Reader | Description |
@@ -49,7 +51,7 @@ Redis is used in `yQuant` in two distinct logical roles, which are configured vi
 | `position:{Alias}` | Hash | `App.BrokerGateway` | `App.Web`, `App.OrderManager` | Real-time positions (Field: `AAPL`, Value: `Position` JSON). |
 | `stock:{Ticker}` | Hash | `App.Console` (catalog), `App.BrokerGateway` | `App.Web`, `App.Console` | Merged static info (Name, Exchange) and dynamic market data (Price, Change). |
 | `scheduled:{Alias}` | String | `App.Web` | `App.OrderManager` | List of scheduled orders (JSON Array). Stores schedule config (DaysOfWeek, TimeMode). |
-| `Token:KIS:{Alias}` | JSON | `App.BrokerGateway` | All Environments | **(Token Redis)** Shared KIS access token and expiration. |
+| `Token:KIS:{Alias}` | JSON | `App.BrokerGateway` | All Environments | **(Token Valkey)** Shared KIS access token and expiration. |
 
 ## 4. Data Flows
 
@@ -83,5 +85,5 @@ Redis is used in `yQuant` in two distinct logical roles, which are configured vi
 - **Accounts**: Generally persistent, but consider TTL if dynamic account provisioning is introduced.
 
 ### Security
-- **Never store API Secrets** (AppKey, AppSecret) in Redis.
-- Use Redis ACLs in production if shared.
+- **Never store API Secrets** (AppKey, AppSecret) in Valkey.
+- Use Valkey ACLs in production if shared.

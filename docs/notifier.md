@@ -11,7 +11,7 @@
 ┌─────────────────┐
 │ OrderManager    │ ──┐
 │ BrokerGateway   │ ──┤
-│ Web             │ ──┼─→ Redis Pub/Sub ─→ Notifier  ──→ Discord
+│ Web             │ ──┼─→ Valkey Pub/Sub ─→ Notifier  ──→ Discord
 │ Console         │ ──┤   (notifications:*) (infra-based)  Telegram
 └─────────────────┘   ┘
 
@@ -22,7 +22,7 @@ Critical Errors ─────────────────────�
 ## 메시지 타입
 
 ### 1. **Orders** (주문 관련)
-Redis 채널: `notifications:orders`
+Valkey 채널: `notifications:orders`
 
 **메시지 종류:**
 - 주문 요청 (Buy/Sell)
@@ -40,7 +40,7 @@ Redis 채널: `notifications:orders`
 ---
 
 ### 2. **Schedules** (스케줄 관련)
-Redis 채널: `notifications:schedules`
+Valkey 채널: `notifications:schedules`
 
 **메시지 종류:**
 - 스케줄 등록/수정/삭제
@@ -58,7 +58,7 @@ Redis 채널: `notifications:schedules`
 ---
 
 ### 3. **Positions** (포지션 관련)
-Redis 채널: `notifications:positions`
+Valkey 채널: `notifications:positions`
 
 **메시지 종류:**
 - 포지션 변경 (신규 진입/청산)
@@ -75,7 +75,7 @@ Redis 채널: `notifications:positions`
 ---
 
 ### 4. **System** (시스템 상태)
-Redis 채널: `notifications:system`
+Valkey 채널: `notifications:system`
 
 **메시지 종류:**
 - ✅ 애플리케이션 시작 (`LogStartupAsync`)
@@ -104,14 +104,14 @@ Redis 채널: `notifications:system`
 
 **메시지 종류:**
 - ❌ **Startup 실패**
-  - Redis 연결 실패
+  - Valkey 연결 실패
   - 설정 파일 로드 실패 (`appsettings.json`, `appsecrets.json`)
   - 브로커 인증 실패 (KIS API 토큰 발급 실패)
   - 필수 서비스 등록 실패
 
 - ❌ **Runtime Critical**
   - Unhandled Exception
-  - Redis 연결 끊김 (재연결 실패)
+  - Valkey 연결 끊김 (재연결 실패)
   - 메모리 부족, 리소스 고갈
 
 - ❌ **Data Integrity**
@@ -125,7 +125,7 @@ Redis 채널: `notifications:system`
 **전송 방식:**
 - `ISystemLogger.LogSystemErrorAsync()` 사용
 - Discord `System.Error` webhook + Telegram `ChatIds.Critical`로 동시 전송
-- Redis를 거치지 않음 (Redis 장애 시에도 알림 보장)
+- Valkey를 거치지 않음 (Valkey 장애 시에도 알림 보장)
 
 ---
 
@@ -316,7 +316,7 @@ var message = new NotificationMessage
 };
 
 var json = JsonSerializer.Serialize(message);
-await redis.GetDatabase().PublishAsync(
+await valkey.GetDatabase().PublishAsync(
     RedisChannel.Literal("notifications:schedules"), 
     json
 );
@@ -325,16 +325,16 @@ await redis.GetDatabase().PublishAsync(
 ### Critical Error 직접 전송
 
 ```csharp
-// Program.cs에서 Redis 연결 실패 시
+// Program.cs에서 Valkey 연결 실패 시
 try
 {
-    var redis = services.GetRequiredService<IConnectionMultiplexer>();
-    await redis.GetDatabase().PingAsync();
+    var valkey = services.GetRequiredService<IConnectionMultiplexer>();
+    await valkey.GetDatabase().PingAsync();
 }
 catch (Exception ex)
 {
     var systemLogger = services.GetRequiredService<ISystemLogger>();
-    await systemLogger.LogSystemErrorAsync("Redis Connection Failed", ex);
+    await systemLogger.LogSystemErrorAsync("Valkey Connection Failed", ex);
     throw; // 애플리케이션 종료
 }
 ```
@@ -393,7 +393,7 @@ curl http://localhost:5005/health
 ```json
 {
   "status": "Healthy",
-  "redis": "Connected",
+  "valkey": "Connected",
   "subscribedChannels": 4,
   "queueSize": 0,
   "timestamp": "2025-12-19T10:10:00Z"
@@ -409,9 +409,9 @@ curl http://localhost:5005/health
    journalctl -u yquant-notifier -f
    ```
 
-2. **Redis 채널 구독 확인**
+2. **Valkey 채널 구독 확인**
    ```bash
-   redis-cli
+   valkey-cli
    > PUBSUB CHANNELS notifications:*
    ```
 

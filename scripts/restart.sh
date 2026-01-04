@@ -1,14 +1,15 @@
 #!/bin/bash
-# scripts/restart-backend.sh
+# scripts/restart.sh
 set -e
 
-echo "🔄 Restarting yQuant Backend services..."
+echo "🔄 Restarting all yQuant services..."
 
 SERVICES=(
   "brokergateway"
   "ordermanager"
   "notifier"
   "webhook"
+  "frontend"
 )
 
 for service in "${SERVICES[@]}"; do
@@ -23,4 +24,4 @@ for service in "${SERVICES[@]}"; do
   fi
 done
 
-echo "✅ Backend services restarted!"
+echo "✅ All services restarted!"

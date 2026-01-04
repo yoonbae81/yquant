@@ -21,7 +21,7 @@ yQuant는 **헥사고날 아키텍처(Hexagonal Architecture)**를 채택하여 
 ### 2.2. Infrastructure Layer (The Tools)
 Core Layer의 Output Port를 구현하는 어댑터들이 위치
 - **Broker Adapters**: KIS(한국투자증권) 등 증권사 API 연동 구현체
-- **Messaging Adapters**: Redis Pub/Sub 통신 구현체
+- **Messaging Adapters**: Valkey Pub/Sub 통신 구현체
 - **Notification Adapters**: Discord, Telegram 알림 발송 구현체 (`yQuant.Infra.Notification.*`)
 - **Reporting Adapters**: 성과 데이터(`yQuant.Infra.Reporting`) 및 QuantStats 지표 산출(`yQuant.Infra.Reporting.QuantStats`) 로깅 구현체
 
@@ -38,14 +38,14 @@ Core Layer의 Output Port를 구현하는 어댑터들이 위치
 - **BrokerGateway**: 증권사 연결 관리, 주문 라우팅 및 상태 동기화
 - **Web**: Blazor Server 기반 대시보드 및 리포팅 UI
 - **Console**: 수동 제어, 테스트, 종목 마스터 데이터 동기화용 CLI
-- **Notifier**: Redis 이벤트를 구독하여 소셜 알림 플랫폼으로 전파하는 전용 서비스
+- **Notifier**: Valkey 이벤트를 구독하여 소셜 알림 플랫폼으로 전파하는 전용 서비스
 
 ## 3. Data Flow
-1. **Signal Ingestion**: TradingView Webhook → `yQuant.App.Webhook` → Redis Pub/Sub (`signal`)
-2. **Order Composition**: Redis (`signal`) → `yQuant.App.OrderManager` → `OrderManagementService` → Config-based `MarketRule` & `PositionSizer` → Redis (`order`)
-3. **Order Execution**: Redis (`order`) → `yQuant.App.BrokerGateway` → `KISAdapter` → Broker API
-4. **Execution Feedback**: Broker API → `BrokerGateway` → Redis (`execution`) → Notifier / Web / Discord / Telegram
-5. **Performance Tracking**: `BrokerGateway` → Redis (`execution`) → `OrderManager` / `System` → `IPerformanceRepository` (Local CSV/JSON)
+1. **Signal Ingestion**: TradingView Webhook → `yQuant.App.Webhook` → Valkey Pub/Sub (`signal`)
+2. **Order Composition**: Valkey (`signal`) → `yQuant.App.OrderManager` → `OrderManagementService` → Config-based `MarketRule` & `PositionSizer` → Valkey (`order`)
+3. **Order Execution**: Valkey (`order`) → `yQuant.App.BrokerGateway` → `KISAdapter` → Broker API
+4. **Execution Feedback**: Broker API → `BrokerGateway` → Valkey (`execution`) → Notifier / Web / Discord / Telegram
+5. **Performance Tracking**: `BrokerGateway` → Valkey (`execution`) → `OrderManager` / `System` → `IPerformanceRepository` (Local CSV/JSON)
 6. **Reporting & Analysis**: `yQuant.App.Web` → `QuantStatsService` → `PerformanceRepository` 조회 → 리포트 시각화 (Equity Curve 등)
-7. **Master Data Sync**: `Console (catalog command)` → `yQuant.Infra.Master.KIS` → Broker API → Redis Cache (`stock:{Ticker}`)
-8. **Health Monitoring**: 각 앱 → Redis (`heartbeat`) → `yQuant.App.Web` (Service Status Dashboard)
+7. **Master Data Sync**: `Console (catalog command)` → `yQuant.Infra.Master.KIS` → Broker API → Valkey Cache (`stock:{Ticker}`)
+8. **Health Monitoring**: 각 앱 → Valkey (`heartbeat`) → `yQuant.App.Web` (Service Status Dashboard)
