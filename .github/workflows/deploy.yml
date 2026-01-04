@@ -29,6 +29,7 @@ jobs:
           oauth-client-id: ${{ secrets.TS_OAUTH_CLIENT_ID }}
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:github
+          args: --accept-dns=false --accept-routes=false
           
       - name: �🚀 Set Target Host
         id: set-host
