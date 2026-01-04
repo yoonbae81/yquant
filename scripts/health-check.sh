@@ -22,7 +22,7 @@ SERVICES=(
   "ordermanager"
   "notifier"
   "webhook"
-  "frontend"
+  "dashboard"
 )
 
 ALL_HEALTHY=true

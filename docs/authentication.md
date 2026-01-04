@@ -2,14 +2,14 @@
 
 ## 개요
 
-yQuant.App.Web은 간단한 Cookie 기반 인증을 사용하여 대시보드 접근을 제어합니다.
+yQuant.App.Dashboard은 간단한 Cookie 기반 인증을 사용하여 대시보드 접근을 제어합니다.
 
 ## 사용자 관리
 
 ### 1. 사용자 정보 파일 위치
 
 ```
-src/03.Applications/yQuant.App.Web/users.json
+src/03.Applications/yQuant.App.Dashboard/users.json
 ```
 
 ⚠️ **보안 주의**: 이 파일은 Git에 커밋되지 않습니다 (`.gitignore`에 포함됨)
@@ -196,7 +196,7 @@ console.log(hash);
 ### 1. 예시 파일 복사
 
 ```bash
-cd src/03.Applications/yQuant.App.Web
+cd src/03.Applications/yQuant.App.Dashboard
 cp users.example.json users.json
 ```
 
@@ -287,7 +287,7 @@ users.json
 ```bash
 # Git 히스토리에서 완전히 제거
 git filter-branch --force --index-filter \
-  "git rm --cached --ignore-unmatch src/03.Applications/yQuant.App.Web/users.json" \
+  "git rm --cached --ignore-unmatch src/03.Applications/yQuant.App.Dashboard/users.json" \
   --prune-empty --tag-name-filter cat -- --all
 
 # 강제 푸시 (주의!)
@@ -313,7 +313,7 @@ git push origin --force --all
 
 **해결**:
 ```bash
-cd src/03.Applications/yQuant.App.Web
+cd src/03.Applications/yQuant.App.Dashboard
 cp users.example.json users.json
 ```
 

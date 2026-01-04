@@ -70,7 +70,7 @@
 *   `yQuant.App.Webhook`: TradingView 신호 수신 웹서버 (Minimal API)
 *   `yQuant.App.OrderManager`: 신호-주문 변환, 스케줄 엔진 및 자금 관리
 *   `yQuant.App.BrokerGateway`: 증권사 연결 게이트웨이 및 상태 동기화
-*   `yQuant.App.Web`: 웹 기반 통합 대시보드 (Blazor Server)
+*   `yQuant.App.Dashboard`: 웹 기반 통합 대시보드 (Blazor Server)
 *   `yQuant.App.Console`: CLI 기반 관리 도구 및 마스터 데이터 동기화
 *   `yQuant.App.Notifier`: Valkey 이벤트를 구독하여 멀티 채널 알림 배포
 
@@ -175,7 +175,7 @@ dotnet run
 ### **5.4. Web Dashboard 실행**
 웹 기반 모니터링 및 제어 대시보드
 ```bash
-cd src/03.Applications/yQuant.App.Web
+cd src/03.Applications/yQuant.App.Dashboard
 dotnet run
 ```
 브라우저에서 `http://localhost:5000` 접속

@@ -46,6 +46,6 @@ Core Layer의 Output Port를 구현하는 어댑터들이 위치
 3. **Order Execution**: Valkey (`order`) → `yQuant.App.BrokerGateway` → `KISAdapter` → Broker API
 4. **Execution Feedback**: Broker API → `BrokerGateway` → Valkey (`execution`) → Notifier / Web / Discord / Telegram
 5. **Performance Tracking**: `BrokerGateway` → Valkey (`execution`) → `OrderManager` / `System` → `IPerformanceRepository` (Local CSV/JSON)
-6. **Reporting & Analysis**: `yQuant.App.Web` → `QuantStatsService` → `PerformanceRepository` 조회 → 리포트 시각화 (Equity Curve 등)
+6. **Reporting & Analysis**: `yQuant.App.Dashboard` → `QuantStatsService` → `PerformanceRepository` 조회 → 리포트 시각화 (Equity Curve 등)
 7. **Master Data Sync**: `Console (catalog command)` → `yQuant.Infra.Master.KIS` → Broker API → Valkey Cache (`stock:{Ticker}`)
-8. **Health Monitoring**: 각 앱 → Valkey (`heartbeat`) → `yQuant.App.Web` (Service Status Dashboard)
+8. **Health Monitoring**: 각 앱 → Valkey (`heartbeat`) → `yQuant.App.Dashboard` (Service Status Dashboard)

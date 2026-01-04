@@ -13,7 +13,7 @@
   <Folder Name="/src/03.Applications/">
     <Project Path="src/03.Applications/yQuant.App.BrokerGateway/yQuant.App.BrokerGateway.csproj" />
     <Project Path="src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj" />
-    <Project Path="src/03.Applications/yQuant.App.Web/yQuant.App.Web.csproj" />
+    <Project Path="src/03.Applications/yQuant.App.Dashboard/yQuant.App.Dashboard.csproj" />
     <Project Path="src/03.Applications/yQuant.App.Webhook/yQuant.App.Webhook.csproj" />
     <Project Path="src/03.Applications/yQuant.App.Notifier/yQuant.App.Notifier.csproj" />
     <Project Path="src/03.Applications/yQuant.App.OrderManager/yQuant.App.OrderManager.csproj" />
@@ -24,7 +24,7 @@
   <Folder Name="/tests/">
     <Project Path="src/02.Infrastructure/yQuant.Infra.Notification.Discord/yQuant.Infra.Notification.Discord.csproj" />
     <Project Path="tests/yQuant.App.BrokerGateway.Tests/yQuant.App.BrokerGateway.Tests.csproj" />
-    <Project Path="tests/yQuant.App.Web.Tests/yQuant.App.Web.Tests.csproj" />
+    <Project Path="tests/yQuant.App.Dashboard.Tests/yQuant.App.Dashboard.Tests.csproj" />
     <Project Path="tests/yQuant.App.Webhook.Tests/yQuant.App.Webhook.Tests.csproj" />
     <Project Path="tests/yQuant.App.OrderManager.Tests/yQuant.App.OrderManager.Tests.csproj" />
     <Project Path="tests/yQuant.Core.Tests/yQuant.Core.Tests.csproj" />

@@ -1,0 +1,348 @@
+@page "/orderform"
+@page "/orderform/{Ticker?}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+@using yQuant.App.Dashboard.Services
+@using yQuant.Core.Models
+@using yQuant.Core.Ports.Output.Infrastructure
+@inject OrderPublisher OrderPublisher
+@inject AssetService AssetService
+@inject AccountCacheService AccountCacheService
+@inject StockService StockService
+@inject NavigationManager NavigationManager
+@inject ISnackbar Snackbar
+@inject ILogger<OrderForm> Logger
+
+<PageTitle>Buy Order</PageTitle>
+
+<AccountSelector Accounts="AvailableAccounts" SelectedAccountAlias="@OrderModel.AccountAlias"
+    SelectedAccountAliasChanged="@OnAccountChanged" />
+
+@if (_currentAccount != null && _currentAccount.Deposits.Any())
+{
+    <MudCard Class="mb-4">
+    <MudCardContent>
+        <MudText Typo="Typo.h6" Class="mb-2">Available Deposits</MudText>
+        <MudGrid>
+            @foreach (var deposit in _currentAccount.Deposits.OrderByDescending(d => d.Value))
+                {
+                    <MudItem xs="6" sm="4" md="3">
+                        <MudText Typo="Typo.body2" Color="Color.Default">
+                            <strong>@deposit.Key:</strong> @FormatCurrency(deposit.Value, deposit.Key.ToString())
+                        </MudText>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudCardContent>
+    </MudCard>
+}
+
+<MudCard>
+    <MudCardContent>
+        <MudText Typo="Typo.h6" Class="mb-3">Place Buy Order</MudText>
+
+        <MudForm Model="@OrderModel" @ref="@Form" ValidationDelay="0">
+            <MudGrid>
+                <!-- Ticker Input -->
+                <MudItem xs="12">
+                    <MudTextField T="string" @bind-Value="OrderModel.Ticker" Label="Ticker Symbol" Required="true"
+                        RequiredError="Ticker is required!" Variant="Variant.Outlined" OnBlur="OnTickerBlur"
+                        Placeholder="Enter ticker symbol (e.g., AAPL, TSLA, 005930)" />
+                </MudItem>
+
+                <!-- Stock Name and Current Price -->
+                @if (!string.IsNullOrEmpty(OrderModel.Ticker))
+                {
+                    <MudItem xs="12">
+                        @if (!string.IsNullOrEmpty(_stockName))
+                        {
+                            <MudText Typo="Typo.h6" Color="Color.Primary">@_stockName</MudText>
+                        }
+                        @if (_currentPrice > 0)
+                        {
+                            <MudText Typo="Typo.body1" Color="Color.Info">
+                                Current Price: <strong>@FormatCurrency(_currentPrice, _stockCurrency) @_stockCurrency</strong>
+                            </MudText>
+                        }
+                        else if (!string.IsNullOrEmpty(_stockCurrency))
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Warning">
+                                Price info not available. Market order will use current market price.
+                            </MudText>
+                        }
+                        else if (_isLoadingPrice)
+                        {
+                            <MudText Typo="Typo.body2" Color="Color.Default">
+                                <MudProgressCircular Size="Size.Small" Indeterminate="true" /> Loading info...
+                            </MudText>
+                        }
+                    </MudItem>
+                }
+
+                <!-- Quantity Input -->
+                <MudItem xs="12" sm="6">
+                    <MudNumericField @bind-Value="OrderModel.Qty" Label="Quantity" Required="true"
+                        RequiredError="Quantity must be greater than 0" Min="1" Variant="Variant.Outlined"
+                        Immediate="false" OnBlur="@(() => { CalculateDepositPercentage(); StateHasChanged(); })" />
+                </MudItem>
+
+                <!-- Total Amount Display -->
+                @if (_currentPrice > 0 && OrderModel.Qty > 0)
+                {
+                    <MudItem xs="12" sm="6">
+                        <MudTextField T="string" Value="@GetTotalAmountDisplay()" Label="Total Amount"
+                            Variant="Variant.Outlined" ReadOnly="true" Disabled="true" />
+                    </MudItem>
+
+                    <!-- Deposit Usage Indicator -->
+                    <MudItem xs="12">
+                        @if (_depositPercentage >= 0)
+                        {
+                            var color = _depositPercentage > 100 ? Color.Error :
+                            _depositPercentage > 80 ? Color.Warning :
+                            Color.Success;
+                            var message = _depositPercentage > 100 ? "⚠️ Insufficient funds!" :
+                            _depositPercentage > 80 ? "⚠️ High deposit usage" :
+                            "✓ Sufficient funds";
+
+                            <MudAlert Severity="@GetSeverity(color)" Dense="true" Class="mb-2">
+                                @message - Using <strong>@_depositPercentage.ToString("F1")%</strong> of available
+                                @_stockCurrency deposit
+                            </MudAlert>
+
+                            <MudProgressLinear Color="@color" Value="@Math.Min((double)_depositPercentage, 100.0)"
+                                Size="Size.Large" Class="mb-2">
+                                <MudText Typo="Typo.body2">@_depositPercentage.ToString("F1")%</MudText>
+                            </MudProgressLinear>
+                        }
+                    </MudItem>
+                }
+
+                <!-- Submit Button -->
+                <MudItem xs="12">
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Large" FullWidth="true"
+                        OnClick="SubmitOrder" Disabled="@(!CanPlaceOrder())">
+                        <MudIcon Icon="@Icons.Material.Filled.ShoppingCart" Class="mr-2" />
+                        Place Order
+                    </MudButton>
+                </MudItem>
+            </MudGrid>
+        </MudForm>
+    </MudCardContent>
+</MudCard>
+
+
+@code {
+    [Parameter]
+    public string? Ticker { get; set; }
+
+    private MudForm? Form;
+    private Order OrderModel = new()
+        {
+            AccountAlias = "",
+            Ticker = "",
+            Action = OrderAction.Buy, // Always Buy
+            Type = OrderType.Market,
+            Qty = 1
+        };
+
+    private IEnumerable<Account> AvailableAccounts = new List<Account>();
+    private Account? _currentAccount;
+    private string? _stockName;
+    private decimal _currentPrice = 0;
+    private string _stockCurrency = "";
+    private bool _isLoadingPrice = false;
+    private decimal _depositPercentage = 0;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+
+        // Apply URL parameter if present
+        if (!string.IsNullOrEmpty(Ticker))
+        {
+            OrderModel.Ticker = Ticker.ToUpper();
+            await UpdateStockInfo(OrderModel.Ticker);
+        }
+    }
+
+    private async Task LoadAccounts()
+    {
+        AvailableAccounts = await AccountCacheService.GetAccountsAsync();
+
+        // Set default AccountAlias if accounts exist and none selected
+        if (AvailableAccounts.Any() && string.IsNullOrEmpty(OrderModel.AccountAlias))
+        {
+            OrderModel.AccountAlias = AvailableAccounts.First().Alias;
+            await LoadAccountData(OrderModel.AccountAlias);
+        }
+    }
+
+    private async Task OnAccountChanged(string alias)
+    {
+        Logger.LogInformation("OrderForm: OnAccountChanged called with alias: {Alias}", alias);
+        OrderModel.AccountAlias = alias;
+        Logger.LogInformation("OrderForm: Loading account data for alias: {Alias}", alias);
+        await LoadAccountData(alias);
+        CalculateDepositPercentage();
+        Logger.LogInformation("OrderForm: Account changed completed for alias: {Alias}", alias);
+        StateHasChanged();
+    }
+
+    private async Task LoadAccountData(string alias)
+    {
+        _currentAccount = await AssetService.GetAccountOverviewAsync(alias);
+        CalculateDepositPercentage();
+    }
+
+    private async Task OnTickerBlur()
+    {
+        // Normalize ticker to uppercase
+        OrderModel.Ticker = OrderModel.Ticker?.ToUpper() ?? "";
+        await UpdateStockInfo(OrderModel.Ticker);
+        StateHasChanged();
+    }
+
+    private async Task UpdateStockInfo(string ticker)
+    {
+        // Reset all state first to prevent stale values
+        _stockName = null;
+        _currentPrice = 0;
+        _stockCurrency = "";
+        _depositPercentage = 0;
+
+        if (string.IsNullOrWhiteSpace(ticker))
+        {
+            return;
+        }
+
+        // Get stock name
+        _stockName = await StockService.GetStockNameAsync(ticker);
+
+        // Get current price
+        _isLoadingPrice = true;
+        StateHasChanged();
+
+        try
+        {
+            var priceInfo = await StockService.GetCurrentPriceAsync(ticker);
+            if (priceInfo.HasValue)
+            {
+                _currentPrice = priceInfo.Value.Price;
+                _stockCurrency = priceInfo.Value.Currency.ToString();
+                Logger.LogInformation("UpdateStockInfo: Set _stockCurrency to {Currency} for {Ticker}", _stockCurrency, ticker);
+                CalculateDepositPercentage();
+            }
+            else
+            {
+                Logger.LogWarning("UpdateStockInfo: GetCurrentPriceAsync returned null for {Ticker}", ticker);
+            }
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "UpdateStockInfo: Exception for {Ticker}", ticker);
+            _currentPrice = 0;
+            _stockCurrency = "";
+        }
+        finally
+        {
+            _isLoadingPrice = false;
+        }
+    }
+
+    private void CalculateDepositPercentage()
+    {
+        if (_currentAccount == null || _currentPrice <= 0 || OrderModel.Qty <= 0 || string.IsNullOrEmpty(_stockCurrency))
+        {
+            _depositPercentage = 0;
+            return;
+        }
+
+        var totalAmount = _currentPrice * OrderModel.Qty;
+
+        // Try to get the deposit for the stock's currency
+        if (Enum.TryParse<yQuant.Core.Models.CurrencyType>(_stockCurrency, out var currencyType) &&
+        _currentAccount.Deposits.TryGetValue(currencyType, out var availableDeposit))
+        {
+            _depositPercentage = availableDeposit > 0 ? (totalAmount / availableDeposit) * 100 : 0;
+        }
+        else
+        {
+            _depositPercentage = -1; // Indicates currency not available
+        }
+    }
+
+    private string GetTotalAmountDisplay()
+    {
+        if (_currentPrice > 0 && OrderModel.Qty > 0)
+        {
+            var total = _currentPrice * OrderModel.Qty;
+            return $"{FormatCurrency(total, _stockCurrency)} {_stockCurrency}";
+        }
+        return "0.00";
+    }
+
+    private string FormatCurrency(decimal amount, string currency)
+    {
+        // USD uses 2 decimal places, other currencies use 0
+        return currency.ToUpper() == "USD" ? amount.ToString("N2") : amount.ToString("N0");
+    }
+
+    private bool CanPlaceOrder()
+    {
+        Logger.LogInformation("CanPlaceOrder check: Form.IsValid={IsValid}, Ticker={Ticker}, Qty={Qty}, Currency={Currency}",
+        Form?.IsValid, OrderModel.Ticker, OrderModel.Qty, _stockCurrency);
+
+        // For market orders, we don't need the current price
+        // We just need to know the currency to validate against deposits
+        return Form?.IsValid == true &&
+        !string.IsNullOrEmpty(OrderModel.Ticker) &&
+        OrderModel.Qty > 0 &&
+        !string.IsNullOrEmpty(_stockCurrency);
+    }
+
+    private Severity GetSeverity(Color color)
+    {
+        return color switch
+        {
+            Color.Error => Severity.Error,
+            Color.Warning => Severity.Warning,
+            Color.Success => Severity.Success,
+            _ => Severity.Info
+        };
+    }
+
+    private async Task SubmitOrder()
+    {
+        if (!CanPlaceOrder())
+        {
+            Snackbar.Add("Please check all fields and ensure sufficient funds", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            OrderModel.Type = OrderType.Market;
+            OrderModel.Price = 0;
+            OrderModel.Action = OrderAction.Buy; // Ensure it's always Buy
+            OrderModel.BuyReason = "Manual"; // Set buy reason for manual orders
+
+            await OrderPublisher.PublishOrderAsync(OrderModel);
+            Snackbar.Add($"Buy order placed: {OrderModel.Qty} x {OrderModel.Ticker}", Severity.Success);
+
+            // Reset form
+            OrderModel.Ticker = "";
+            OrderModel.Qty = 1;
+            _stockName = null;
+            _currentPrice = 0;
+            _stockCurrency = "";
+            _depositPercentage = 0;
+
+            StateHasChanged();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Error placing order: {ex.Message}", Severity.Error);
+        }
+    }
+}

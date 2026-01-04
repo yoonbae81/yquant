@@ -9,7 +9,7 @@ SERVICES=(
   "ordermanager"
   "notifier"
   "webhook"
-  "frontend"
+  "dashboard"
 )
 
 for service in "${SERVICES[@]}"; do

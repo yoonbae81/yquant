@@ -71,7 +71,7 @@
             "type": "process",
             "args": [
                 "build",
-                "${workspaceFolder}/src/03.Applications/yQuant.App.Web/yQuant.App.Web.csproj",
+                "${workspaceFolder}/src/03.Applications/yQuant.App.Dashboard/yQuant.App.Dashboard.csproj",
                 "/property:GenerateFullPaths=true",
                 "/consoleloggerparameters:NoSummary"
             ],

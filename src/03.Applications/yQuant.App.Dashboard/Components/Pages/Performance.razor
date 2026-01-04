@@ -1,0 +1,401 @@
+@page "/performance"
+@page "/performance/{AccountAlias}"
+@using yQuant.Core.Models
+@using yQuant.Core.Ports.Output.Infrastructure
+@using yQuant.Infra.Reporting.Services
+@using yQuant.App.Dashboard.Services
+@inject IDailySnapshotRepository SnapshotRepository
+@inject ITradeRepository TradeRepository
+@inject ILogger<Performance> Logger
+@inject StackExchange.Redis.IConnectionMultiplexer Redis
+@inject AccountCacheService AccountCacheService
+@inject NavigationManager NavigationManager
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+
+<PageTitle>Performance Metrics - yQuant</PageTitle>
+
+<AccountSelector Accounts="_availableAccounts" SelectedAccountAlias="@AccountAlias"
+    SelectedAccountAliasChanged="@OnAccountChanged" />
+
+<MudContainer MaxWidth="MaxWidth.ExtraExtraLarge" Class="mt-4">
+    <MudGrid>
+        <MudItem xs="12">
+            <MudSelect T="string" Label="Period" @bind-Value="_selectedPeriod" Variant="Variant.Outlined"
+                FullWidth="true">
+                <MudSelectItem Value="@("today")">Today</MudSelectItem>
+                <MudSelectItem Value="@("1m")">Last 1 Month</MudSelectItem>
+                <MudSelectItem Value="@("3m")">Last 3 Months</MudSelectItem>
+                <MudSelectItem Value="@("6m")">Last 6 Months</MudSelectItem>
+                <MudSelectItem Value="@("9m")">Last 9 Months</MudSelectItem>
+                <MudSelectItem Value="@("12m")">Last 12 Months</MudSelectItem>
+                <MudSelectItem Value="@("ytd")">Year to Date</MudSelectItem>
+                <MudSelectItem Value="@("2024")">2024</MudSelectItem>
+                <MudSelectItem Value="@("2023")">2023</MudSelectItem>
+                <MudSelectItem Value="@("all")">All Time</MudSelectItem>
+            </MudSelect>
+        </MudItem>
+    </MudGrid>
+
+    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="LoadMetrics" Class="mt-2 mb-4"
+        Disabled="_loading">
+        @if (_loading)
+        {
+            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+            <span>Calculating...</span>
+        }
+        else
+        {
+            <span>Calculate Metrics</span>
+        }
+    </MudButton>
+
+    @if (_loading)
+    {
+        <MudProgressLinear Color="Color.Primary" Indeterminate="true" Class="my-4" />
+    }
+    else if (_metrics != null)
+    {
+        <!-- 기간 정보 -->
+        <MudAlert Severity="Severity.Info" Class="mb-4">
+            <strong>Period:</strong> @_periodDescription |
+            <strong>Account:</strong> @AccountAlias |
+            <strong>Trading Days:</strong> @_metrics.TradingDays
+        </MudAlert>
+
+        <!-- 수익성 지표 -->
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" GutterBottom="true">💰 Profitability</MudText>
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudText Typo="Typo.caption">CAGR</MudText>
+                    <MudText Typo="Typo.h5" Color="@GetColor(_metrics.CAGR)">
+                        @_metrics.CAGR.ToString("P2")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Annualized Return
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudText Typo="Typo.caption">Cumulative Return</MudText>
+                    <MudText Typo="Typo.h5" Color="@GetColor(_metrics.CumulativeReturn)">
+                        @_metrics.CumulativeReturn.ToString("P2")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Total Period
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudText Typo="Typo.caption">Total Trades</MudText>
+                    <MudText Typo="Typo.h5">@_metrics.TotalTrades</MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Executed Orders
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="3">
+                    <MudText Typo="Typo.caption">Win Rate</MudText>
+                    <MudText Typo="Typo.h5" Color="@GetColor(_metrics.WinRate - 0.5)">
+                        @_metrics.WinRate.ToString("P1")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Winning Trades
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- 위험조정 지표 -->
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" GutterBottom="true">⚖️ Risk-Adjusted Returns</MudText>
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudText Typo="Typo.caption">Sharpe Ratio</MudText>
+                    <MudText Typo="Typo.h5" Color="@GetSharpeColor(_metrics.SharpeRatio)">
+                        @_metrics.SharpeRatio.ToString("F2")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        @GetSharpeRating(_metrics.SharpeRatio)
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudText Typo="Typo.caption">Sortino Ratio</MudText>
+                    <MudText Typo="Typo.h5" Color="@GetSharpeColor(_metrics.SortinoRatio)">
+                        @_metrics.SortinoRatio.ToString("F2")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Downside Risk Adjusted
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudText Typo="Typo.caption">Profit Factor</MudText>
+                    <MudText Typo="Typo.h5" Color="@GetColor(_metrics.ProfitFactor - 1)">
+                        @(double.IsInfinity(_metrics.ProfitFactor) ? "∞" : _metrics.ProfitFactor.ToString("F2"))
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Profit / Loss Ratio
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- 리스크 측정 -->
+        <MudPaper Class="pa-4 mb-4">
+            <MudText Typo="Typo.h5" GutterBottom="true">⚠️ Risk Metrics</MudText>
+            <MudGrid>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudText Typo="Typo.caption">Maximum Drawdown</MudText>
+                    <MudText Typo="Typo.h5" Color="Color.Error">
+                        @_metrics.MaxDrawdown.ToString("P2")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Peak to Trough
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudText Typo="Typo.caption">Volatility</MudText>
+                    <MudText Typo="Typo.h5">
+                        @_metrics.Volatility.ToString("P2")
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Annualized Std Dev
+                    </MudText>
+                </MudItem>
+                <MudItem xs="12" sm="6" md="4">
+                    <MudText Typo="Typo.caption">Risk/Return</MudText>
+                    <MudText Typo="Typo.h5"
+                        Color="@GetColor(_metrics.CAGR / (_metrics.Volatility == 0 ? 1 : _metrics.Volatility))">
+                        @((_metrics.Volatility == 0 ? 0 : _metrics.CAGR / _metrics.Volatility).ToString("F2"))
+                    </MudText>
+                    <MudText Typo="Typo.caption" Color="Color.Secondary">
+                        Return per Unit Risk
+                    </MudText>
+                </MudItem>
+            </MudGrid>
+        </MudPaper>
+
+        <!-- Equity Curve (최근 30일) -->
+        @if (_snapshots.Any())
+        {
+            <MudPaper Class="pa-4">
+                <MudText Typo="Typo.h5" GutterBottom="true">📊 Recent Equity Curve (Last 30 Days)</MudText>
+                <MudTable Items="@_snapshots.OrderByDescending(s => s.Date).Take(30)" Hover="true" Dense="true"
+                    Breakpoint="Breakpoint.Sm">
+                    <HeaderContent>
+                        <MudTh>Date</MudTh>
+                        <MudTh>Currency</MudTh>
+                        <MudTh Style="text-align:right">Total Equity</MudTh>
+                        <MudTh Style="text-align:right">Daily P&L</MudTh>
+                        <MudTh Style="text-align:right">Daily Return</MudTh>
+                        <MudTh Style="text-align:right">Cumulative Return</MudTh>
+                        <MudTh Style="text-align:right">Drawdown</MudTh>
+                    </HeaderContent>
+                    <RowTemplate>
+                        <MudTd DataLabel="Date">@context.Date.ToString("yyyy-MM-dd")</MudTd>
+                        <MudTd DataLabel="Currency">
+                            <MudChip T="string" Size="Size.Small">@context.Currency</MudChip>
+                        </MudTd>
+                        <MudTd DataLabel="Total Equity" Style="text-align:right">
+                            @context.TotalEquity.ToString("N2")
+                        </MudTd>
+                        <MudTd DataLabel="Daily P&L" Style="text-align:right">
+                            <MudText Color="@GetColor((double)context.DailyPnL)">
+                                @context.DailyPnL.ToString("N2")
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Daily Return" Style="text-align:right">
+                            <MudText Color="@GetColor(context.DailyReturn)">
+                                @context.DailyReturn.ToString("P2")
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Cumulative Return" Style="text-align:right">
+                            <MudText Color="@GetColor(context.CumulativeReturn)">
+                                @context.CumulativeReturn.ToString("P2")
+                            </MudText>
+                        </MudTd>
+                        <MudTd DataLabel="Drawdown" Style="text-align:right">
+                            <MudText Color="Color.Error">
+                                @context.DrawdownPct.ToString("P2")
+                            </MudText>
+                        </MudTd>
+                    </RowTemplate>
+                    <PagerContent>
+                        <MudTablePager PageSizeOptions="new int[] { 10, 20, 30 }" />
+                    </PagerContent>
+                </MudTable>
+            </MudPaper>
+        }
+    }
+    else if (!_loading)
+    {
+        <MudAlert Severity="Severity.Info">Please select account and period, then click "Calculate Metrics".</MudAlert>
+    }
+    </MudContainer>
+
+    @code {
+    [Parameter]
+    public string? AccountAlias { get; set; }
+
+    private IEnumerable<Account> _availableAccounts = new List<Account>();
+    private string _selectedPeriod = "3m";
+    private string _periodDescription = "";
+    private bool _loading = false;
+    private PerformanceMetrics? _metrics;
+    private List<DailySnapshot> _snapshots = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadAccounts();
+
+        if (string.IsNullOrEmpty(AccountAlias) && _availableAccounts.Any())
+        {
+            AccountAlias = _availableAccounts.First().Alias;
+        }
+    }
+
+    private async Task LoadAccounts()
+    {
+        _availableAccounts = await AccountCacheService.GetAccountsAsync();
+    }
+
+    private async Task OnAccountChanged(string alias)
+    {
+        AccountAlias = alias;
+        NavigationManager.NavigateTo($"/performance/{alias}");
+        _metrics = null; // Reset metrics when account changes
+        _snapshots = new();
+    }
+
+    private async Task LoadMetrics()
+    {
+        if (string.IsNullOrEmpty(AccountAlias) || string.IsNullOrEmpty(_selectedPeriod))
+            return;
+
+        _loading = true;
+        _metrics = null;
+        _snapshots = new();
+
+        try
+        {
+            var (startDate, endDate) = GetDateRange(_selectedPeriod);
+            _periodDescription = GetPeriodDescription(startDate, endDate);
+
+            // Load snapshots
+            var allSnapshots = new List<DailySnapshot>();
+            var accountSnapshots = await SnapshotRepository.GetSnapshotsByRangeAsync(AccountAlias, startDate, endDate);
+            allSnapshots.AddRange(accountSnapshots);
+
+            _snapshots = allSnapshots.OrderBy(s => s.Date).ThenBy(s => s.Currency).ToList();
+
+            if (_snapshots.Count == 0)
+            {
+                Logger.LogWarning("No snapshots found for {Account}", AccountAlias);
+                return;
+            }
+
+            // Load trades
+            var allTrades = (await TradeRepository.GetTradesByRangeAsync(AccountAlias, startDate, endDate)).ToList();
+
+            // Calculate metrics
+            var metricsService = new PerformanceMetricsService();
+
+            // Group by currency for equity calculation
+            var snapshotsByCurrency = _snapshots.GroupBy(s => s.Currency);
+            var firstSnapshot = _snapshots.OrderBy(s => s.Date).First();
+            var lastSnapshot = _snapshots.OrderByDescending(s => s.Date).First();
+
+            var totalInitialEquity = snapshotsByCurrency.Sum(g => g.OrderBy(s => s.Date).First().TotalEquity);
+            var totalFinalEquity = snapshotsByCurrency.Sum(g => g.OrderByDescending(s => s.Date).First().TotalEquity);
+
+            var days = (lastSnapshot.Date.ToDateTime(TimeOnly.MinValue) - firstSnapshot.Date.ToDateTime(TimeOnly.MinValue)).Days;
+            if (days == 0) days = 1; // Avoid division by zero
+
+            _metrics = new PerformanceMetrics
+                {
+                    CAGR = metricsService.CalculateCAGR(totalInitialEquity, totalFinalEquity, days),
+                    CumulativeReturn = metricsService.CalculateCumulativeReturn(totalInitialEquity, totalFinalEquity),
+                    SharpeRatio = metricsService.CalculateSharpeRatio(_snapshots),
+                    SortinoRatio = metricsService.CalculateSortinoRatio(_snapshots),
+                    MaxDrawdown = metricsService.CalculateMDD(_snapshots),
+                    Volatility = metricsService.CalculateVolatility(_snapshots),
+                    WinRate = metricsService.CalculateWinRate(allTrades),
+                    ProfitFactor = metricsService.CalculateProfitFactor(allTrades),
+                    TotalTrades = allTrades.Count,
+                    TradingDays = _snapshots.Select(s => s.Date).Distinct().Count()
+                };
+
+            Logger.LogInformation("Calculated metrics for {Account} ({Period}): CAGR={CAGR:P2}, Sharpe={Sharpe:F2}",
+            AccountAlias, _selectedPeriod, _metrics.CAGR, _metrics.SharpeRatio);
+        }
+        catch (Exception ex)
+        {
+            Logger.LogError(ex, "Failed to calculate metrics for {Account}", AccountAlias);
+            _metrics = null;
+        }
+        finally
+        {
+            _loading = false;
+        }
+    }
+
+    private (DateOnly startDate, DateOnly endDate) GetDateRange(string period)
+    {
+        var today = DateOnly.FromDateTime(DateTime.Today);
+
+        return period switch
+        {
+            "today" => (today, today),
+            "1m" => (today.AddMonths(-1), today),
+            "3m" => (today.AddMonths(-3), today),
+            "6m" => (today.AddMonths(-6), today),
+            "9m" => (today.AddMonths(-9), today),
+            "12m" => (today.AddMonths(-12), today),
+            "ytd" => (new DateOnly(today.Year, 1, 1), today),
+            "2024" => (new DateOnly(2024, 1, 1), new DateOnly(2024, 12, 31)),
+            "2023" => (new DateOnly(2023, 1, 1), new DateOnly(2023, 12, 31)),
+            "all" => (new DateOnly(2020, 1, 1), today),
+            _ => (today.AddMonths(-3), today)
+        };
+    }
+
+    private string GetPeriodDescription(DateOnly start, DateOnly end)
+    {
+        return $"{start:yyyy-MM-dd} ~ {end:yyyy-MM-dd}";
+    }
+
+    private Color GetColor(double value)
+    {
+        if (value > 0) return Color.Success;
+        if (value < 0) return Color.Error;
+        return Color.Default;
+    }
+
+    private Color GetSharpeColor(double sharpe)
+    {
+        if (sharpe > 2) return Color.Success;
+        if (sharpe > 1) return Color.Info;
+        if (sharpe > 0) return Color.Warning;
+        return Color.Error;
+    }
+
+    private string GetSharpeRating(double sharpe)
+    {
+        if (sharpe > 3) return "Excellent (>3)";
+        if (sharpe > 2) return "Very Good (>2)";
+        if (sharpe > 1) return "Good (>1)";
+        if (sharpe > 0) return "Acceptable (>0)";
+        return "Poor (<0)";
+    }
+
+    private class PerformanceMetrics
+    {
+        public double CAGR { get; set; }
+        public double CumulativeReturn { get; set; }
+        public double SharpeRatio { get; set; }
+        public double SortinoRatio { get; set; }
+        public double MaxDrawdown { get; set; }
+        public double Volatility { get; set; }
+        public double WinRate { get; set; }
+        public double ProfitFactor { get; set; }
+        public int TotalTrades { get; set; }
+        public int TradingDays { get; set; }
+    }
+}

@@ -43,9 +43,9 @@ dotnet publish src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj 
   -c Release \
   -o "$DEPLOY_ROOT/console"
 
-echo "📦 Publishing Frontend..."
-dotnet publish src/03.Applications/yQuant.App.Web/yQuant.App.Web.csproj \
+echo "📦 Publishing Dashboard..."
+dotnet publish src/03.Applications/yQuant.App.Dashboard/yQuant.App.Dashboard.csproj \
   -c Release \
-  -o "$DEPLOY_ROOT/frontend"
+  -o "$DEPLOY_ROOT/dashboard"
 
 echo "✅ All applications built successfully!"

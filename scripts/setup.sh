@@ -15,7 +15,7 @@ SERVICES=(
   "ordermanager.service"
   "notifier.service"
   "webhook.service"
-  "frontend.service"
+  "dashboard.service"
   "console-sync.service"
 )
 
@@ -36,5 +36,5 @@ fi
 systemctl --user daemon-reload
 
 echo "✅ All services installed!"
-echo "💡 To enable: systemctl --user enable brokergateway ordermanager notifier webhook frontend console-sync.timer"
-echo "💡 To start:  systemctl --user start brokergateway ordermanager notifier webhook frontend console-sync.timer"
+echo "💡 To enable: systemctl --user enable brokergateway ordermanager notifier webhook dashboard console-sync.timer"
+echo "💡 To start:  systemctl --user start brokergateway ordermanager notifier webhook dashboard console-sync.timer"

@@ -170,7 +170,7 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
     - **동작**: `yQuant.Infra.Master.KIS`를 통해 증권사 API로부터 거래 가능 종목 리스트를 가져와 Valkey에 캐싱
     - **활용**: systemd timer를 통한 주기적 자동 실행 지원
 
-### 4.5. yQuant.App.Web (Web Dashboard)
+### 4.5. yQuant.App.Dashboard (Web Dashboard)
 - **유형**: Blazor Server Application
 - **역할**: 웹 기반 통합 모니터링, 제어 및 리포팅 대시보드
 - **주요 기능**:

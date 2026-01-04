@@ -77,7 +77,7 @@ yQuant 애플리케이션이 데모 인프라를 바라보도록 설정해야 �
    ```bash
    dotnet run --project src/03.Applications/yQuant.App.BrokerGateway
    dotnet run --project src/03.Applications/yQuant.App.OrderManager
-   dotnet run --project src/03.Applications/yQuant.App.Web
+   dotnet run --project src/03.Applications/yQuant.App.Dashboard
    ```
 
 3. **대시보드 접속**:

@@ -1,0 +1,570 @@
+@page "/scheduled"
+@page "/scheduled/{AccountAlias}"
+@attribute [Microsoft.AspNetCore.Authorization.Authorize]
+@using yQuant.App.Dashboard.Services
+@using yQuant.App.Dashboard.Models
+@using yQuant.Core.Models
+@using yQuant.Core.Ports.Output.Infrastructure
+@inject SchedulerService SchedulerService
+@inject AssetService AssetService
+@inject AccountCacheService AccountCacheService
+@inject StockService StockService
+@inject ISnackbar Snackbar
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+
+<PageTitle>Scheduled Orders</PageTitle>
+
+<div class="d-flex align-center mb-4">
+    <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
+        @foreach (var acc in AvailableAccounts)
+        {
+            var isSelected = SelectedAccountAlias == acc.Alias;
+            <MudButton OnClick="@(() => OnAccountChanged(acc.Alias))"
+                Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
+                Color="@(isSelected ? Color.Primary : Color.Default)" Size="@(isSelected ? Size.Medium : Size.Small)"
+                Style="@(isSelected ? "font-weight: bold; box-shadow: 0 3px 5px rgba(0,0,0,0.2);" : "")">
+                @acc.Alias
+            </MudButton>
+        }
+    </MudButtonGroup>
+</div>
+
+@if (!string.IsNullOrEmpty(SelectedAccountAlias))
+{
+    <MudGrid>
+    <MudItem xs="12" md="6">
+        <MudCard Outlined="true" Class="pa-4">
+            <MudCardHeader>
+                <CardHeaderContent>
+                    <div class="d-flex justify-space-between align-center">
+                        <MudText Typo="Typo.h6">Existing Schedules</MudText>
+                        <div class="d-flex gap-2">
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary"
+                                StartIcon="@Icons.Material.Filled.Download" OnClick="ExportOrders" Size="Size.Small">
+                                Export</MudButton>
+                            <InputFile id="importFile" OnChange="ImportOrders" hidden />
+                            <MudButton HtmlTag="label" Variant="Variant.Filled" Color="Color.Secondary"
+                                StartIcon="@Icons.Material.Filled.Upload" for="importFile" Size="Size.Small">Import
+                            </MudButton>
+                        </div>
+                    </div>
+                </CardHeaderContent>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (!_scheduledOrders.Any())
+                    {
+                        <MudText>No scheduled orders found for this account.</MudText>
+                    }
+                    else
+                    {
+                        <MudList T="ScheduledOrder">
+                            @foreach (var schedule in _scheduledOrders.OrderBy(s => s.NextExecutionTime ?? DateTime.MaxValue))
+                            {
+                                <MudListItem T="ScheduledOrder" OnClick="@(() => EditSchedule(schedule))">
+                                    <div class="d-flex justify-space-between align-center">
+                                        <div>
+                                            @{
+                                                var stockName = GetScheduleStockName(schedule.Ticker);
+                                                // Show "StockName (Ticker)" or just "Ticker" if no name
+                                                var displayName = string.IsNullOrEmpty(stockName)
+                                                ? schedule.Ticker
+                                                : $"{stockName.Trim('(', ')')} ({schedule.Ticker})";
+
+                                                // Get position data for P&L display
+                                                var hasPosition = _positions.TryGetValue(schedule.Ticker, out var position);
+                                                var pnlAmount = hasPosition ? position!.UnrealizedPnL : 0m;
+                                                var totalCost = hasPosition ? position!.AvgPrice * position.Qty : 0m;
+                                                var pnlRate = hasPosition ? position!.ChangeRate : 0m;
+                                                var pnlColor = pnlAmount >= 0 ? "color: #4caf50;" : "color: #f44336;";
+                                            }
+                                            <MudText><b>@displayName</b></MudText>
+                                            <MudText Typo="Typo.body2" Color="Color.Default" Style="@pnlColor">
+                                                @schedule.Currency @pnlAmount.ToString("N0") / @totalCost.ToString("N0")
+                                                (@pnlRate.ToString("N2")%)
+                                            </MudText>
+                                            <MudText Typo="Typo.body2">
+                                                @schedule.Action x @(schedule.Quantity ?? 0) / @GetDaysDisplay(schedule.DaysOfWeek)
+                                                at @GetScheduleTimeDisplay(schedule)
+                                            </MudText>
+                                            <MudText Typo="Typo.caption">
+                                                Next: @(schedule.NextExecutionTime?.ToLocalTime().ToString("g") ?? "Inactive")
+                                            </MudText>
+                                        </div>
+                                        <div class="d-flex align-center">
+                                            @if (!schedule.IsActive)
+                                            {
+                                                <MudChip T="string" Size="Size.Small" Color="Color.Default">Inactive</MudChip>
+                                            }
+                                            <MudIconButton Icon="@Icons.Material.Filled.Delete" Color="Color.Error"
+                                                Size="Size.Small" OnClick="@(() => DeleteSchedule(schedule.Id))" />
+                                        </div>
+                                    </div>
+                                </MudListItem>
+                                <MudDivider />
+                            }
+                        </MudList>
+                    }
+                </MudCardContent>
+            </MudCard>
+        </MudItem>
+
+        <MudItem xs="12" md="6">
+            <MudCard Outlined="true" Class="pa-4">
+                <MudCardHeader>
+                    <CardHeaderContent>
+                        <MudText Typo="Typo.h6">Add/Edit Scheduled Order</MudText>
+                    </CardHeaderContent>
+                </MudCardHeader>
+                <MudCardContent>
+                    <MudForm Model="@CurrentSchedule" @ref="@ScheduleForm" ValidationDelay="0">
+                        <!-- Ticker & Lookup -->
+                        <MudTextField T="string" @bind-Value="CurrentSchedule.Ticker" Label="Ticker" Required="true"
+                            RequiredError="Ticker is required!" OnBlur="LookupStock" Adornment="Adornment.End"
+                            AdornmentIcon="@Icons.Material.Filled.Search" OnAdornmentClick="LookupStock" />
+
+                        @if (!string.IsNullOrEmpty(StockName))
+                        {
+                            <div class="d-flex gap-2 mt-2 align-center">
+                                <MudChip T="string" Color="Color.Info" Size="Size.Small">@StockName</MudChip>
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small">@CurrentSchedule.Exchange</MudChip>
+                                <MudChip T="string" Color="Color.Default" Size="Size.Small">@CurrentSchedule.Currency</MudChip>
+                            </div>
+                        }
+
+                        <!-- Action & Quantity -->
+                        <div class="d-flex gap-4 mt-3">
+                            <MudSelect T="OrderAction" @bind-Value="CurrentSchedule.Action" Label="Action" Required="true"
+                                Variant="Variant.Outlined" Class="flex-grow-1">
+                                <MudSelectItem T="OrderAction" Value="OrderAction.Buy">Buy</MudSelectItem>
+                                <MudSelectItem T="OrderAction" Value="OrderAction.Sell">Sell</MudSelectItem>
+                            </MudSelect>
+
+                            <MudNumericField T="int?" @bind-Value="CurrentSchedule.Quantity" Label="Quantity"
+                                Variant="Variant.Outlined" Min="1" Class="flex-grow-1" />
+                        </div>
+
+                        <MudText Typo="Typo.subtitle2" Class="mt-4">Run Days</MudText>
+                        <div class="d-flex gap-2 mb-2">
+                            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="SelectEveryday">Everyday
+                            </MudButton>
+                            <MudButton Variant="Variant.Text" Size="Size.Small" OnClick="ClearDays">Clear</MudButton>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            @foreach (var day in new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday,
+                        DayOfWeek.Thursday, DayOfWeek.Friday })
+                            {
+                                <MudCheckBox T="bool" Label="@day.ToString()[..3]"
+                                    Value="@CurrentSchedule.DaysOfWeek.Contains(day)"
+                                    ValueChanged="@((bool c) => UpdateDay(day, c))" Dense="true" Color="Color.Primary" />
+                            }
+                        </div>
+                        @if (!CurrentSchedule.DaysOfWeek.Any())
+                        {
+                            <MudText Typo="Typo.caption" Color="Color.Error">Select at least one day.</MudText>
+                        }
+
+                        <!-- Time & Mode -->
+                        <div class="d-flex gap-4 mt-3">
+                            <MudSelect T="ScheduleTimeMode" @bind-Value="CurrentSchedule.TimeMode" Label="Time Mode"
+                                Class="flex-grow-1" Variant="Variant.Outlined">
+                                <MudSelectItem T="ScheduleTimeMode" Value="ScheduleTimeMode.FixedTime">Fixed Time (Local)
+                                </MudSelectItem>
+                                <MudSelectItem T="ScheduleTimeMode" Value="ScheduleTimeMode.AfterMarketOpen">After Market
+                                    Open</MudSelectItem>
+                            </MudSelect>
+
+                            <MudTimePicker
+                                Label="@(CurrentSchedule.TimeMode == ScheduleTimeMode.FixedTime ? "Execution Time" : "Offset Time")"
+                            @bind-Time="ScheduleTime" Class="flex-grow-1" Variant="Variant.Outlined" />
+                        </div>
+                        @if (CurrentSchedule.TimeMode == ScheduleTimeMode.AfterMarketOpen)
+                        {
+                            <MudText Typo="Typo.caption" Class="ml-1">Runs N hours:minutes AFTER market open.</MudText>
+                        }
+                        @if (CurrentSchedule.TimeMode == ScheduleTimeMode.FixedTime)
+                        {
+                            <MudText Typo="Typo.caption" Class="ml-1">Time in your local timezone (UTC@(GetLocalUtcOffset())).
+                            </MudText>
+                        }
+
+                        <MudTextField T="string" @bind-Value="CurrentSchedule.Notes" Label="Notes (Optional)" Lines="2"
+                            Class="mt-3" Variant="Variant.Outlined" />
+
+                        <MudCheckBox T="bool" @bind-Value="CurrentSchedule.IsActive" Label="Active" Class="mt-3"
+                            Color="Color.Success" />
+                    </MudForm>
+                </MudCardContent>
+                <MudCardActions Class="justify-end">
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="SaveSchedule"
+                        Disabled="@(!IsFormValid())">Save Schedule</MudButton>
+                    <MudButton Variant="Variant.Text" Color="Color.Secondary" OnClick="ClearForm">Clear</MudButton>
+                </MudCardActions>
+            </MudCard>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <MudText>Please select an account.</MudText>
+}
+
+@code {
+    [Parameter]
+    public string? AccountAlias { get; set; }
+
+    private MudForm? ScheduleForm;
+    private ScheduledOrder CurrentSchedule = new()
+        {
+            AccountAlias = "",
+            Ticker = "",
+            Exchange = ExchangeCode.KOSPI,
+            Currency = CurrencyType.KRW,
+            Action = OrderAction.Buy
+        };
+    private IEnumerable<Account> AvailableAccounts = new List<Account>();
+    private IEnumerable<ScheduledOrder> _scheduledOrders = new List<ScheduledOrder>();
+    private string StockName = "";
+    private string? SelectedAccountAlias = null;
+    private Dictionary<string, string> _scheduleStockNames = new();
+    private Dictionary<string, yQuant.Core.Models.Position> _positions = new();
+
+    // Helper for TimePicker binding - converts between Local and UTC
+    private TimeSpan? ScheduleTime
+    {
+        get
+        {
+            if (CurrentSchedule.TimeMode == ScheduleTimeMode.FixedTime)
+            {
+                // Convert from UTC to Local for display
+                var utcTime = DateTime.UtcNow.Date.Add(CurrentSchedule.TimeConfig);
+                var localTime = utcTime.ToLocalTime();
+                return localTime.TimeOfDay;
+            }
+            return CurrentSchedule.TimeConfig;
+        }
+        set
+        {
+            if (CurrentSchedule.TimeMode == ScheduleTimeMode.FixedTime && value.HasValue)
+            {
+                // Convert from Local to UTC for storage
+                var localTime = DateTime.Now.Date.Add(value.Value);
+                var utcTime = localTime.ToUniversalTime();
+                CurrentSchedule.TimeConfig = utcTime.TimeOfDay;
+            }
+            else
+            {
+                CurrentSchedule.TimeConfig = value ?? TimeSpan.Zero;
+            }
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadData();
+        SchedulerService.OnChange += OnSchedulerServiceChange;
+    }
+
+    private async Task LoadData()
+    {
+        AvailableAccounts = await AccountCacheService.GetAccountsAsync();
+
+        // Use URL parameter if available, otherwise auto-select first account
+        if (!string.IsNullOrEmpty(AccountAlias))
+        {
+            SelectedAccountAlias = AccountAlias;
+        }
+        else if (string.IsNullOrEmpty(SelectedAccountAlias) && AvailableAccounts.Any())
+        {
+            SelectedAccountAlias = AvailableAccounts.First().Alias;
+            // Navigate to URL with selected account
+            NavigationManager.NavigateTo($"/scheduled/{SelectedAccountAlias}");
+        }
+
+        if (!string.IsNullOrEmpty(SelectedAccountAlias))
+        {
+            CurrentSchedule.AccountAlias = SelectedAccountAlias;
+        }
+
+        // Load schedules for selected account
+        if (!string.IsNullOrEmpty(SelectedAccountAlias))
+        {
+            _scheduledOrders = SchedulerService.GetScheduledOrders()
+            .Where(s => s.AccountAlias == SelectedAccountAlias);
+
+            // Load stock names for all scheduled orders
+            await LoadScheduleStockNames();
+
+            // Load positions
+            await LoadPositions();
+        }
+
+        StateHasChanged();
+    }
+
+    private async void OnSchedulerServiceChange() => await InvokeAsync(LoadData);
+
+    private async Task OnAccountChanged(string alias)
+    {
+        SelectedAccountAlias = alias;
+        CurrentSchedule.AccountAlias = alias;
+
+        // Navigate to new URL
+        NavigationManager.NavigateTo($"/scheduled/{alias}");
+
+        // Reload schedules for the new account
+        _scheduledOrders = SchedulerService.GetScheduledOrders()
+        .Where(s => s.AccountAlias == alias);
+
+        // Load stock names for schedules
+        await LoadScheduleStockNames();
+
+        // Load positions
+        await LoadPositions();
+
+        // Clear the form when switching accounts
+        ClearForm();
+
+        StateHasChanged();
+    }
+
+    private string GetLocalUtcOffset()
+    {
+        var offset = TimeZoneInfo.Local.GetUtcOffset(DateTime.Now);
+        var sign = offset.TotalHours >= 0 ? "+" : "";
+        return $"{sign}{offset.TotalHours:0.##}";
+    }
+
+    private async Task LookupStock()
+    {
+        if (string.IsNullOrWhiteSpace(CurrentSchedule.Ticker)) return;
+
+        var info = await StockService.GetStockInfoAsync(CurrentSchedule.Ticker.ToUpper());
+        if (info.HasValue)
+        {
+            CurrentSchedule.Ticker = CurrentSchedule.Ticker.ToUpper();
+            StockName = info.Value.Name;
+            CurrentSchedule.Exchange = info.Value.Exchange;
+            CurrentSchedule.Currency = info.Value.Currency;
+            // Success notification removed - only show when not found
+        }
+        else
+        {
+            StockName = "";
+            Snackbar.Add($"Ticker {CurrentSchedule.Ticker.ToUpper()} not found.", Severity.Warning);
+        }
+    }
+
+    private void UpdateDay(DayOfWeek day, bool isSelected)
+    {
+        if (isSelected) CurrentSchedule.DaysOfWeek.Add(day);
+        else CurrentSchedule.DaysOfWeek.Remove(day);
+    }
+
+    private void SelectEveryday()
+    {
+        CurrentSchedule.DaysOfWeek = new() { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday,
+DayOfWeek.Friday };
+    }
+
+    private void ClearDays() => CurrentSchedule.DaysOfWeek.Clear();
+
+    private bool IsFormValid()
+    {
+        return !string.IsNullOrEmpty(CurrentSchedule.AccountAlias) &&
+        !string.IsNullOrEmpty(CurrentSchedule.Ticker) &&
+        CurrentSchedule.DaysOfWeek.Any() &&
+        (CurrentSchedule.Quantity > 0);
+    }
+
+    private void ClearForm()
+    {
+        CurrentSchedule = new()
+            {
+                AccountAlias = AvailableAccounts.FirstOrDefault()?.Alias ?? "",
+                Ticker = "",
+                Exchange = ExchangeCode.KOSPI,
+                Currency = CurrencyType.KRW,
+                Action = OrderAction.Buy,
+                DaysOfWeek = new(),
+                TimeConfig = TimeSpan.FromHours(14.5) // Default to 14:30 (US Open)
+            };
+        StockName = "";
+        ScheduleTime = TimeSpan.FromHours(14.5);
+
+        ScheduleForm?.ResetValidation();
+        StateHasChanged();
+    }
+
+    private async Task SaveSchedule()
+    {
+        await ScheduleForm!.Validate();
+        if (ScheduleForm.IsValid && IsFormValid())
+        {
+            SchedulerService.AddOrUpdateScheduledOrder(CurrentSchedule);
+            Snackbar.Add("Scheduled order saved!", Severity.Success);
+            ClearForm();
+        }
+        else if (!CurrentSchedule.DaysOfWeek.Any())
+        {
+            Snackbar.Add("Please select at least one day.", Severity.Warning);
+        }
+    }
+
+    private void EditSchedule(ScheduledOrder schedule)
+    {
+        // Create a copy to avoid modifying the original
+        CurrentSchedule = new ScheduledOrder
+            {
+                Id = schedule.Id,
+                AccountAlias = schedule.AccountAlias,
+                Ticker = schedule.Ticker,
+                Action = schedule.Action,
+                Quantity = schedule.Quantity,
+                TimeMode = schedule.TimeMode,
+                TimeConfig = schedule.TimeConfig,
+                DaysOfWeek = new HashSet<DayOfWeek>(schedule.DaysOfWeek),
+                Exchange = schedule.Exchange,
+                Currency = schedule.Currency,
+                Notes = schedule.Notes,
+                IsActive = schedule.IsActive,
+                NextExecutionTime = schedule.NextExecutionTime
+            };
+
+        // Don't reassign ScheduleTime - let the getter/setter handle conversion
+        // This was causing the time to change on each click
+
+        // Lookup stock name for display (without notification)
+        _ = LookupStock();
+
+        StateHasChanged();
+    }
+
+    private void DeleteSchedule(Guid id)
+    {
+        SchedulerService.RemoveScheduledOrder(id);
+        if (CurrentSchedule.Id == id) ClearForm();
+        Snackbar.Add("Scheduled order deleted!", Severity.Success);
+    }
+
+    private async Task ExportOrders()
+    {
+        if (string.IsNullOrEmpty(SelectedAccountAlias))
+        {
+            Snackbar.Add("Please select an account first.", Severity.Warning);
+            return;
+        }
+
+        var json = SchedulerService.ExportOrders(SelectedAccountAlias);
+        var bytes = System.Text.Encoding.UTF8.GetBytes(json);
+        var base64 = Convert.ToBase64String(bytes);
+        var fileName = $"Scheduled Orders - {SelectedAccountAlias}.json";
+        await JS.InvokeVoidAsync("downloadFile", fileName, base64);
+    }
+
+    private async Task ImportOrders(InputFileChangeEventArgs e)
+    {
+        if (string.IsNullOrEmpty(SelectedAccountAlias))
+        {
+            Snackbar.Add("Please select an account first.", Severity.Warning);
+            return;
+        }
+
+        var file = e.File;
+        if (file != null)
+        {
+            using var stream = file.OpenReadStream(1024 * 1024);
+            using var reader = new StreamReader(stream);
+            var json = await reader.ReadToEndAsync();
+            try
+            {
+                SchedulerService.ImportOrders(json, SelectedAccountAlias);
+                Snackbar.Add("Orders imported successfully!", Severity.Success);
+
+                // Reload schedules to reflect changes
+                await LoadData();
+            }
+            catch (Exception ex)
+            {
+                Snackbar.Add($"Import failed: {ex.Message}", Severity.Error);
+            }
+        }
+    }
+
+    public void Dispose()
+    {
+        SchedulerService.OnChange -= OnSchedulerServiceChange;
+    }
+
+    private async Task LoadScheduleStockNames()
+    {
+        var tickers = _scheduledOrders.Select(s => s.Ticker).Distinct();
+        _scheduleStockNames = await StockService.GetStockNamesAsync(tickers);
+    }
+
+    private async Task LoadPositions()
+    {
+        if (string.IsNullOrEmpty(SelectedAccountAlias))
+        {
+            _positions.Clear();
+            return;
+        }
+
+        var account = await AssetService.GetAccountOverviewAsync(SelectedAccountAlias);
+        if (account?.Positions != null)
+        {
+            _positions = account.Positions.Values
+            .SelectMany(x => x)
+            .GroupBy(p => p.Ticker)
+            .ToDictionary(g => g.Key, g => g.First());
+        }
+        else
+        {
+            _positions.Clear();
+        }
+    }
+
+    private string GetScheduleStockName(string ticker)
+    {
+        if (_scheduleStockNames.TryGetValue(ticker, out var name))
+        {
+            return $"({name})";
+        }
+        return "";
+    }
+
+    private string GetDaysDisplay(HashSet<DayOfWeek> days)
+    {
+        // Check if all weekdays are selected
+        var allWeekdays = new[] { DayOfWeek.Monday, DayOfWeek.Tuesday, DayOfWeek.Wednesday, DayOfWeek.Thursday, DayOfWeek.Friday
+};
+        if (days.Count == 5 && allWeekdays.All(d => days.Contains(d)))
+        {
+            return "Everyday";
+        }
+        return string.Join(", ", days.Select(d => d.ToString()[..3]));
+    }
+
+    private string GetScheduleTimeDisplay(ScheduledOrder schedule)
+    {
+        if (schedule.TimeMode == ScheduleTimeMode.FixedTime)
+        {
+            // Convert UTC time to local time for display
+            var utcTime = DateTime.UtcNow.Date.Add(schedule.TimeConfig);
+            var localTime = utcTime.ToLocalTime();
+            var timeZoneAbbr = GetTimeZoneAbbreviation(schedule.Currency);
+            return $"{localTime:HH:mm} ({timeZoneAbbr})";
+        }
+        return $"+{schedule.TimeConfig:hh\\:mm} Open";
+    }
+
+    private string GetTimeZoneAbbreviation(CurrencyType currency)
+    {
+        return currency switch
+        {
+            CurrencyType.KRW => "KST",
+            CurrencyType.USD => "EST",
+            _ => "UTC"
+        };
+    }
+}
