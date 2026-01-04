@@ -23,7 +23,7 @@
                 </MudAlert>
             }
 
-            <MudForm @ref="_form" @bind-IsValid="@_isValid" ValidationDelay="0">
+            <MudForm ValidationDelay="0">
                 <MudStack Spacing="3">
                     <MudTextField @bind-Value="_pin" Label="PIN" InputType="InputType.Password"
                         Required="true" RequiredError="PIN is required"
@@ -33,7 +33,7 @@
                         HelperText="Enter your 4-digit PIN" MaxLength="4" Immediate="true" />
 
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
-                        OnClick="HandleLogin" Disabled="@(!_isValid || _isLoading)">
+                        OnClick="HandleLogin" Disabled="@_isLoading">
                         @if (_isLoading)
                         {
                             <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
@@ -58,8 +58,6 @@
 </MudContainer>
 
 @code {
-    private MudForm _form = null!;
-    private bool _isValid;
     private bool _isLoading;
     private string _pin = string.Empty;
     private string _errorMessage = string.Empty;
@@ -118,7 +116,7 @@
 
     private async Task HandleKeyDown(KeyboardEventArgs e)
     {
-        if (e.Key == "Enter" && _isValid && !_isLoading)
+        if (e.Key == "Enter" && !_isLoading)
         {
             await HandleLogin();
         }
