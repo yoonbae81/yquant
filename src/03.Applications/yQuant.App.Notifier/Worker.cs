@@ -36,7 +36,7 @@ public class Worker : BackgroundService
             foreach (var channel in NotificationChannels.All)
             {
                 await _subscriber.SubscribeAsync(
-                    ValkeyChannel.Literal(channel),
+                    RedisChannel.Literal(channel),
                     async (ch, message) =>
                     {
                         _logger.LogDebug("Received message from channel {Channel}", ch);
@@ -71,7 +71,7 @@ public class Worker : BackgroundService
         {
             foreach (var channel in NotificationChannels.All)
             {
-                await _subscriber.UnsubscribeAsync(ValkeyChannel.Literal(channel));
+                await _subscriber.UnsubscribeAsync(RedisChannel.Literal(channel));
                 _logger.LogInformation("Unsubscribed from channel: {Channel}", channel);
             }
         }

@@ -87,6 +87,6 @@ public class NotificationPublisher
 
         var json = JsonSerializer.Serialize(message);
         var db = _redis.GetDatabase();
-        await db.PublishAsync(ValkeyChannel.Literal(channel), json);
+        await db.PublishAsync(RedisChannel.Literal(channel), json);
     }
 }

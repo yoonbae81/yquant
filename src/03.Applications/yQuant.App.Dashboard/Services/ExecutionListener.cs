@@ -31,7 +31,7 @@ namespace yQuant.App.Dashboard.Services
             var subscriber = _redis.GetSubscriber();
 
             // Subscribe to channel
-            await subscriber.SubscribeAsync(ValkeyChannel.Literal("execution"), (channel, message) =>
+            await subscriber.SubscribeAsync(RedisChannel.Literal("execution"), (channel, message) =>
             {
                 try
                 {

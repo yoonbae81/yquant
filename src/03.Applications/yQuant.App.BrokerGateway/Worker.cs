@@ -41,13 +41,13 @@ namespace yQuant.App.BrokerGateway
             _logger.LogInformation("BrokerGateway Worker started.");
             var subscriber = _redis.GetSubscriber();
 
-            await subscriber.SubscribeAsync(ValkeyChannel.Literal("order"), (channel, message) =>
+            await subscriber.SubscribeAsync(RedisChannel.Literal("order"), (channel, message) =>
             {
                 // Handle concurrently
                 _ = HandleRequestAsync(message);
             });
 
-            await subscriber.SubscribeAsync(ValkeyChannel.Literal("query"), (channel, message) =>
+            await subscriber.SubscribeAsync(RedisChannel.Literal("query"), (channel, message) =>
             {
                 // Handle query requests concurrently
                 _ = HandleQueryAsync(message);
@@ -188,7 +188,7 @@ namespace yQuant.App.BrokerGateway
 
 
 
-        private async Task HandleRequestAsync(ValkeyValue message)
+        private async Task HandleRequestAsync(RedisValue message)
         {
             try
             {
@@ -217,7 +217,7 @@ namespace yQuant.App.BrokerGateway
 
                     // Publish to 'execution'
                     var db = _redis.GetDatabase();
-                    await db.PublishAsync(ValkeyChannel.Literal("execution"), JsonSerializer.Serialize(result));
+                    await db.PublishAsync(RedisChannel.Literal("execution"), JsonSerializer.Serialize(result));
 
                     // Schedule debounced Account Sync (5 seconds after last order)
                     if (_adapters.TryGetValue(order.AccountAlias, out var adapter))
@@ -236,7 +236,7 @@ namespace yQuant.App.BrokerGateway
                         Message = ex.Message
                     };
                     var db = _redis.GetDatabase();
-                    await db.PublishAsync(ValkeyChannel.Literal("execution"), JsonSerializer.Serialize(failureResult));
+                    await db.PublishAsync(RedisChannel.Literal("execution"), JsonSerializer.Serialize(failureResult));
                 }
             }
             catch (Exception ex)
@@ -245,7 +245,7 @@ namespace yQuant.App.BrokerGateway
             }
         }
 
-        private async Task HandleQueryAsync(ValkeyValue message)
+        private async Task HandleQueryAsync(RedisValue message)
         {
             try
             {
@@ -307,7 +307,7 @@ namespace yQuant.App.BrokerGateway
                 var key = $"stock:{ticker}";
 
                 // Check for cached exchange info
-                ValkeyValue exchangeValue = await db.HashGetAsync(key, "exchange");
+                RedisValue exchangeValue = await db.HashGetAsync(key, "exchange");
                 yQuant.Core.Models.PriceInfo? priceInfo;
 
                 if (exchangeValue.HasValue && Enum.TryParse<yQuant.Core.Models.ExchangeCode>(exchangeValue.ToString(), true, out var exchange))
@@ -545,8 +545,8 @@ namespace yQuant.App.BrokerGateway
 
                 var result = await db.ScriptEvaluateAsync(
                     ValkeyLuaScripts.UpdateDepositScript,
-                    new ValkeyKey[] { key },
-                    new ValkeyValue[] { currencyField, actionStr, amountChange.ToString() }
+                    new RedisKey[] { key },
+                    new RedisValue[] { currencyField, actionStr, amountChange.ToString() }
                 );
 
                 if (_logger.IsEnabled(LogLevel.Debug))
@@ -588,8 +588,8 @@ namespace yQuant.App.BrokerGateway
                 // Use Lua script for atomic update to prevent race conditions
                 var result = await db.ScriptEvaluateAsync(
                     ValkeyLuaScripts.UpdatePositionScript,
-                    new ValkeyKey[] { key },
-                    new ValkeyValue[]
+                    new RedisKey[] { key },
+                    new RedisValue[]
                     {
                         order.Ticker,                      // ARGV[1]
                         order.Action.ToString(),           // ARGV[2]

@@ -74,7 +74,7 @@ public class StockService
         var result = new Dictionary<string, string>();
         var db = _redisService.Connection.GetDatabase();
         var batch = db.CreateBatch();
-        var tasks = new List<Task<ValkeyValue>>();
+        var tasks = new List<Task<RedisValue>>();
         var tickerList = tickers.Distinct().ToList();
 
         foreach (var ticker in tickerList)
@@ -176,7 +176,7 @@ public class StockService
 
             var subscriber = _redisService.Connection.GetSubscriber();
             var message = System.Text.Json.JsonSerializer.Serialize(query);
-            await subscriber.PublishAsync(ValkeyChannel.Literal("query"), message);
+            await subscriber.PublishAsync(RedisChannel.Literal("query"), message);
 
             _logger.LogInformation("Published price query for {Ticker}", ticker);
         }

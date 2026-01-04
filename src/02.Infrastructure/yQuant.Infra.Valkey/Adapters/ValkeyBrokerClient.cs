@@ -159,7 +159,7 @@ namespace yQuant.Infra.Valkey.Adapters
             // But for Console/Dashboard usage, it's acceptable.
             // Ideally, we'd use a specific response channel, but the schema says 'execution' channel.
 
-            await sub.SubscribeAsync(ValkeyChannel.Literal("execution"), (channel, message) =>
+            await sub.SubscribeAsync(RedisChannel.Literal("execution"), (channel, message) =>
             {
                 try
                 {
@@ -175,7 +175,7 @@ namespace yQuant.Infra.Valkey.Adapters
             try
             {
                 var orderJson = JsonSerializer.Serialize(order);
-                await db.PublishAsync(ValkeyChannel.Literal("order"), orderJson);
+                await db.PublishAsync(RedisChannel.Literal("order"), orderJson);
 
                 var completedTask = await Task.WhenAny(tcs.Task, Task.Delay(_timeout));
                 if (completedTask == tcs.Task)
@@ -189,7 +189,7 @@ namespace yQuant.Infra.Valkey.Adapters
             }
             finally
             {
-                await sub.UnsubscribeAsync(ValkeyChannel.Literal("execution"));
+                await sub.UnsubscribeAsync(RedisChannel.Literal("execution"));
             }
         }
 

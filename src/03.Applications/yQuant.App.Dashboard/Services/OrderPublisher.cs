@@ -26,7 +26,7 @@ public class OrderPublisher
 
         var db = _redis.GetDatabase();
         var orderJson = JsonSerializer.Serialize(order);
-        await db.PublishAsync(ValkeyChannel.Literal("order"), orderJson);
+        await db.PublishAsync(RedisChannel.Literal("order"), orderJson);
 
         _logger.LogInformation("Order published to 'order' channel");
     }

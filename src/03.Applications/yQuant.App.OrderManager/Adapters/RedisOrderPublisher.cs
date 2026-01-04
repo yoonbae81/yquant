@@ -20,6 +20,6 @@ public class ValkeyOrderPublisher : IOrderPublisher
         var orderJson = JsonSerializer.Serialize(order);
 
         // Publish directly to 'order' channel
-        await db.PublishAsync(ValkeyChannel.Literal("order"), orderJson);
+        await db.PublishAsync(RedisChannel.Literal("order"), orderJson);
     }
 }

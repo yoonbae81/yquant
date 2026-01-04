@@ -168,7 +168,7 @@ app.MapPost("/webhook", async (HttpContext context, TradingViewPayload payload, 
     // Message Publishing to Valkey
     var db = redis.GetDatabase();
     var signalJson = JsonSerializer.Serialize(signal);
-    await db.PublishAsync(ValkeyChannel.Literal("signal"), signalJson);
+    await db.PublishAsync(RedisChannel.Literal("signal"), signalJson);
 
     return Results.Ok("Signal received and published.");
 });
