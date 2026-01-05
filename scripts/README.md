@@ -1,73 +1,90 @@
 # yQuant Operational Scripts
 
-이 디렉토리는 yQuant 애플리케이션의 빌드, 설치, 배포 및 통합 관리를 위한 단일화된 스크립트들을 포함합니다.
+이 디렉토리는 yQuant 애플리케이션의 운영을 위한 스크립트들을 포함합니다. 서버의 역할(Node vs Port)에 따라 디렉토리가 구분되어 있습니다.
 
 ## 📁 디렉토리 구조
 
 ```
 scripts/
-├── build.sh            # 애플리케이션 빌드
-├── setup.sh            # systemd 서비스 및 타이머 설치
-├── restart.sh          # 서비스 재시작
-├── health-check.sh     # 서비스 및 Valkey/Sentinel 상태 점검
-├── deploy.sh           # 로컬 노드 배포 (build + restart)
-├── switch-active.sh    # Active 노드 전환 (HAProxy 설정 업데이트)
-├── haproxy/            # HAProxy 설정 예시
+├── node/               # yq-blue, yq-green 서버용 (핵심 서비스)
+│   ├── build.sh        # 서비스 빌드 (옵션: 특정 서비스명)
+│   ├── setup.sh        # systemd 서비스 등록
+│   ├── restart.sh      # 서비스 재시작 (옵션: 특정 서비스명)
+│   ├── deploy.sh       # 통합 배포 (옵션: 특정 서비스명)
+│   └── health-check.sh # 상태 점검
+├── port/               # yq-port 서버용 (Catalog Sync 전용)
+│   ├── build.sh
+│   ├── setup.sh
+│   ├── restart.sh
+│   ├── deploy.sh
+│   └── health-check.sh
+├── switch-active.sh    # Active 노드 전환 (HAProxy)
 └── systemd/            # systemd 서비스 파일 템플릿
 ```
 
-## 🚀 주요 스크립트 사용법
+## 🚀 사용법
 
-모든 주요 스크립트(`build.sh`, `setup.sh`, `restart.sh`, `deploy.sh`, `health-check.sh`)는 실행 시 대상 환경을 인자로 받을 수 있습니다.
+### 1. 전역 노드 (Node - Blue/Green)
+핵심 로직이 돌아가는 서버에서 사용합니다.
 
-### 인자값 설명
-- **인자 없음**: 모든 서비스를 대상으로 실행 (기본값)
-- **`port`**: `yq-port` 서버용 - **Console Catalog (Sync Tool)** 관련만 처리
-- **`node`**: `yq-blue/green` 서버용 - Console Catalog를 **제외한 모든 서비스** 처리
+```bash
+# 전체 서비스 배포
+bash scripts/node/deploy.sh
+
+# 특정 서비스(예: dashboard)만 빠르게 배포
+bash scripts/node/deploy.sh dashboard
+```
+
+### 2. 포트 노드 (Port)
+마스터 데이터 동기화만 담당하는 서버에서 사용합니다. 인자 없이 실행합니다.
+
+```bash
+# Catalog Sync 빌드 및 배포
+bash scripts/port/deploy.sh
+```
+
+## �🟢 Blue/Green 배포 전략
+
+yQuant의 핵심 엔진 노드는 **Blue/Green** 방식으로 운영되어 무중단 배포 및 고가용성을 유지합니다.
+
+### 1. 노드 역할
+- **Active 노드**: 현재 실 서비스 트래픽(Webhook, Dashboard 등)을 처리 중인 노드.
+- **Standby 노드**: 새로운 버전이 배포되었거나 대기 중인 노드. HAProxy에 의해 백업으로 설정되어 있습니다.
+
+### 2. 배포 및 전환 워크플로우
+1. **Standby 노드 업데이트**: Standby 상태인 노드(예: green)에 먼저 배포를 수행합니다.
+   ```bash
+   # green 노드에서 실행
+   bash scripts/node/deploy.sh
+   ```
+2. **상태 확인**: 배포된 노드의 헬스체크를 수행합니다.
+   ```bash
+   bash scripts/node/health-check.sh
+   ```
+3. **Active 전환**: 모든 점검이 완료되면 HAProxy 설정을 변경하여 트래픽을 Standby였던 노드로 전환합니다.
+   ```bash
+   # HAProxy가 설치된 관리 서버에서 실행
+   bash scripts/switch-active.sh green
+   ```
+
+### 3. Active 노드 확인
+현재 어떤 노드가 Active인지 확인하려면 `health-check.sh`를 실행하십시오.
+```bash
+bash scripts/node/health-check.sh
+# 출력 예: 📍 Node: yq-blue | Role: ACTIVE (Webhook Traffic)
+```
 
 ---
 
-### 1. 초기 설정 (`setup.sh`)
-새로운 노드에서 systemd 서비스를 최초로 등록할 때 사용합니다.
-```bash
-# Port 서버 설정 (Catalog Sync만)
-bash scripts/setup.sh port
+## �🔧 서비스 목록 (Node)
+`node` 스크립트에서 인자로 사용할 수 있는 서비스명은 다음과 같습니다:
+- `brokergateway`
+- `ordermanager`
+- `notifier`
+- `webhook`
+- `dashboard`
 
-# Node 서버 설정 (Catalog 제외 전 서비스)
-bash scripts/setup.sh node
-```
-
-### 2. 통합 빌드 (`build.sh`)
-.NET 프로젝트를 빌드하고 배포용 바이너리를 생성합니다.
-```bash
-# 특정 환경만 빌드
-bash scripts/build.sh port
-```
-
-### 3. 노드 배포 (`deploy.sh`)
-로컬 노드에서 `build.sh`와 `restart.sh`를 순차적으로 실행합니다.
-```bash
-# Node 서버 배포
-bash scripts/deploy.sh node
-```
-
-### 4. 상태 점검 (`health-check.sh`)
-애플리케이션 서비스, Valkey 상태를 점검합니다.
-```bash
-# Port 서버 상태 점검
-bash scripts/health-check.sh port
-```
-
-### 5. Active 노드 전환 (`switch-active.sh`)
-배포 완료 후, HAProxy의 백엔드 설정을 변경하여 실 서비스 트래픽을 전환합니다.
-```bash
-# Green 노드를 Active로 전환
-bash scripts/switch-active.sh green
-```
-
-## 🔧 GitHub Actions 연동
-
-`.github/workflows/deploy.yml` 워크플로우에서 각 서버 타입에 맞는 인자를 사용하여 배포를 수행합니다.
+---
 
 ## 📊 서비스 관리 (systemd)
 
