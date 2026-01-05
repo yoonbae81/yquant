@@ -1,0 +1,26 @@
+@using Microsoft.AspNetCore.Components
+@inject NavigationManager Navigation
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
+@code {
+    [CascadingParameter]
+    private Task<AuthenticationState> AuthenticationStateTask { get; set; } = default!;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var authState = await AuthenticationStateTask;
+        if (authState?.User?.Identity is null || !authState.User.Identity.IsAuthenticated)
+        {
+            var currentUri = Navigation.Uri;
+            var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+            var unlockPath = string.IsNullOrWhiteSpace(pathBase) ? "/unlock" : $"{pathBase}/unlock";
+
+            // 현재 페이지가 이미 unlock 페이지라면 returnUrl을 기본 경로(Summary)로 설정하여 루프 방지
+            var returnUrl = currentUri.Contains("/unlock", StringComparison.OrdinalIgnoreCase)
+            ? (string.IsNullOrWhiteSpace(pathBase) ? "/" : $"{pathBase}/")
+            : currentUri;
+
+            Navigation.NavigateTo($"{unlockPath}?returnUrl={Uri.EscapeDataString(returnUrl)}");
+        }
+    }
+}
