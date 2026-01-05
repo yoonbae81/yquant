@@ -2,7 +2,8 @@
 # scripts/health-check.sh
 set -e
 
-echo "🏥 Checking health of all yQuant services..."
+TYPE=$1
+echo "🏥 Checking health of yQuant services (Target: ${TYPE:-all})..."
 
 # 노드 역할 확인
 NODE_NAME=$(hostname)
@@ -17,13 +18,17 @@ fi
 echo "📍 Node: $NODE_NAME | Role: $ROLE"
 echo "------------------------------------------"
 
-SERVICES=(
-  "brokergateway"
-  "ordermanager"
-  "notifier"
-  "webhook"
-  "dashboard"
-)
+SERVICES=()
+CHECK_TIMER=false
+
+if [ "$TYPE" == "port" ]; then
+    CHECK_TIMER=true
+elif [ "$TYPE" == "node" ]; then
+    SERVICES=("brokergateway" "ordermanager" "notifier" "webhook" "dashboard")
+else
+    SERVICES=("brokergateway" "ordermanager" "notifier" "webhook" "dashboard")
+    CHECK_TIMER=true
+fi
 
 ALL_HEALTHY=true
 
@@ -36,14 +41,16 @@ for service in "${SERVICES[@]}"; do
   fi
 done
 
-if systemctl --user is-active --quiet "console-sync.timer"; then
-  echo "✅ console-sync.timer is active"
-else
-  echo "❌ console-sync.timer is NOT active"
-  ALL_HEALTHY=false
+if [ "$CHECK_TIMER" = true ]; then
+  if systemctl --user is-active --quiet "console-sync.timer"; then
+    echo "✅ console-sync.timer is active"
+  else
+    echo "❌ console-sync.timer is NOT active"
+    ALL_HEALTHY=false
+  fi
 fi
 
-# Valkey & Sentinel Check
+# Valkey & Sentinel Check (Always check if available)
 echo "🔍 Checking Valkey & Sentinel status..."
 if command -v valkey-cli &> /dev/null; then
     if valkey-cli ping | grep -q PONG; then
@@ -62,7 +69,7 @@ fi
 
 echo ""
 if [ "$ALL_HEALTHY" = true ]; then
-  echo "✅ All services are healthy!"
+  echo "✅ All targeted services are healthy!"
   exit 0
 else
   echo "❌ Some services are not running. Check logs with:"

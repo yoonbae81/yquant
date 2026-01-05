@@ -2,16 +2,22 @@
 # scripts/restart.sh
 set -e
 
-echo "🔄 Restarting all yQuant services..."
+TYPE=$1
+echo "🔄 Restarting yQuant services (Target: ${TYPE:-all})..."
 
-SERVICES=(
-  "brokergateway"
-  "ordermanager"
-  "notifier"
-  "webhook"
-  "dashboard"
-)
+SERVICES=()
+TIMERS=()
 
+if [ "$TYPE" == "port" ]; then
+    TIMERS=("console-sync.timer")
+elif [ "$TYPE" == "node" ]; then
+    SERVICES=("brokergateway" "ordermanager" "notifier" "webhook" "dashboard")
+else
+    SERVICES=("brokergateway" "ordermanager" "notifier" "webhook" "dashboard")
+    TIMERS=("console-sync.timer")
+fi
+
+# Restart Services
 for service in "${SERVICES[@]}"; do
   echo "🔄 Restarting $service.service..."
   systemctl --user restart "$service.service"
@@ -24,4 +30,17 @@ for service in "${SERVICES[@]}"; do
   fi
 done
 
-echo "✅ All services restarted!"
+# Restart Timers
+for timer in "${TIMERS[@]}"; do
+  echo "🔄 Restarting $timer..."
+  systemctl --user restart "$timer"
+  
+  if systemctl --user is-active --quiet "$timer"; then
+    echo "✅ $timer is active"
+  else
+    echo "❌ $timer failed to start"
+    exit 1
+  fi
+done
+
+echo "✅ Restart process completed!"

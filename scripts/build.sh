@@ -2,7 +2,8 @@
 # scripts/build.sh
 set -e
 
-echo "🔨 Building yQuant applications..."
+TYPE=$1
+echo "🔨 Building yQuant applications (Target: ${TYPE:-all})..."
 
 # 프로젝트 루트 디렉토리
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -18,34 +19,42 @@ if [ ! -d "$DEPLOY_ROOT" ]; then
     sudo chown -R $(id -u):$(id -g) "$DEPLOY_ROOT"
 fi
 
-echo "📦 Publishing BrokerGateway..."
-dotnet publish src/03.Applications/yQuant.App.BrokerGateway/yQuant.App.BrokerGateway.csproj \
-  -c Release \
-  -o "$DEPLOY_ROOT/brokergateway"
+# Build logic based on type
+SHOULD_BUILD_NODE=true
+SHOULD_BUILD_PORT=true
 
-echo "📦 Publishing OrderManager..."
-dotnet publish src/03.Applications/yQuant.App.OrderManager/yQuant.App.OrderManager.csproj \
-  -c Release \
-  -o "$DEPLOY_ROOT/ordermanager"
+if [ "$TYPE" == "port" ]; then
+    SHOULD_BUILD_NODE=false
+elif [ "$TYPE" == "node" ]; then
+    SHOULD_BUILD_PORT=false
+fi
 
-echo "📦 Publishing Notifier..."
-dotnet publish src/03.Applications/yQuant.App.Notifier/yQuant.App.Notifier.csproj \
-  -c Release \
-  -o "$DEPLOY_ROOT/notifier"
+if [ "$SHOULD_BUILD_NODE" = true ]; then
+    echo "📦 Publishing BrokerGateway..."
+    dotnet publish src/03.Applications/yQuant.App.BrokerGateway/yQuant.App.BrokerGateway.csproj \
+      -c Release -o "$DEPLOY_ROOT/brokergateway"
 
-echo "📦 Publishing Webhook..."
-dotnet publish src/03.Applications/yQuant.App.Webhook/yQuant.App.Webhook.csproj \
-  -c Release \
-  -o "$DEPLOY_ROOT/webhook"
+    echo "📦 Publishing OrderManager..."
+    dotnet publish src/03.Applications/yQuant.App.OrderManager/yQuant.App.OrderManager.csproj \
+      -c Release -o "$DEPLOY_ROOT/ordermanager"
 
-echo "📦 Publishing Console (Sync Tool)..."
-dotnet publish src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj \
-  -c Release \
-  -o "$DEPLOY_ROOT/console"
+    echo "📦 Publishing Notifier..."
+    dotnet publish src/03.Applications/yQuant.App.Notifier/yQuant.App.Notifier.csproj \
+      -c Release -o "$DEPLOY_ROOT/notifier"
 
-echo "📦 Publishing Dashboard..."
-dotnet publish src/03.Applications/yQuant.App.Dashboard/yQuant.App.Dashboard.csproj \
-  -c Release \
-  -o "$DEPLOY_ROOT/dashboard"
+    echo "📦 Publishing Webhook..."
+    dotnet publish src/03.Applications/yQuant.App.Webhook/yQuant.App.Webhook.csproj \
+      -c Release -o "$DEPLOY_ROOT/webhook"
 
-echo "✅ All applications built successfully!"
+    echo "📦 Publishing Dashboard..."
+    dotnet publish src/03.Applications/yQuant.App.Dashboard/yQuant.App.Dashboard.csproj \
+      -c Release -o "$DEPLOY_ROOT/dashboard"
+fi
+
+if [ "$SHOULD_BUILD_PORT" = true ]; then
+    echo "📦 Publishing Console (Catalog Sync Tool)..."
+    dotnet publish src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj \
+      -c Release -o "$DEPLOY_ROOT/console"
+fi
+
+echo "✅ Build process completed!"

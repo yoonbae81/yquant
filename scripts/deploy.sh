@@ -2,15 +2,16 @@
 # scripts/deploy.sh
 set -e
 
-echo "🚀 Deploying yQuant to the current node..."
+TYPE=$1
+echo "🚀 Deploying yQuant to the current node (Target: ${TYPE:-all})..."
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$PROJECT_ROOT"
 
 echo "🔨 Building applications..."
-bash "$PROJECT_ROOT/scripts/build.sh"
+bash "$PROJECT_ROOT/scripts/build.sh" "$TYPE"
 
 echo "🔄 Restarting services..."
-bash "$PROJECT_ROOT/scripts/restart.sh"
+bash "$PROJECT_ROOT/scripts/restart.sh" "$TYPE"
 
 echo "✅ Deployment completed on this node!"
