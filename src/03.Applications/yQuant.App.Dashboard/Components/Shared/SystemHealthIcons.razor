@@ -3,8 +3,13 @@
 @implements IDisposable
 
 <div class="d-flex gap-2 align-center">
-    <MudTooltip Text="Valkey">
-        <MudIcon Icon="@Icons.Material.Filled.Circle" Color="@(_redisOnline ? Color.Success : Color.Error)"
+    <MudTooltip Text="Valkey (Message)">
+        <MudIcon Icon="@Icons.Material.Filled.Message" Color="@(_msgValkeyOnline ? Color.Success : Color.Error)"
+            Size="Size.Small" />
+    </MudTooltip>
+
+    <MudTooltip Text="Valkey (Storage)">
+        <MudIcon Icon="@Icons.Material.Filled.Storage" Color="@(_storageValkeyOnline ? Color.Success : Color.Error)"
             Size="Size.Small" />
     </MudTooltip>
 
@@ -25,7 +30,8 @@
 </div>
 
 @code {
-    private bool _redisOnline;
+    private bool _msgValkeyOnline;
+    private bool _storageValkeyOnline;
     private bool _brokerOnline;
     private bool _composerOnline;
     private bool _webhookOnline;
@@ -40,17 +46,23 @@
 
     private async Task RunHealthCheckLoop()
     {
-        while (await _timer!.WaitForNextTickAsync(_cts.Token))
+        try
         {
-            await CheckHealth();
-            await InvokeAsync(StateHasChanged);
+            while (await _timer!.WaitForNextTickAsync(_cts.Token))
+            {
+                await CheckHealth();
+                await InvokeAsync(StateHasChanged);
+            }
         }
+        catch (OperationCanceledException) { }
     }
 
     private async Task CheckHealth()
     {
-        _redisOnline = await HealthService.CheckValkeyAsync();
-        if (_redisOnline)
+        _msgValkeyOnline = await HealthService.CheckMessageValkeyAsync();
+        _storageValkeyOnline = await HealthService.CheckStorageValkeyAsync();
+        
+        if (_msgValkeyOnline)
         {
             _brokerOnline = await HealthService.CheckServiceAsync("BrokerGateway");
             _composerOnline = await HealthService.CheckServiceAsync("OrderComposer");

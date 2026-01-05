@@ -28,7 +28,8 @@
     <div style="margin-top: auto; padding: 16px 16px 8px 16px; font-size: 0.75rem; line-height: 1.5;">
         <div style="color: var(--mud-palette-text-secondary); margin-bottom: 4px; font-weight: 500;">Services Status
         </div>
-        <div style="color: @(isValkeyHealthy ? "limegreen" : "red")">• Valkey</div>
+        <div style="color: @(isMessageValkeyHealthy ? "limegreen" : "red")">• Valkey (Message)</div>
+        <div style="color: @(isStorageValkeyHealthy ? "limegreen" : "red")">• Valkey (Storage)</div>
         <div style="color: @(isBrokerGatewayHealthy ? "limegreen" : "red")">• BrokerGateway</div>
         <div style="color: @(isOrderManagerHealthy ? "limegreen" : "red")">• OrderManager</div>
         <div style="color: @(isWebhookHealthy ? "limegreen" : "red")">• Webhook</div>
@@ -36,7 +37,8 @@
 </div>
 
 @code {
-    private bool isValkeyHealthy = false;
+    private bool isMessageValkeyHealthy = false;
+    private bool isStorageValkeyHealthy = false;
     private bool isBrokerGatewayHealthy = false;
     private bool isOrderManagerHealthy = false;
     private bool isWebhookHealthy = false;
@@ -50,7 +52,8 @@
 
     private async Task CheckHealthAsync()
     {
-        isValkeyHealthy = await HealthService.CheckValkeyAsync();
+        isMessageValkeyHealthy = await HealthService.CheckMessageValkeyAsync();
+        isStorageValkeyHealthy = await HealthService.CheckStorageValkeyAsync();
         isBrokerGatewayHealthy = await HealthService.CheckServiceAsync("BrokerGateway");
         isOrderManagerHealthy = await HealthService.CheckServiceAsync("OrderManager");
         isWebhookHealthy = await HealthService.CheckServiceAsync("Webhook");
