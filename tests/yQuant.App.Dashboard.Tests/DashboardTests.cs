@@ -11,6 +11,8 @@ using System;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Microsoft.Extensions.Configuration;
+using yQuant.Infra.Valkey.Services;
+
 
 namespace yQuant.App.Dashboard.Tests;
 
@@ -28,12 +30,13 @@ public class DashboardTests : Bunit.BunitContext
         var loggerMock = new Mock<ILogger<AssetService>>();
         var redisMultiplexerMock = new Mock<IConnectionMultiplexer>();
         var redisServiceMock = new Mock<yQuant.Infra.Valkey.Interfaces.IValkeyService>();
+        var storageValkeyMock = new Mock<yQuant.Infra.Valkey.Interfaces.IStorageValkeyService>();
         // Setup Valkey mocks
         var mockDb = new Mock<IDatabase>();
         var mockBatch = new Mock<IBatch>();
         mockDb.Setup(db => db.CreateBatch(It.IsAny<object>())).Returns(mockBatch.Object);
-        mockBatch.Setup(b => b.HashGetAsync(It.IsAny<ValkeyKey>(), It.IsAny<ValkeyValue>(), It.IsAny<CommandFlags>()))
-            .ReturnsAsync(ValkeyValue.Null);
+        mockBatch.Setup(b => b.HashGetAsync(It.IsAny<RedisKey>(), It.IsAny<RedisValue>(), It.IsAny<CommandFlags>()))
+            .ReturnsAsync(RedisValue.Null);
 
         redisMultiplexerMock.Setup(r => r.GetDatabase(It.IsAny<int>(), It.IsAny<object>())).Returns(mockDb.Object);
         redisServiceMock.Setup(r => r.Connection).Returns(redisMultiplexerMock.Object);
@@ -54,7 +57,9 @@ public class DashboardTests : Bunit.BunitContext
 
         // Setup StockService mock
         var stockServiceLoggerMock = new Mock<ILogger<StockService>>();
-        _stockServiceMock = new Mock<StockService>(stockServiceLoggerMock.Object, redisServiceMock.Object);
+        var catalogRepoLoggerMock = new Mock<ILogger<StockCatalogRepository>>();
+        var catalogRepo = new StockCatalogRepository(storageValkeyMock.Object, catalogRepoLoggerMock.Object);
+        _stockServiceMock = new Mock<StockService>(stockServiceLoggerMock.Object, redisServiceMock.Object, catalogRepo);
 
         // Setup OrderPublisher mock
         var orderPublisherLoggerMock = new Mock<ILogger<OrderPublisher>>();
@@ -64,6 +69,7 @@ public class DashboardTests : Bunit.BunitContext
         Services.AddSingleton(_accountCacheServiceMock.Object);
         Services.AddSingleton(_stockServiceMock.Object);
         Services.AddSingleton(_orderPublisherMock.Object);
+        Services.AddSingleton<IConfiguration>(config);
         Services.AddMudServices(); // Add MudBlazor services
         JSInterop.Mode = JSRuntimeMode.Loose;
     }
@@ -84,7 +90,7 @@ public class DashboardTests : Bunit.BunitContext
         _assetServiceMock!.Setup(s => s.GetAccountOverviewAsync("Test2")).ReturnsAsync(accounts[1]);
 
         // Act
-        var cut = Render<yQuant.App.Dashboard.Components.Pages.Dashboard>();
+        var cut = Render<yQuant.App.Dashboard.Components.Pages.Index>();
 
         // Assert
         cut.WaitForState(() => cut.FindAll("div.mud-card").Count == 2);
@@ -102,7 +108,7 @@ public class DashboardTests : Bunit.BunitContext
         _assetServiceMock!.Setup(s => s.GetAvailableAccountsAsync()).ReturnsAsync(new List<string>());
 
         // Act
-        var cut = Render<yQuant.App.Dashboard.Components.Pages.Dashboard>();
+        var cut = Render<yQuant.App.Dashboard.Components.Pages.Index>();
 
         // Assert
         Assert.Contains("Loading data...", cut.Markup);

@@ -139,10 +139,10 @@ systemctl --user status
 systemctl --user status brokergateway
 
 # 실시간 로그 확인
-journalctl --user -u brokergateway -f
+journalctl --user -t brokergateway -f
 
 # 최근 로그 확인
-journalctl --user -u brokergateway -n 50
+journalctl --user -t brokergateway -n 50
 ```
 
 ### 타이머 확인
@@ -155,7 +155,7 @@ systemctl --user status console-sync.timer
 systemctl --user list-timers console-sync.timer
 
 # 마지막 실행 로그
-journalctl --user -u console-sync.service -n 100
+journalctl --user -t console-sync -n 100
 
 # 수동 실행
 systemctl --user start console-sync.service
@@ -180,7 +180,7 @@ systemctl --user disable brokergateway
 
 1. **로그 확인**
    ```bash
-   journalctl --user -u brokergateway -n 100
+   journalctl --user -t brokergateway -n 100
    ```
 
 2. **권한 확인**
@@ -241,16 +241,16 @@ systemctl --user status brokergateway
 
 ```bash
 # 특정 시간 이후 로그 보기
-journalctl --user -u brokergateway --since "1 hour ago"
+journalctl --user -t brokergateway --since "1 hour ago"
 
 # 특정 날짜의 로그 보기
-journalctl --user -u brokergateway --since "2025-12-14"
+journalctl --user -t brokergateway --since "2025-12-14"
 
 # 에러 로그만 보기
-journalctl --user -u brokergateway -p err
+journalctl --user -t brokergateway -p err
 
 # 로그를 파일로 저장
-journalctl --user -u brokergateway > brokergateway.log
+journalctl --user -t brokergateway > brokergateway.log
 ```
 
 ### 로그 로테이션

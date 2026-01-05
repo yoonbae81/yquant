@@ -27,20 +27,24 @@ public static class ValkeyServiceExtensions
         services.AddSingleton<IConnectionMultiplexer>(multiplexer);
         services.AddSingleton<IValkeyService, ValkeyService>();
 
-        // 2. Token Valkey (Shared across environments specifically for KIS access tokens)
-        var tokenConnectionString = configuration["Valkey:Token"];
+        // 2. Storage Valkey (Shared across environments for KIS access tokens, Scheduled Orders, and Stock Catalog)
+        var storageConnectionString = configuration["Valkey:Storage"];
 
-        if (string.IsNullOrEmpty(tokenConnectionString))
+        if (string.IsNullOrEmpty(storageConnectionString))
         {
-            throw new InvalidOperationException("Valkey Token connection string (Valkey:Token) is missing. Please check appsecrets.json.");
+            throw new InvalidOperationException("Valkey Storage connection string (Valkey:Storage) is missing. Please check appsecrets.json.");
         }
 
-        var tokenOptions = ConfigurationOptions.Parse(tokenConnectionString);
-        tokenOptions.AbortOnConnectFail = false;
-        var tokenMultiplexer = ConnectionMultiplexer.Connect(tokenOptions);
+        var storageOptions = ConfigurationOptions.Parse(storageConnectionString);
+        storageOptions.AbortOnConnectFail = false;
+        var storageMultiplexer = ConnectionMultiplexer.Connect(storageOptions);
 
-        services.AddSingleton<ITokenValkeyService>(sp =>
-            new TokenValkeyService(tokenMultiplexer, sp.GetRequiredService<ILogger<TokenValkeyService>>()));
+        services.AddSingleton<IStorageValkeyService>(sp =>
+            new StorageValkeyService(storageMultiplexer, sp.GetRequiredService<ILogger<StorageValkeyService>>()));
+
+        // 3. Stock Catalog Services (In-memory cache with Pub/Sub reload)
+        services.AddSingleton<StockCatalogRepository>();
+        services.AddHostedService<CatalogUpdateSubscriber>();
 
         return services;
     }

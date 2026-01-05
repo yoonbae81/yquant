@@ -8,7 +8,7 @@ Valkey is used in `yQuant` in two distinct logical roles, which are configured v
 1.  **Messaging Valkey (`Valkey:Message`)**: 
     - Facilitates real-time, event-driven communication (Pub/Sub: `signal`, `order`, etc.).
     - Stores environment-specific state (Heartbeats, Trade logs, Market data cache).
-2.  **Token Valkey (`Valkey:Token`)**:
+2.  **Storage Valkey (`Valkey:Storage`)**:
     - Shared across all environments (Production, Staging, Local Dev).
     - Specifically caches **KIS Access Tokens** to comply with daily issuance limits.
 
@@ -20,9 +20,9 @@ Valkey is used in `yQuant` in two distinct logical roles, which are configured v
 - **Library**: `StackExchange.Redis` (compatible with Valkey) via `IValkeyService`
 - **Scope**: Specific to each deployment environment.
 
-### 2.2. Global Token Valkey
-- **Configuration Path**: `Valkey:Token` in `appsecrets.json`
-- **Library**: `StackExchange.Redis` via `ITokenValkeyService`
+### 2.2. Global Storage Valkey
+- **Configuration Path**: `Valkey:Storage` in `appsecrets.json`
+- **Library**: `StackExchange.Redis` via `IStorageValkeyService`
 - **Scope**: Shared across ALL environments (Production, Staging, Local).
 
 > **Note**: These two can point to the same Valkey instance if desired. The key namespacing is designed to avoid conflicts.
@@ -51,7 +51,7 @@ Valkey is used in `yQuant` in two distinct logical roles, which are configured v
 | `position:{Alias}` | Hash | `App.BrokerGateway` | `App.Web`, `App.OrderManager` | Real-time positions (Field: `AAPL`, Value: `Position` JSON). |
 | `stock:{Ticker}` | Hash | `App.Console` (catalog), `App.BrokerGateway` | `App.Web`, `App.Console` | Merged static info (Name, Exchange) and dynamic market data (Price, Change). |
 | `scheduled:{Alias}` | String | `App.Web` | `App.OrderManager` | List of scheduled orders (JSON Array). Stores schedule config (DaysOfWeek, TimeMode). |
-| `Token:KIS:{Alias}` | JSON | `App.BrokerGateway` | All Environments | **(Token Valkey)** Shared KIS access token and expiration. |
+| `Token:KIS:{Alias}` | JSON | `App.BrokerGateway` | All Environments | **(Storage Valkey)** Shared KIS access token and expiration. |
 
 ## 4. Data Flows
 

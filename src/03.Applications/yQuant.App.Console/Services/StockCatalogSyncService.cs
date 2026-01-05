@@ -1,6 +1,8 @@
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
+using yQuant.Infra.Valkey.Interfaces;
+using yQuant.Infra.Valkey.Services;
 
 namespace yQuant.App.Console.Services;
 
@@ -12,17 +14,20 @@ public class StockCatalogSyncService
     private readonly StockCatalogLoader _loader;
     private readonly StockCatalogRepository _repository;
     private readonly ISystemLogger _systemLogger;
+    private readonly IValkeyService _messageValkey;
     private readonly ILogger<StockCatalogSyncService> _logger;
 
     public StockCatalogSyncService(
         StockCatalogLoader loader,
         StockCatalogRepository repository,
         ISystemLogger systemLogger,
+        IValkeyService messageValkey,
         ILogger<StockCatalogSyncService> logger)
     {
         _loader = loader;
         _repository = repository;
         _systemLogger = systemLogger;
+        _messageValkey = messageValkey;
         _logger = logger;
     }
 
@@ -84,6 +89,10 @@ public class StockCatalogSyncService
             {
                 await _repository.SaveBatchAsync(allStocks, cancellationToken);
 
+                // Track this country in the global active list
+                var db = _messageValkey.Connection.GetDatabase(); // Use Message Valkey for discovery
+                await db.SetAddAsync("catalog:countries", country.ToString());
+
                 _logger.LogInformation("[{Country}] Stock Catalog Sync Completed Successfully (Repository Updated).", country);
 
                 // Additional: Save Korean domestic tickers to file for Valkey-independent classification
@@ -92,8 +101,13 @@ public class StockCatalogSyncService
                     await SaveDomesticTickersToFileAsync(allStocks);
                 }
 
+                await _repository.SetLastSyncDateAsync(country, DateTime.UtcNow);
+
                 var breakdown = string.Join("\n", allStocks.GroupBy(s => s.Exchange).Select(g => $"- {g.Key}: {g.Count()} items"));
                 await _systemLogger.LogStatusAsync("Stock Catalog", $"Sync Completed for {country}.\n{breakdown}");
+
+                // Notify app servers to reload their memory cache for this country
+                await NotifyUpdateAsync(country);
             }
             catch (Exception ex)
             {
@@ -118,6 +132,21 @@ public class StockCatalogSyncService
         }
 
         _logger.LogInformation("Completed catalog sync for all countries");
+    }
+
+    private async Task NotifyUpdateAsync(CountryCode? country = null)
+    {
+        try
+        {
+            var eventName = country.HasValue ? $"catalog:updated:{country.Value}" : "catalog:updated";
+            var subscriber = _messageValkey.Connection.GetSubscriber();
+            await subscriber.PublishAsync(StackExchange.Redis.RedisChannel.Literal("catalog:events"), eventName);
+            _logger.LogInformation("Published '{EventName}' event to Message Valkey.", eventName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to publish catalog update event (non-critical).");
+        }
     }
 
     /// <summary>

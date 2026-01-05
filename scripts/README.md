@@ -21,7 +21,7 @@ scripts/
 
 yQuant는 무중단 배포와 고가용성을 위해 Blue/Green 모델을 채택하고 있습니다.
 
-- **yq-gate**: HAProxy (L7 Load Balancer) 및 Token Valkey 운영
+- **yq-port**: HAProxy (L7 Load Balancer) 및 Storage Valkey 운영
 - **yq-blue**: Blue 환경 (애플리케이션 전체 운영)
 - **yq-green**: Green 환경 (애플리케이션 전체 운영)
 
@@ -81,7 +81,7 @@ bash scripts/switch-active.sh green
 
 ```bash
 # 특정 서비스 로그 실시간 확인
-journalctl --user -u brokergateway -f
+journalctl --user -t brokergateway -f
 
 # 모든 사용자 서비스 상태 요약
 systemctl --user list-units --type=service
@@ -91,7 +91,7 @@ systemctl --user list-units --type=service
 
 1. **Valkey 연결 실패**: `valkey-cli ping`으로 응답 확인 및 `appsecrets.json` 설정 재확인.
 2. **권한 오류**: 스크립트 실행 권한(`chmod +x scripts/*.sh`) 및 `loginctl enable-linger` 설정 확인.
-3. **HAProxy 전환 미반영**: `yq-gate` 서버에서 HAProxy 설정 파일 및 서비스 상태 확인.
+3. **HAProxy 전환 미반영**: `yq-port` 서버에서 HAProxy 설정 파일 및 서비스 상태 확인.
 
 ## 📝 참고사항
 

@@ -164,16 +164,26 @@ app.MapGet("/health", async (IConnectionMultiplexer redis) =>
 });
 
 // Authentication Endpoints
-app.MapPost("/account/unlock", async (HttpContext context, SimpleAuthService authService) =>
+app.MapPost("/account/unlock", async (HttpContext context, SimpleAuthService authService, IConfiguration config) =>
 {
     var form = await context.Request.ReadFormAsync();
     var pin = form["pin"].ToString();
     var returnUrl = form["returnUrl"].ToString();
-    var pathBase = context.Request.PathBase.Value ?? "";
+    var reqPathBase = context.Request.PathBase.Value ?? "";
+    var configPathBase = config.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+    var activePathBase = !string.IsNullOrWhiteSpace(reqPathBase) ? reqPathBase : configPathBase;
 
     if (string.IsNullOrWhiteSpace(returnUrl) || returnUrl == "/")
     {
-        returnUrl = string.IsNullOrWhiteSpace(pathBase) ? "/" : pathBase;
+        returnUrl = !string.IsNullOrWhiteSpace(activePathBase) ? activePathBase : "/";
+    }
+
+    // Ensure returnUrl starts with PathBase if configured
+    if (!string.IsNullOrWhiteSpace(activePathBase) &&
+        returnUrl.StartsWith("/") &&
+        !returnUrl.StartsWith(activePathBase, StringComparison.OrdinalIgnoreCase))
+    {
+        returnUrl = activePathBase + (returnUrl.StartsWith("/") ? returnUrl : "/" + returnUrl);
     }
 
     if (await authService.ValidatePinAsync(pin))
@@ -200,18 +210,25 @@ app.MapPost("/account/unlock", async (HttpContext context, SimpleAuthService aut
     }
     else
     {
-        var errorBase = string.IsNullOrWhiteSpace(pathBase) ? "/unlock" : $"{pathBase}/unlock";
+        activePathBase = !string.IsNullOrWhiteSpace(context.Request.PathBase.Value)
+            ? context.Request.PathBase.Value
+            : config.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+
+        var errorBase = string.IsNullOrWhiteSpace(activePathBase) ? "/unlock" : $"{activePathBase}/unlock";
         var errorUrl = $"{errorBase}?error=Invalid PIN&returnUrl={System.Net.WebUtility.UrlEncode(returnUrl)}";
         context.Response.Redirect(errorUrl);
     }
 })
 .DisableAntiforgery();
 
-app.MapGet("/account/lock", async (HttpContext context) =>
+app.MapGet("/account/lock", async (HttpContext context, IConfiguration config) =>
 {
     await context.SignOutAsync(CookieAuthenticationDefaults.AuthenticationScheme);
-    var pathBase = context.Request.PathBase.Value ?? "";
-    context.Response.Redirect(string.IsNullOrWhiteSpace(pathBase) ? "/unlock" : $"{pathBase}/unlock");
+    var reqPathBase = context.Request.PathBase.Value ?? "";
+    var configPathBase = config.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+    var activePathBase = !string.IsNullOrWhiteSpace(reqPathBase) ? reqPathBase : configPathBase;
+
+    context.Response.Redirect(string.IsNullOrWhiteSpace(activePathBase) ? "/unlock" : $"{activePathBase}/unlock");
 });
 
 // Notify systemd that the service is ready (Linux only)

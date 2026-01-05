@@ -86,8 +86,8 @@ public class TradingViewWebhookTests
 
         _dbMock!.Verify(
             db => db.PublishAsync(
-                It.Is<ValkeyChannel>(c => c == "signal"),
-                It.IsAny<ValkeyValue>(),
+                It.Is<RedisChannel>(c => c == "signal"),
+                It.IsAny<RedisValue>(),
                 CommandFlags.None),
             Times.Once);
     }

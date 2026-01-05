@@ -90,14 +90,12 @@ public class ConfigVerificationTests
     }
 
     [Fact]
-    public void AppSecrets_Web_Users_Exist()
+    public void AppSecrets_Dashboard_Config_Exists()
     {
-        var users = _config.GetSection("Web:Users");
-        Assert.True(users.Exists());
-
-        var userY = users.GetSection("y");
-        Assert.True(userY.Exists());
-        Assert.NotNull(userY["PasswordHash"]);
+        var dashboard = _config.GetSection("Dashboard");
+        Assert.True(dashboard.Exists());
+        Assert.NotNull(dashboard["Pin"]);
+        Assert.NotNull(dashboard["PathBase"]);
     }
 
     [Fact]

@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using yQuant.Infra.Valkey.Interfaces;
+using yQuant.Infra.Valkey.Services;
 using StackExchange.Redis;
 
 namespace yQuant.App.Dashboard.Services;
@@ -7,94 +8,48 @@ namespace yQuant.App.Dashboard.Services;
 public class StockService
 {
     private readonly ILogger<StockService> _logger;
-    private readonly IValkeyService _redisService;
+    private readonly IValkeyService _messageValkey;
+    private readonly StockCatalogRepository _catalogRepository;
     private const string KeyPrefix = "stock:";
 
     public StockService(
         ILogger<StockService> logger,
-        IValkeyService redisService)
+        IValkeyService messageValkey,
+        StockCatalogRepository catalogRepository)
     {
         _logger = logger;
-        _redisService = redisService;
+        _messageValkey = messageValkey;
+        _catalogRepository = catalogRepository;
     }
 
     public async Task<string> GetStockNameAsync(string ticker)
     {
-        if (string.IsNullOrWhiteSpace(ticker))
-            return string.Empty;
-
-        try
-        {
-            var db = _redisService.Connection.GetDatabase();
-            var key = $"{KeyPrefix}{ticker}";
-            var name = await db.HashGetAsync(key, "name");
-
-            return name.HasValue ? name.ToString() : string.Empty;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error fetching stock name for {Ticker}", ticker);
-            return string.Empty;
-        }
+        var stock = await _catalogRepository.GetByTickerAsync(ticker);
+        return stock?.Name ?? string.Empty;
     }
 
     public async Task<(string Name, yQuant.Core.Models.ExchangeCode Exchange, yQuant.Core.Models.CurrencyType Currency)?> GetStockInfoAsync(string ticker)
     {
-        if (string.IsNullOrWhiteSpace(ticker)) return null;
+        var stock = await _catalogRepository.GetByTickerAsync(ticker);
+        if (stock == null) return null;
 
-        try
-        {
-            var db = _redisService.Connection.GetDatabase();
-            var key = $"{KeyPrefix}{ticker}";
-            var entries = await db.HashGetAllAsync(key);
+        if (!Enum.TryParse<yQuant.Core.Models.ExchangeCode>(stock.Exchange, true, out var exchange))
+            exchange = yQuant.Core.Models.ExchangeCode.Unknown;
 
-            if (entries.Length == 0) return null;
-
-            var dict = entries.ToDictionary(e => e.Name.ToString(), e => e.Value.ToString());
-
-            var name = dict.GetValueOrDefault("name", "");
-
-            if (!Enum.TryParse<yQuant.Core.Models.ExchangeCode>(dict.GetValueOrDefault("exchange"), true, out var exchange))
-                exchange = yQuant.Core.Models.ExchangeCode.Unknown;
-
-            if (!Enum.TryParse<yQuant.Core.Models.CurrencyType>(dict.GetValueOrDefault("currency"), true, out var currency))
-                currency = yQuant.Core.Models.CurrencyType.USD;
-
-            return (name, exchange, currency);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Error fetching stock info for {Ticker}", ticker);
-            return null;
-        }
+        return (stock.Name, exchange, stock.Currency);
     }
 
     public async Task<Dictionary<string, string>> GetStockNamesAsync(IEnumerable<string> tickers)
     {
         var result = new Dictionary<string, string>();
-        var db = _redisService.Connection.GetDatabase();
-        var batch = db.CreateBatch();
-        var tasks = new List<Task<RedisValue>>();
-        var tickerList = tickers.Distinct().ToList();
-
-        foreach (var ticker in tickerList)
+        foreach (var ticker in tickers.Distinct())
         {
-            var key = $"{KeyPrefix}{ticker}";
-            tasks.Add(batch.HashGetAsync(key, "name"));
-        }
-
-        batch.Execute();
-        await Task.WhenAll(tasks);
-
-        for (int i = 0; i < tickerList.Count; i++)
-        {
-            var name = tasks[i].Result;
-            if (name.HasValue)
+            var stock = await _catalogRepository.GetByTickerAsync(ticker);
+            if (stock != null)
             {
-                result[tickerList[i]] = name.ToString();
+                result[ticker] = stock.Name;
             }
         }
-
         return result;
     }
 
@@ -104,7 +59,7 @@ public class StockService
 
         try
         {
-            var db = _redisService.Connection.GetDatabase();
+            var db = _messageValkey.Connection.GetDatabase();
             var key = $"{KeyPrefix}{ticker}";
 
             var priceValue = await db.HashGetAsync(key, "price");
@@ -174,7 +129,7 @@ public class StockService
                 Target = ticker
             };
 
-            var subscriber = _redisService.Connection.GetSubscriber();
+            var subscriber = _messageValkey.Connection.GetSubscriber();
             var message = System.Text.Json.JsonSerializer.Serialize(query);
             await subscriber.PublishAsync(RedisChannel.Literal("query"), message);
 

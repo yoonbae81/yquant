@@ -406,7 +406,7 @@ curl http://localhost:5005/health
 
 1. **Notifier 로그 확인**
    ```bash
-   journalctl -u yquant-notifier -f
+   journalctl --user -t notifier -f
    ```
 
 2. **Valkey 채널 구독 확인**

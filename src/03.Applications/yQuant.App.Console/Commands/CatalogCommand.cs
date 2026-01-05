@@ -2,12 +2,15 @@ using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Options;
 using yQuant.Core.Models;
 using yQuant.App.Console.Services;
+using yQuant.Infra.Valkey.Services;
+
 
 namespace yQuant.App.Console.Commands
 {
     public class CatalogCommand : ICommand
     {
         private readonly StockCatalogSyncService _syncService;
+        private readonly StockCatalogRepository _repository;
         private readonly ILogger<CatalogCommand> _logger;
         private readonly CatalogSettings _settings;
 
@@ -16,10 +19,12 @@ namespace yQuant.App.Console.Commands
 
         public CatalogCommand(
             StockCatalogSyncService syncService,
+            StockCatalogRepository repository,
             ILogger<CatalogCommand> logger,
             IOptions<CatalogSettings> settings)
         {
             _syncService = syncService;
+            _repository = repository;
             _logger = logger;
             _settings = settings.Value;
         }
@@ -33,6 +38,11 @@ namespace yQuant.App.Console.Commands
                 {
                     _logger.LogInformation("No target specified. Syncing ALL exchanges.");
                     await SyncAllExchangesAsync();
+                }
+                else if (args[1].Equals("auto", StringComparison.OrdinalIgnoreCase))
+                {
+                    _logger.LogInformation("Auto-sync mode triggered. Checking schedules...");
+                    await ExecuteAutoAsync();
                 }
                 else
                 {
@@ -126,6 +136,71 @@ namespace yQuant.App.Console.Commands
 
             System.Console.WriteLine($"Syncing {exchangeName} ({exchange.Country})...");
             await _syncService.SyncCountryAsync(countryCode, exchanges, CancellationToken.None);
+        }
+
+        private async Task ExecuteAutoAsync()
+        {
+            var nowUtc = DateTime.UtcNow;
+            var targetCountries = new HashSet<CountryCode>();
+
+            foreach (var exchangeKvp in _settings.Exchanges)
+            {
+                var exchangeName = exchangeKvp.Key;
+                var setting = exchangeKvp.Value;
+
+                if (!Enum.TryParse<CountryCode>(setting.Country, true, out var countryCode)) continue;
+
+                // Simple check for now: If market info is available, use its timezone
+                var timeZoneId = GetTimeZoneIdForCountry(setting.Country);
+                var timeZone = TimeZoneInfo.FindSystemTimeZoneById(timeZoneId);
+                var localTime = TimeZoneInfo.ConvertTimeFromUtc(nowUtc, timeZone);
+
+                if (TimeSpan.TryParse(setting.RunTime, out var runTime))
+                {
+                    var timeDiff = (localTime.TimeOfDay - runTime).TotalMinutes;
+
+                    // If we are within 0 to 10 minutes past the scheduled time
+                    if (timeDiff >= 0 && timeDiff < 10)
+                    {
+                        // Check if already synced today in LOCAL time
+                        var lastSync = await _repository.GetLastSyncDateAsync(countryCode);
+                        if (lastSync.HasValue && lastSync.Value.Date == localTime.Date)
+                        {
+                            _logger.LogDebug("Exchange {Exchange} already synced today ({Date}). Skipping.", exchangeName, localTime.Date.ToShortDateString());
+                            continue;
+                        }
+
+                        _logger.LogInformation("Exchange {Exchange} is due for sync (Local time: {LocalTime}, Scheduled: {RunTime})",
+                            exchangeName, localTime.ToShortTimeString(), setting.RunTime);
+                        targetCountries.Add(countryCode);
+                    }
+                }
+            }
+
+            if (targetCountries.Any())
+            {
+                foreach (var country in targetCountries)
+                {
+                    await SyncCountryAsync(country.ToString());
+                }
+            }
+            else
+            {
+                _logger.LogInformation("No exchanges are currently due for sync.");
+            }
+        }
+
+        private string GetTimeZoneIdForCountry(string country)
+        {
+            return country.ToUpper() switch
+            {
+                "KR" => "Asia/Seoul",
+                "JP" => "Asia/Tokyo",
+                "CN" or "HK" => "Asia/Shanghai",
+                "VN" => "Asia/Ho_Chi_Minh",
+                "US" => "America/New_York",
+                _ => "UTC"
+            };
         }
     }
 

@@ -16,7 +16,7 @@ public class KISClientRateLimitTests
 {
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly Mock<ILogger<KISClient>> _mockLogger;
-    private readonly Mock<ITokenValkeyService> _mockTokenValkey;
+    private readonly Mock<IStorageValkeyService> _mockStorageValkey;
     private readonly KISApiConfig _apiConfig;
     private readonly Account _account;
 
@@ -24,7 +24,7 @@ public class KISClientRateLimitTests
     {
         _mockHttpMessageHandler = new Mock<HttpMessageHandler>();
         _mockLogger = new Mock<ILogger<KISClient>>();
-        _mockTokenValkey = new Mock<ITokenValkeyService>();
+        _mockStorageValkey = new Mock<IStorageValkeyService>();
 
         _apiConfig = new KISApiConfig();
         _apiConfig.ExtensionData["Token"] = JsonSerializer.SerializeToElement(new EndpointConfig { Path = "/oauth2/tokenP", Method = "POST" });
@@ -78,7 +78,8 @@ public class KISClientRateLimitTests
             return null;
         });
 
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object, rateLimit);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockStorageValkey.Object, rateLimit);
+
 
         // Act - Make requests up to the limit
         var tasks = new List<Task>();
@@ -128,7 +129,8 @@ public class KISClientRateLimitTests
             return null;
         });
 
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object, rateLimit);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockStorageValkey.Object, rateLimit);
+
 
         // Act & Assert
         // The rate limiter has QueueLimit=100, so we need to exceed that to get exceptions
@@ -193,7 +195,8 @@ public class KISClientRateLimitTests
             return null;
         });
 
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object, rateLimit);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockStorageValkey.Object, rateLimit);
+
 
         // Act - First batch
         var firstBatch = new List<Task>();
@@ -254,7 +257,7 @@ public class KISClientRateLimitTests
         });
 
         // Act - Create client without specifying rate limit (should use default 20)
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockStorageValkey.Object);
 
         // Make 20 requests (default limit)
         var tasks = new List<Task>();
@@ -304,7 +307,8 @@ public class KISClientRateLimitTests
             return null;
         });
 
-        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockTokenValkey.Object, rateLimit);
+        var client = new KISClient(httpClient, _mockLogger.Object, _account, _apiConfig, "https://api.test.com", _mockStorageValkey.Object, rateLimit);
+
 
         // Act - Measure time to complete rate limit requests
         var stopwatch = Stopwatch.StartNew();

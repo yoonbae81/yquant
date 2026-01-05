@@ -34,7 +34,7 @@ public class RaceConditionTests
             // Clean up test data
             await CleanupTestDataAsync();
         }
-        catch (ValkeyConnectionException)
+        catch (RedisConnectionException)
         {
             Assert.Inconclusive("Valkey server is not available. Please check the connection string.");
         }
@@ -310,8 +310,8 @@ public class RaceConditionTests
     {
         var result = await _db!.ScriptEvaluateAsync(
             ValkeyLuaScripts.UpdatePositionScript,
-            new ValkeyKey[] { $"position:{TestAccountAlias}" },
-            new ValkeyValue[]
+            new RedisKey[] { $"position:{TestAccountAlias}" },
+            new RedisValue[]
             {
                 TestTicker,                    // ARGV[1]
                 action.ToString(),             // ARGV[2]
@@ -319,7 +319,8 @@ public class RaceConditionTests
                 price.ToString(),              // ARGV[4]
                 TestAccountAlias,              // ARGV[5]
                 "USD",                         // ARGV[6]
-                price.ToString()               // ARGV[7]
+                price.ToString(),              // ARGV[7]
+                "Test"                         // ARGV[8]: BuyReason
             }
         );
     }
@@ -330,8 +331,8 @@ public class RaceConditionTests
 
         var result = await _db!.ScriptEvaluateAsync(
             ValkeyLuaScripts.UpdateDepositScript,
-            new ValkeyKey[] { $"deposit:{TestAccountAlias}" },
-            new ValkeyValue[]
+            new RedisKey[] { $"deposit:{TestAccountAlias}" },
+            new RedisValue[]
             {
                 currency,                      // ARGV[1]
                 action.ToString(),             // ARGV[2]

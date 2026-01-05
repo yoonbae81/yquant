@@ -80,13 +80,13 @@ yQuant는 무중단 운영과 데이터 안정성을 위해 **Blue-Green** 배�
 
 ### **4.1. 서버 구성 (3-VM 구조)**
 
-*   **`yq-gate` (E2.Micro)**: 시스템의 관문. HAProxy를 통해 트래픽을 분산하며, 증권사 토큰 전용 Valkey와 Sentinel 중재자 역할을 수행합니다.
+*   **`yq-port`** (E2.Micro): 시스템의 관문. HAProxy를 통해 트래픽을 분산하며, 증권사 토큰 및 공통 데이터 저장소인 Storage Valkey와 Sentinel 중재자 역할을 수행합니다.
 *   **`yq-blue` / `yq-green` (A1.Flex)**: 실제 연산 및 웹 대시보드가 구동되는 쌍둥이 노드입니다. 메시징용 Valkey 마스터/슬레이브 복제 구성을 가집니다.
 
 ### **4.2. Blue-Green 배포 워크플로우**
 
 1.  **Staging 배포**: 현재 비활성(Standby) 상태인 노드(예: `green`)에 새로운 코드를 배포합니다.
-2.  **검증**: `yq-gate`의 스테이징 포트를 통해 신규 버전의 동작을 확인합니다.
+2.  **검증**: `yq-port`의 스테이징 포트를 통해 신규 버전의 동작을 확인합니다.
 3.  **역할 교체 (Promotion)**: 이상이 없으면 HAProxy 설정을 변경하여 `green`을 Active로 전환하고, Valkey 마스터를 승격시킵니다.
 4.  **안정화**: 기존 Active였던 `blue`는 차기 배포를 위한 Standby 상태가 됩니다.
 
@@ -119,7 +119,7 @@ cp appsecrets.example.json appsecrets.json
 # {
 #   "Valkey": {
 #     "Message": "localhost:6379",
-#     "Token": "your-shared-valkey-url"
+#     "Storage": "your-shared-valkey-url"
 #   },
 #   ...
 # }

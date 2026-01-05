@@ -134,7 +134,7 @@ namespace yQuant.Infra.Notification.Discord.Tests
             try { throw ex; } catch (Exception e) { ex = e; }
 
             // Act
-            var payload = _builder.BuildErrorMessage("Test Error Title", ex, "TestContext");
+            var payload = _builder.BuildErrorMessage("Test Error Title", ex, "TestContext", "TestHost");
 
             // Assert
             var embed = payload.Embeds!.First();

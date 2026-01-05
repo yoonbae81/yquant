@@ -4,9 +4,9 @@ using yQuant.Infra.Valkey.Interfaces;
 
 namespace yQuant.Infra.Valkey.Services;
 
-public class TokenValkeyService : ValkeyService, ITokenValkeyService
+public class StorageValkeyService : ValkeyService, IStorageValkeyService
 {
-    public TokenValkeyService(IConnectionMultiplexer connectionMultiplexer, ILogger<TokenValkeyService> logger)
+    public StorageValkeyService(IConnectionMultiplexer connectionMultiplexer, ILogger<StorageValkeyService> logger)
         : base(connectionMultiplexer, logger)
     {
     }

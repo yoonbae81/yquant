@@ -16,7 +16,7 @@ public class KISClient : IKISClient
     private readonly Account _account;
     private readonly KISApiConfig _apiConfig;
     private readonly RateLimiter _rateLimiter;
-    private readonly ITokenValkeyService? _tokenValkey;
+    private readonly IStorageValkeyService? _storageValkey;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
 
     private string? _accessToken;
@@ -36,13 +36,13 @@ public class KISClient : IKISClient
 
     public Account Account => _account;
 
-    public KISClient(HttpClient httpClient, ILogger<KISClient> logger, Account account, KISApiConfig apiConfig, string baseUrl, ITokenValkeyService? tokenValkey = null, int rateLimit = 20)
+    public KISClient(HttpClient httpClient, ILogger<KISClient> logger, Account account, KISApiConfig apiConfig, string baseUrl, IStorageValkeyService? storageValkey = null, int rateLimit = 20)
     {
         _httpClient = httpClient;
         _logger = logger;
         _account = account;
         _apiConfig = apiConfig;
-        _tokenValkey = tokenValkey;
+        _storageValkey = storageValkey;
 
         _httpClient.BaseAddress = new Uri(baseUrl);
 
@@ -81,9 +81,9 @@ public class KISClient : IKISClient
             }
 
             // 3. Check Global Token Valkey (Shared across environments)
-            if (_tokenValkey != null)
+            if (_storageValkey != null)
             {
-                var tokenFromValkey = await _tokenValkey.GetAsync<TokenCacheEntry>($"Token:KIS:{_account.Alias}");
+                var tokenFromValkey = await _storageValkey.GetAsync<TokenCacheEntry>($"Token:KIS:{_account.Alias}");
                 if (tokenFromValkey != null && tokenFromValkey.Expiration > DateTime.UtcNow.AddMinutes(1))
                 {
                     _accessToken = tokenFromValkey.Token;
@@ -166,9 +166,9 @@ public class KISClient : IKISClient
 
 
         // Clear from Global Valkey
-        if (_tokenValkey != null)
+        if (_storageValkey != null)
         {
-            await _tokenValkey.DeleteAsync($"Token:KIS:{_account.Alias}");
+            await _storageValkey.DeleteAsync($"Token:KIS:{_account.Alias}");
         }
 
         // Clear from local file
@@ -230,9 +230,9 @@ public class KISClient : IKISClient
 
 
             // Store in Global Valkey
-            if (_tokenValkey != null)
+            if (_storageValkey != null)
             {
-                await _tokenValkey.SetAsync($"Token:KIS:{_account.Alias}", new TokenCacheEntry { Token = _accessToken, Expiration = _accessTokenExpiration }, TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
+                await _storageValkey.SetAsync($"Token:KIS:{_account.Alias}", new TokenCacheEntry { Token = _accessToken, Expiration = _accessTokenExpiration }, TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
             }
 
             // Store in local file cache

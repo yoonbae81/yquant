@@ -33,11 +33,11 @@ public class ConfigurableMarketRule : IMarketRule
             // Fallback for cross-platform compatibility
             var offset = timeZone switch
             {
-                "Korea Standard Time" => new TimeSpan(9, 0, 0),
-                "Eastern Standard Time" => new TimeSpan(-5, 0, 0),
-                "China Standard Time" => new TimeSpan(8, 0, 0),
-                "Tokyo Standard Time" => new TimeSpan(9, 0, 0),
-                "SE Asia Standard Time" => new TimeSpan(7, 0, 0),
+                "Korea Standard Time" or "Asia/Seoul" => new TimeSpan(9, 0, 0),
+                "Eastern Standard Time" or "America/New_York" => new TimeSpan(-5, 0, 0),
+                "China Standard Time" or "Asia/Shanghai" or "Asia/Hong_Kong" => new TimeSpan(8, 0, 0),
+                "Tokyo Standard Time" or "Asia/Tokyo" => new TimeSpan(9, 0, 0),
+                "SE Asia Standard Time" or "Asia/Ho_Chi_Minh" => new TimeSpan(7, 0, 0),
                 _ => throw new ArgumentException($"Unknown timezone: {timeZone}")
             };
             _timeZone = TimeZoneInfo.CreateCustomTimeZone(timeZone, offset, timeZone, timeZone);

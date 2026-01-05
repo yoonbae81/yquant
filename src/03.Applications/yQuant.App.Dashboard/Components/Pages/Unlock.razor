@@ -5,6 +5,8 @@
 @using yQuant.App.Dashboard.Services
 @inject NavigationManager Navigation
 @inject SimpleAuthService AuthService
+@inject Microsoft.Extensions.Configuration.IConfiguration Configuration
+
 
 <PageTitle>Unlock - yQuant</PageTitle>
 
@@ -76,6 +78,12 @@
         if (!string.IsNullOrEmpty(ErrorFromQuery))
         {
             _errorMessage = ErrorFromQuery;
+        }
+
+        var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+        if (string.IsNullOrWhiteSpace(ReturnUrl) || ReturnUrl == "/")
+        {
+            ReturnUrl = string.IsNullOrWhiteSpace(pathBase) ? "/" : pathBase;
         }
     }
 

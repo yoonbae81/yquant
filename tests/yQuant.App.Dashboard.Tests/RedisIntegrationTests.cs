@@ -54,7 +54,7 @@ public class ValkeyIntegrationTests
         // Arrange
         // This mimics the logic in BrokerGateway.Worker which uses account:index Set
         var accounts = new List<string> { "Trading", "Pension", "ISA", "IRP", "Yoonseo" };
-        var redisValues = accounts.Select(a => (ValkeyValue)a).ToArray();
+        var redisValues = accounts.Select(a => (RedisValue)a).ToArray();
 
         _mockDb!.Setup(x => x.SetMembersAsync("account:index", It.IsAny<CommandFlags>()))
             .ReturnsAsync(redisValues);

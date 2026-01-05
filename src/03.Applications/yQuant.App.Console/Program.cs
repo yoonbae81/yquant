@@ -11,6 +11,7 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Reporting.Repositories;
 using StackExchange.Redis;
 using yQuant.Infra.Valkey.Adapters;
+using yQuant.Infra.Valkey.Services;
 
 
 namespace yQuant.App.Console;
@@ -86,7 +87,7 @@ class Program
                 // Catalog Services (Stock Catalog Sync)
                 services.AddHttpClient();
                 services.AddSingleton<yQuant.App.Console.Services.StockCatalogLoader>();
-                services.AddSingleton<yQuant.App.Console.Services.StockCatalogRepository>();
+                // StockCatalogRepository is now registered in AddValkeyMiddleware
                 services.AddSingleton<yQuant.App.Console.Services.StockCatalogSyncService>();
                 // Configure CatalogSettings by binding the Console section from catalog.json
                 services.Configure<CatalogSettings>(context.Configuration.GetSection("Console:Catalog"));

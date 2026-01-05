@@ -299,7 +299,7 @@ Web의 통신 패턴 분석:
 {
   "Valkey": {
     "Message": "localhost:6379",
-    "Token": "localhost:6379"
+    "Storage": "localhost:6379"
      }
 }
 ```
@@ -309,7 +309,7 @@ Web의 통신 패턴 분석:
 {
   "Valkey": {
     "Message": "<VM1_PRIVATE_IP>:6379",
-    "Token": "<VM1_PRIVATE_IP>:6379"
+    "Storage": "<VM1_PRIVATE_IP>:6379"
   }
 }
 ```
@@ -321,7 +321,7 @@ Web의 통신 패턴 분석:
 {
   "Valkey": {
     "Message": "localhost:6379",
-    "Token": "localhost:6379"
+    "Storage": "localhost:6379"
   }
 }
 ```
@@ -331,7 +331,7 @@ Web의 통신 패턴 분석:
 {
   "Valkey": {
     "Message": "<VM1_PRIVATE_IP>:6379",
-    "Token": "<VM1_PRIVATE_IP>:6379"
+    "Storage": "<VM1_PRIVATE_IP>:6379"
   }
 }
 ```
@@ -341,7 +341,7 @@ Web의 통신 패턴 분석:
 {
   "Valkey": {
     "Message": "<VM1_PRIVATE_IP>:6379",
-    "Token": "<VM1_PRIVATE_IP>:6379"
+    "Storage": "<VM1_PRIVATE_IP>:6379"
   }
 }
 ```

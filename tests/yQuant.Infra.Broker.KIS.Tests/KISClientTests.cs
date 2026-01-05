@@ -15,7 +15,7 @@ public class KISClientTests
 {
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly Mock<ILogger<KISClient>> _mockLogger;
-    private readonly Mock<ITokenValkeyService> _mockTokenValkey;
+    private readonly Mock<IStorageValkeyService> _mockStorageValkey;
     private readonly KISClient _client;
     private readonly KISApiConfig _apiConfig;
     private readonly string _userId;
@@ -32,7 +32,7 @@ public class KISClientTests
         };
 
         _mockLogger = new Mock<ILogger<KISClient>>();
-        _mockTokenValkey = new Mock<ITokenValkeyService>();
+        _mockStorageValkey = new Mock<IStorageValkeyService>();
 
         _apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
         if (_apiConfig == null || _apiConfig.ExtensionData.Count == 0)
@@ -62,7 +62,7 @@ public class KISClientTests
             account,
             _apiConfig,
             "https://api.test.com",
-            _mockTokenValkey.Object
+            _mockStorageValkey.Object
         );
     }
 
@@ -196,7 +196,7 @@ public class KISClientTests
         var expiration = DateTime.UtcNow.AddHours(1);
         var redisKey = $"Token:KIS:{_accountAlias}";
 
-        _mockTokenValkey.Setup(r => r.GetAsync<TokenCacheEntry>(redisKey))
+        _mockStorageValkey.Setup(r => r.GetAsync<TokenCacheEntry>(redisKey))
             .ReturnsAsync(new TokenCacheEntry { Token = cachedToken, Expiration = expiration });
 
         SetupMockResponse(req =>
@@ -217,7 +217,7 @@ public class KISClientTests
 
         // Assert
         // Verify Valkey was queried
-        _mockTokenValkey.Verify(r => r.GetAsync<TokenCacheEntry>(redisKey), Times.Once);
+        _mockStorageValkey.Verify(r => r.GetAsync<TokenCacheEntry>(redisKey), Times.Once);
 
         // Verify Token Request was NEVER made
         _mockHttpMessageHandler.Protected().Verify(

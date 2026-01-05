@@ -22,7 +22,7 @@ Market rules are configured in `appsettings.json` under the top-level `Markets` 
   "Markets": {
     "KR": {
       "Exchanges": ["KRX", "KOSPI", "KOSDAQ"],
-      "TimeZone": "Korea Standard Time",
+      "TimeZone": "Asia/Seoul",
       "Currency": "KRW",
       "TradingHours": {
         "Open": "09:00:00",
@@ -31,7 +31,7 @@ Market rules are configured in `appsettings.json` under the top-level `Markets` 
     },
     "US": {
       "Exchanges": ["NYSE", "NASDAQ", "AMEX"],
-      "TimeZone": "Eastern Standard Time",
+      "TimeZone": "America/New_York",
       "Currency": "USD",
       "TradingHours": {
         "RegularOpen": "09:30:00",
@@ -42,7 +42,7 @@ Market rules are configured in `appsettings.json` under the top-level `Markets` 
     },
     "CN": {
       "Exchanges": ["SSE", "SZSE"],
-      "TimeZone": "China Standard Time",
+      "TimeZone": "Asia/Shanghai",
       "Currency": "CNY",
       "TradingHours": {
         "MorningOpen": "09:30:00",
@@ -59,7 +59,7 @@ Market rules are configured in `appsettings.json` under the top-level `Markets` 
 
 - **Country Code**: 2-letter ISO country code (KR, US, CN, JP, HK, VN)
 - **Exchanges**: List of exchange codes for this market
-- **TimeZone**: Windows timezone identifier for the market
+- **TimeZone**: IANA timezone identifier (e.g., "Asia/Seoul", "America/New_York"). Windows timezone IDs are also supported for backward compatibility.
 - **Currency**: ISO currency code
 - **TradingHours**: Market-specific trading hours
   - Simple markets (KR): `Open`, `Close`

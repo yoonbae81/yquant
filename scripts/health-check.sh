@@ -66,6 +66,6 @@ if [ "$ALL_HEALTHY" = true ]; then
   exit 0
 else
   echo "❌ Some services are not running. Check logs with:"
-  echo "   journalctl --user -u <service-name> -n 50"
+  echo "   journalctl --user -t <service-name> -n 50"
   exit 1
 fi
