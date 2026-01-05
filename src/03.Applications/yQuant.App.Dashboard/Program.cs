@@ -78,6 +78,8 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
         options.Cookie.HttpOnly = true;
         options.Cookie.SecurePolicy = CookieSecurePolicy.SameAsRequest;
         options.Cookie.SameSite = SameSiteMode.Lax;
+        options.Cookie.Path = "/";
+        options.Cookie.Name = ".yQuant.Dashboard.Auth";
     });
 
 builder.Services.AddAuthorization();
@@ -173,12 +175,16 @@ app.MapPost("/account/unlock", async (HttpContext context, SimpleAuthService aut
     var configPathBase = config.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
     var activePathBase = !string.IsNullOrWhiteSpace(reqPathBase) ? reqPathBase : configPathBase;
 
-    if (string.IsNullOrWhiteSpace(returnUrl) || returnUrl == "/")
+    // Normalize returnUrl - if it's empty, root, or matches the pathbase exactly, go to pathbase/
+    if (string.IsNullOrWhiteSpace(returnUrl) ||
+        returnUrl == "/" ||
+        returnUrl == activePathBase ||
+        returnUrl.Equals(activePathBase + "/", StringComparison.OrdinalIgnoreCase))
     {
-        returnUrl = !string.IsNullOrWhiteSpace(activePathBase) ? activePathBase : "/";
+        returnUrl = !string.IsNullOrWhiteSpace(activePathBase) ? $"{activePathBase}/" : "/";
     }
 
-    // Ensure returnUrl starts with PathBase if configured
+    // Ensure returnUrl starts with PathBase if configured and doesn't already have it
     if (!string.IsNullOrWhiteSpace(activePathBase) &&
         returnUrl.StartsWith("/") &&
         !returnUrl.StartsWith(activePathBase, StringComparison.OrdinalIgnoreCase))

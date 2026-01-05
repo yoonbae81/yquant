@@ -1,4 +1,5 @@
 @page "/"
+@page "/summary"
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 @using yQuant.App.Dashboard.Services
@@ -11,7 +12,7 @@
 @inject IJSRuntime JSRuntime
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
-<PageTitle>Dashboard</PageTitle>
+<PageTitle>Summary</PageTitle>
 
 <MudText Typo="Typo.h5" Class="mb-4">Accounts</MudText>
 
@@ -47,11 +48,8 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-
         await LoadData();
     }
-
-
 
     private async Task LoadData()
     {
@@ -75,5 +73,4 @@ else
         var elementId = $"position-{accountAlias}";
         await JSRuntime.InvokeVoidAsync("eval", $"document.getElementById('{elementId}')?.scrollIntoView({{ behavior: 'smooth', block: 'start' }});");
     }
-
 }
