@@ -102,6 +102,13 @@ app.Use(async (context, next) =>
         return;
     }
 
+    // Allow Health Check endpoint (Bypass IP Whitelist)
+    if (context.Request.Path.StartsWithSegments("/health"))
+    {
+        await next();
+        return;
+    }
+
     if (!allowedIps.Any(ip => IPAddress.Parse(ip).Equals(remoteIpAddress)))
     {
         context.Response.StatusCode = StatusCodes.Status403Forbidden;
