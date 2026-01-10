@@ -56,7 +56,7 @@ app.MapGet("/health", async (IConnectionMultiplexer redis) =>
     {
         var db = redis.GetDatabase();
         await db.PingAsync();
-        return Results.Ok(new { Status = "Healthy", Valkey = "Connected", Timestamp = DateTime.UtcNow, Service = "yQuant.App.Webhook" });
+        return Results.Ok(new { Status = "Healthy", Valkey = "Connected", Timestamp = DateTime.UtcNow, Service = "yQuant.App.Webhook", Hostname = Dns.GetHostName() });
     }
     catch (Exception ex)
     {
