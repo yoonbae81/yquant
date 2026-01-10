@@ -12,6 +12,14 @@ cd "$PROJECT_ROOT"
 # 배포 대상 디렉토리
 DEPLOY_ROOT="${DEPLOY_ROOT:-/srv/yquant}"
 
+# 디렉토리 권한 설정 (최초 1회 필요)
+if [ ! -d "$DEPLOY_ROOT" ]; then
+    echo "📁 Creating deployment directory: $DEPLOY_ROOT"
+    sudo mkdir -p "$DEPLOY_ROOT"
+fi
+echo "🔑 Setting permissions for $DEPLOY_ROOT..."
+sudo chown -R $USER "$DEPLOY_ROOT"
+
 # 서비스 빌드 함수
 build_service() {
     local name=$1
