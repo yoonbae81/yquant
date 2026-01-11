@@ -4,51 +4,84 @@
 @inject OrderPublisher OrderPublisher
 @inject ISnackbar Snackbar
 @inject yQuant.App.Dashboard.Services.StockService StockService
+@inject UiStateService UiState
+@implements IDisposable
 
-<MudTable Items="Positions" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true" Elevation="0">
+<MudTable Items="SortedPositions" Hover="true" Breakpoint="Breakpoint.Sm" Dense="true" Elevation="0">
     <HeaderContent>
-        <MudTh>Ticker</MudTh>
-        <MudTh>Name</MudTh>
-        <MudTh Style="text-align: right;">Qty</MudTh>
-        <MudTh Style="text-align: right;">Avg Price</MudTh>
-        <MudTh Style="text-align: right;">Current Price</MudTh>
-        <MudTh Style="text-align: right;">Change %</MudTh>
-        <MudTh Style="text-align: right;">Unrealized PnL</MudTh>
+        <MudTh Style="cursor: pointer; user-select: none;" @onclick="@(() => HandleSort(PositionSortColumn.Ticker))">
+            Ticker
+            <MudIcon Icon="@GetSortIconName(PositionSortColumn.Ticker)"
+                Color="@GetSortIconColor(PositionSortColumn.Ticker)" Size="Size.Small" />
+        </MudTh>
+        <MudTh Style="cursor: pointer; user-select: none;" @onclick="@(() => HandleSort(PositionSortColumn.Name))">
+            Name
+            <MudIcon Icon="@GetSortIconName(PositionSortColumn.Name)" Color="@GetSortIconColor(PositionSortColumn.Name)"
+                Size="Size.Small" />
+        </MudTh>
+        <MudTh>Currency</MudTh>
+        <MudTh Style="text-align: right; cursor: pointer; user-select: none;"
+        @onclick="@(() => HandleSort(PositionSortColumn.Qty))">
+            <MudIcon Icon="@GetSortIconName(PositionSortColumn.Qty)" Color="@GetSortIconColor(PositionSortColumn.Qty)"
+                Size="Size.Small" /> Qty
+        </MudTh>
+        <MudTh Style="text-align: right; cursor: pointer; user-select: none;"
+        @onclick="@(() => HandleSort(PositionSortColumn.CurrentPrice))">
+            <MudIcon Icon="@GetSortIconName(PositionSortColumn.CurrentPrice)"
+                Color="@GetSortIconColor(PositionSortColumn.CurrentPrice)" Size="Size.Small" /> Cur Price
+        </MudTh>
+        <MudTh Style="text-align: right; cursor: pointer; user-select: none;"
+        @onclick="@(() => HandleSort(PositionSortColumn.TotalAmount))">
+            <MudIcon Icon="@GetSortIconName(PositionSortColumn.TotalAmount)"
+                Color="@GetSortIconColor(PositionSortColumn.TotalAmount)" Size="Size.Small" /> Total Amount
+        </MudTh>
+        <MudTh Style="text-align: right; cursor: pointer; user-select: none;"
+        @onclick="@(() => HandleSort(PositionSortColumn.PnL))">
+            <MudIcon Icon="@GetSortIconName(PositionSortColumn.PnL)" Color="@GetSortIconColor(PositionSortColumn.PnL)"
+                Size="Size.Small" /> PnL
+        </MudTh>
+        <MudTh Style="text-align: right; cursor: pointer; user-select: none;"
+        @onclick="@(() => HandleSort(PositionSortColumn.ReturnRate))">
+            <MudIcon Icon="@GetSortIconName(PositionSortColumn.ReturnRate)"
+                Color="@GetSortIconColor(PositionSortColumn.ReturnRate)" Size="Size.Small" /> Return %
+        </MudTh>
         <MudTh>Actions</MudTh>
     </HeaderContent>
     <RowTemplate>
         <MudTd DataLabel="Ticker">@context.Ticker</MudTd>
         <MudTd DataLabel="Name">@TruncateName(GetStockName(context.Ticker))</MudTd>
+        <MudTd DataLabel="Currency">@context.Currency</MudTd>
         <MudTd DataLabel="Qty" Style="text-align: right;">@context.Qty.ToString("N0")</MudTd>
-        <MudTd DataLabel="Avg Price" Style="text-align: right;">@context.AvgPrice.ToString("N0")</MudTd>
-        <MudTd DataLabel="Current Price" Style="text-align: right;">@context.CurrentPrice.ToString("N0")</MudTd>
-        <MudTd DataLabel="Change %"
-            Style="@("text-align: right; " + (context.ChangeRate >= 0 ? "color: red;" : "color: blue;"))">
-            @context.ChangeRate.ToString("N2")%
-        </MudTd>
-        <MudTd DataLabel="Unrealized PnL"
-            Style="@("text-align: right; " + (context.UnrealizedPnL >= 0 ? "color: green;" : "color: red;"))">
-            @context.UnrealizedPnL.ToString("N0")
-        </MudTd>
-        <MudTd DataLabel="Actions">
-            <MudButton OnClick="@(() => OpenQuickOrderDrawer(context, OrderAction.Buy))" Color="Color.Success"
-                Size="Size.Small" Variant="Variant.Outlined" Style="padding: 2px 6px;">Buy</MudButton>
-            <MudButton OnClick="@(() => OpenQuickOrderDrawer(context, OrderAction.Sell))" Color="Color.Error"
-                Size="Size.Small" Variant="Variant.Outlined" Style="padding: 2px 6px;">Sell</MudButton>
-        </MudTd>
-    </RowTemplate>
-    <NoRecordsContent>
-        <MudText>No positions found for this account.</MudText>
-    </NoRecordsContent>
-</MudTable>
+        <MudTd DataLabel="Cur Price" Style="text-align: right;">@context.CurrentPrice.ToString("N0")</MudTd>
+        <MudTd DataLabel="Total Amount" Style="text-align: right;">@((context.Qty *
+            context.CurrentPrice).ToString("N0"))</MudTd>
+            <MudTd DataLabel="PnL"
+                Style="@("text-align: right; " + (context.UnrealizedPnL >= 0 ? "color: green;" : "color: red;"))">
+                @context.UnrealizedPnL.ToString("N0")
+            </MudTd>
+            <MudTd DataLabel="Return %"
+                Style="@("text-align: right; " + (context.ChangeRate >= 0 ? "color: red;" : "color: blue;"))">
+                @context.ChangeRate.ToString("N2")%
+            </MudTd>
+            <MudTd DataLabel="Actions">
+                <MudButton OnClick="@(() => OpenQuickOrderDrawer(context, OrderAction.Buy))" Color="Color.Success"
+                    Size="Size.Small" Variant="Variant.Outlined" Style="padding: 2px 6px;">Buy</MudButton>
+                <MudButton OnClick="@(() => OpenQuickOrderDrawer(context, OrderAction.Sell))" Color="Color.Error"
+                    Size="Size.Small" Variant="Variant.Outlined" Style="padding: 2px 6px;">Sell</MudButton>
+            </MudTd>
+        </RowTemplate>
+        <NoRecordsContent>
+            <MudText>No positions found for this account.</MudText>
+        </NoRecordsContent>
+    </MudTable>
 
-<!-- Quick Order Drawer Component -->
-<QuickOrderDrawer @ref="_drawerRef" @bind-IsOpen="_drawerOpen" Ticker="@_orderTicker" StockName="@_orderStockName"
-    Action="@_orderAction" AccountAlias="@_orderAccountAlias" Exchange="@_orderExchange" Currency="@_orderCurrency"
-    HoldingQty="@_orderHoldingQty" AvgPrice="@_orderAvgPrice" CurrentPrice="@_orderCurrentPrice"
-    UnrealizedPnL="@_orderUnrealizedPnL" ReturnRate="@_orderReturnRate" OnOrderPlaced="@HandleOrderPlaced" />
+    <!-- Quick Order Drawer Component -->
+    <QuickOrderDrawer @ref="_drawerRef" @bind-IsOpen="_drawerOpen" Ticker="@_orderTicker" StockName="@_orderStockName"
+        Action="@_orderAction" AccountAlias="@_orderAccountAlias" Exchange="@_orderExchange" Currency="@_orderCurrency"
+        HoldingQty="@_orderHoldingQty" AvgPrice="@_orderAvgPrice" CurrentPrice="@_orderCurrentPrice"
+        UnrealizedPnL="@_orderUnrealizedPnL" ReturnRate="@_orderReturnRate" OnOrderPlaced="@HandleOrderPlaced" />
 
-@code {
+    @code {
     [Parameter]
     public IEnumerable<yQuant.Core.Models.Position> Positions { get; set; } = new List<yQuant.Core.Models.Position>();
 
@@ -57,6 +90,9 @@
 
     [Parameter]
     public EventCallback<(string ticker, OrderAction action, string accountAlias)> OnOrderAction { get; set; }
+
+    [Parameter]
+    public EventCallback OnOrderCompleted { get; set; }
 
     // Drawer state
     private bool _drawerOpen = false;
@@ -77,12 +113,81 @@
     private QuickOrderDrawer? _drawerRef;
     private Dictionary<string, string> _stockNames = new();
 
+    private IEnumerable<yQuant.Core.Models.Position> SortedPositions => SortPositions(Positions);
+
+    protected override void OnInitialized()
+    {
+        UiState.OnChange += StateHasChanged;
+    }
+
+    public void Dispose()
+    {
+        UiState.OnChange -= StateHasChanged;
+    }
+
     protected override async Task OnParametersSetAsync()
     {
         // Load stock names for all positions
         if (Positions == null) return;
         var tickers = Positions.Where(p => !string.IsNullOrWhiteSpace(p.Ticker)).Select(p => p.Ticker.Trim()).Distinct();
         _stockNames = await StockService.GetStockNamesAsync(tickers);
+    }
+
+    private IEnumerable<yQuant.Core.Models.Position> SortPositions(IEnumerable<yQuant.Core.Models.Position> positions)
+    {
+        if (positions == null) return Enumerable.Empty<yQuant.Core.Models.Position>();
+
+        var query = positions.AsQueryable();
+
+        query = UiState.SortColumn switch
+        {
+            PositionSortColumn.Ticker => UiState.SortDescending ? query.OrderByDescending(p => p.Ticker) : query.OrderBy(p =>
+            p.Ticker),
+            PositionSortColumn.Name => UiState.SortDescending ? query.OrderByDescending(p => GetStockName(p.Ticker)) :
+            query.OrderBy(p => GetStockName(p.Ticker)),
+            PositionSortColumn.Currency => UiState.SortDescending ? query.OrderByDescending(p => p.Currency) : query.OrderBy(p =>
+            p.Currency),
+            PositionSortColumn.Qty => UiState.SortDescending ? query.OrderByDescending(p => p.Qty) : query.OrderBy(p => p.Qty),
+            PositionSortColumn.CurrentPrice => UiState.SortDescending ? query.OrderByDescending(p => p.CurrentPrice) :
+            query.OrderBy(p => p.CurrentPrice),
+            PositionSortColumn.TotalAmount => UiState.SortDescending ? query.OrderByDescending(p => p.Qty * p.CurrentPrice) :
+            query.OrderBy(p => p.Qty * p.CurrentPrice),
+            PositionSortColumn.PnL => UiState.SortDescending ? query.OrderByDescending(p => p.UnrealizedPnL) : query.OrderBy(p =>
+            p.UnrealizedPnL),
+            PositionSortColumn.ReturnRate => UiState.SortDescending ? query.OrderByDescending(p => p.ChangeRate) : query.OrderBy(p
+            => p.ChangeRate),
+            _ => query.OrderByDescending(p => p.UnrealizedPnL)
+        };
+
+        return query.ToList();
+    }
+
+    private void HandleSort(PositionSortColumn column)
+    {
+        if (UiState.SortColumn == column)
+        {
+            UiState.SetPositionSort(column, !UiState.SortDescending);
+        }
+        else
+        {
+            // Default sort direction for new column
+            bool defaultDescending = column != PositionSortColumn.Ticker && column != PositionSortColumn.Name;
+            UiState.SetPositionSort(column, defaultDescending);
+        }
+    }
+
+
+
+    // Better helper for icon
+    private string GetSortIconName(PositionSortColumn column)
+    {
+        if (UiState.SortColumn != column) return Icons.Material.Filled.UnfoldMore; // Or empty/transparent
+        return UiState.SortDescending ? Icons.Material.Filled.ArrowDownward : Icons.Material.Filled.ArrowUpward;
+    }
+
+    private Color GetSortIconColor(PositionSortColumn column)
+    {
+        return UiState.SortColumn == column ? Color.Primary : Color.Default;
     }
 
     private void OpenQuickOrderDrawer(yQuant.Core.Models.Position position, OrderAction action)
@@ -126,6 +231,7 @@
             Snackbar.Add($"Order placed: {_orderAction} {quantity} {_orderTicker}", Severity.Success);
 
             _drawerOpen = false;
+            await OnOrderCompleted.InvokeAsync();
         }
         catch (Exception ex)
         {
