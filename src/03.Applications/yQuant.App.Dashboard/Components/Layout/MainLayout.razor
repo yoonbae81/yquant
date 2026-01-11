@@ -106,7 +106,7 @@
 
         if (string.IsNullOrWhiteSpace(path) || path == "dashboard" || path == "summary") return "Summary";
         if (path.StartsWith("assets")) return "Assets";
-        if (path.StartsWith("scheduled")) return "Scheduled Orders";
+        if (path.StartsWith("scheduled")) return "Scheduled";
         if (path.StartsWith("orderform")) return "Buy Order";
         if (path.StartsWith("trades")) return "Trade History";
         if (path.StartsWith("performance")) return "Performance";
