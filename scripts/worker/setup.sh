@@ -1,9 +1,9 @@
 #!/bin/bash
-# scripts/node/setup.sh
+# scripts/worker/setup.sh
 set -e
 
 SERVICE=$1
-echo "⚙️ Setting up yQuant NODE services (Target: ${SERVICE:-all})..."
+echo "⚙️ Setting up yQuant WORKER services (Target: ${SERVICE:-all})..."
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
@@ -32,4 +32,4 @@ fi
 
 systemctl --user daemon-reload
 
-echo "✅ Node setup process completed!"
+echo "✅ Worker setup process completed!"

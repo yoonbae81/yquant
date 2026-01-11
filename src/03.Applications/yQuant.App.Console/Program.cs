@@ -12,6 +12,7 @@ using yQuant.Infra.Reporting.Repositories;
 using StackExchange.Redis;
 using yQuant.Infra.Valkey.Adapters;
 using yQuant.Infra.Valkey.Services;
+using yQuant.Infra.Persistence;
 
 
 namespace yQuant.App.Console;
@@ -71,6 +72,7 @@ class Program
             {
                 // Valkey Connection
                 services.AddValkeyMiddleware(context.Configuration);
+                services.AddFirebirdPersistence();
 
                 // Register ValkeyBrokerClient
                 services.AddSingleton<ValkeyBrokerClient>(sp =>
@@ -116,6 +118,9 @@ class Program
                 services.AddSingleton<CommandRouter>();
             })
             .Build();
+
+        // Initialize Firebird Schema
+        await host.Services.InitializeFirebirdPersistenceAsync();
 
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
 

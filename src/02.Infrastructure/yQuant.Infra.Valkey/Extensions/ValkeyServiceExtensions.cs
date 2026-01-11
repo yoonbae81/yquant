@@ -13,11 +13,11 @@ public static class ValkeyServiceExtensions
     public static IServiceCollection AddValkeyMiddleware(this IServiceCollection services, IConfiguration configuration)
     {
         // 1. Messaging Valkey (for Pub/Sub, Heartbeats, Trades, and general app state)
-        var msgConnectionString = configuration["Valkey:Message"];
+        var msgConnectionString = configuration.GetConnectionString("Valkey");
 
         if (string.IsNullOrEmpty(msgConnectionString))
         {
-            throw new InvalidOperationException("Valkey Messaging connection string (Valkey:Message) is missing. Please check appsecrets.json.");
+            throw new InvalidOperationException("Valkey connection string (ConnectionStrings:Valkey) is missing. Please check appsecrets.json.");
         }
 
         var options = ConfigurationOptions.Parse(msgConnectionString);
@@ -27,23 +27,7 @@ public static class ValkeyServiceExtensions
         services.AddSingleton<IConnectionMultiplexer>(multiplexer);
         services.AddSingleton<IValkeyService, ValkeyService>();
 
-        // 2. Storage Valkey (Shared across environments for KIS access tokens, Scheduled Orders, and Stock Catalog)
-        var storageConnectionString = configuration["Valkey:Storage"];
-
-        if (string.IsNullOrEmpty(storageConnectionString))
-        {
-            throw new InvalidOperationException("Valkey Storage connection string (Valkey:Storage) is missing. Please check appsecrets.json.");
-        }
-
-        var storageOptions = ConfigurationOptions.Parse(storageConnectionString);
-        storageOptions.AbortOnConnectFail = false;
-        var storageMultiplexer = ConnectionMultiplexer.Connect(storageOptions);
-
-        services.AddSingleton<IStorageValkeyService>(sp =>
-            new StorageValkeyService(storageMultiplexer, sp.GetRequiredService<ILogger<StorageValkeyService>>()));
-
-        // 3. Stock Catalog Services (In-memory cache with Pub/Sub reload)
-        services.AddSingleton<StockCatalogRepository>();
+        // 2. Subscription Services (For memory cache reloads via Pub/Sub)
         services.AddHostedService<CatalogUpdateSubscriber>();
 
         return services;

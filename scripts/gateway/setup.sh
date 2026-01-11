@@ -1,8 +1,8 @@
 #!/bin/bash
-# scripts/port/setup.sh
+# scripts/gateway/setup.sh
 set -e
 
-echo "⚙️ Setting up yQuant PORT services (Catalog Sync)..."
+echo "⚙️ Setting up yQuant GATEWAY services (Catalog Sync)..."
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SYSTEMD_DIR="$HOME/.config/systemd/user"
@@ -23,6 +23,6 @@ fi
 
 systemctl --user daemon-reload
 
-echo "✅ Port setup process completed!"
+echo "✅ Gateway setup process completed!"
 echo "💡 To enable: systemctl --user enable console-sync.timer"
 echo "💡 To start:  systemctl --user start console-sync.timer"

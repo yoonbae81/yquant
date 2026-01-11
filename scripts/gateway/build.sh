@@ -1,10 +1,10 @@
 #!/bin/bash
-# scripts/port/build.sh
+# scripts/gateway/build.sh
 set -e
 
-echo "🔨 Building yQuant PORT applications (Console Sync)..."
+echo "🔨 Building yQuant GATEWAY applications (Console Sync)..."
 
-# 프로젝트 루트 디렉토리 (scripts/port 서브디렉토리 기준)
+# 프로젝트 루트 디렉토리 (scripts/gateway 서브디렉토리 기준)
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 
@@ -22,4 +22,4 @@ echo "📦 Publishing Console (Catalog Sync Tool)..."
 dotnet publish src/03.Applications/yQuant.App.Console/yQuant.App.Console.csproj \
   -c Release -o "$DEPLOY_ROOT/console"
 
-echo "✅ Port build process completed!"
+echo "✅ Gateway build process completed!"

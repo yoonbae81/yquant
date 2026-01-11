@@ -54,11 +54,13 @@ public class OrderManagerTests
         var orderPublisherMock = new Mock<yQuant.Core.Ports.Output.Infrastructure.IOrderPublisher>();
         var notificationPublisherMock = new Mock<yQuant.Infra.Notification.NotificationPublisher>(_redisMock!.Object);
         var scheduleExecutorLoggerMock = new Mock<ILogger<yQuant.App.OrderManager.Services.ScheduleExecutor>>();
+        var scheduledOrderRepoMock = new Mock<yQuant.Core.Ports.Output.Infrastructure.IScheduledOrderRepository>();
         var scheduleExecutor = new yQuant.App.OrderManager.Services.ScheduleExecutor(
             scheduleExecutorLoggerMock.Object,
             _redisMock!.Object,
             orderPublisherMock.Object,
-            notificationPublisherMock.Object
+            notificationPublisherMock.Object,
+            scheduledOrderRepoMock.Object
         );
 
         // Setup IServiceScopeFactory mock

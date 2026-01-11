@@ -5,6 +5,7 @@ using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Notification;
 using yQuant.Infra.Notification.Discord;
 using StackExchange.Redis;
+using yQuant.Infra.Persistence;
 
 
 
@@ -37,6 +38,8 @@ builder.Services.AddHttpClient("KIS");
 builder.Services.AddValkeyMiddleware(builder.Configuration)
                 .AddHeartbeat("BrokerGateway");
 
+builder.Services.AddFirebirdPersistence();
+
 // Notifications (Valkey based)
 builder.Services.AddSingleton<NotificationPublisher>();
 builder.Logging.AddValkeyNotification();
@@ -47,8 +50,8 @@ builder.AddDiscordDirectNotification();
 
 // Performance & Trade Tracking
 builder.Services.AddSingleton<IPerformanceRepository, yQuant.Infra.Reporting.Repositories.JsonPerformanceRepository>();
-builder.Services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.ITradeRepository, yQuant.Infra.Reporting.Repositories.ValkeyTradeRepository>();
-builder.Services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.ValkeyDailySnapshotRepository>();
+builder.Services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.ITradeRepository, yQuant.Infra.Reporting.Repositories.ValkeyBufferTradeRepository>();
+// IDailySnapshotRepository is registered via AddFirebirdPersistence() above
 // Register KIS Adapter Factory and Adapters
 builder.Services.AddSingleton<KISAdapterFactory>();
 builder.Services.AddSingleton<Dictionary<string, IBrokerAdapter>>(sp =>
@@ -70,6 +73,9 @@ builder.Services.AddSingleton<Dictionary<string, IBrokerAdapter>>(sp =>
 builder.Services.AddHostedService<Worker>();
 
 var host = builder.Build();
+
+// Initialize Firebird Schema
+await host.Services.InitializeFirebirdPersistenceAsync();
 
 // Notify systemd that the service is ready (Linux only)
 if (OperatingSystem.IsLinux())

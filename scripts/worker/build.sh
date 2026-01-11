@@ -1,9 +1,9 @@
 #!/bin/bash
-# scripts/node/build.sh
+# scripts/worker/build.sh
 set -e
 
 SERVICE=$1
-echo "🔨 Building yQuant NODE applications (Target: ${SERVICE:-all})..."
+echo "🔨 Building yQuant WORKER applications (Target: ${SERVICE:-all})..."
 
 # 프로젝트 루트 디렉토리
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
@@ -58,4 +58,4 @@ case "$SERVICE" in
         ;;
 esac
 
-echo "✅ Node build process completed!"
+echo "✅ Worker build process completed!"

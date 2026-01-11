@@ -1,9 +1,9 @@
 #!/bin/bash
-# scripts/node/health-check.sh
+# scripts/worker/health-check.sh
 set -e
 
 SERVICE=$1
-echo "🏥 Checking health of yQuant NODE services (Target: ${SERVICE:-all})..."
+echo "🏥 Checking health of yQuant WORKER services (Target: ${SERVICE:-all})..."
 
 check_service() {
     local name=$1
@@ -27,8 +27,8 @@ else
 fi
 
 if [ "$ALL_HEALTHY" = true ]; then
-    echo "✅ Targeted node services are healthy!"
+    echo "✅ Targeted worker services are healthy!"
 else
-    echo "❌ Some node services are unhealthy!"
+    echo "❌ Some worker services are unhealthy!"
     exit 1
 fi

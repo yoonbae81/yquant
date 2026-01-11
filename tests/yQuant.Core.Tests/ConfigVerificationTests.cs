@@ -64,7 +64,7 @@ public class ConfigVerificationTests
         var accounts = _config.GetSection("BrokerGateway:Accounts");
         Assert.True(accounts.Exists());
 
-        var trading = accounts.GetSection("Trading");
+        var trading = accounts.GetSection("Trading1");
         Assert.True(trading.Exists());
         Assert.Equal("KIS", trading["Broker"]);
         Assert.NotNull(trading["AppKey"]);

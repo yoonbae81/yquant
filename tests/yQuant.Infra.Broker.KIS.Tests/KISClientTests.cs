@@ -6,7 +6,7 @@ using Moq.Protected;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS;
 using yQuant.Infra.Broker.KIS.Models;
-using yQuant.Infra.Valkey.Interfaces;
+using yQuant.Core.Ports.Output.Infrastructure;
 using Xunit;
 
 namespace yQuant.Infra.Broker.KIS.Tests;
@@ -15,7 +15,7 @@ public class KISClientTests
 {
     private readonly Mock<HttpMessageHandler> _mockHttpMessageHandler;
     private readonly Mock<ILogger<KISClient>> _mockLogger;
-    private readonly Mock<IStorageValkeyService> _mockStorageValkey;
+    private readonly Mock<IKisTokenRepository> _mockTokenRepository;
     private readonly KISClient _client;
     private readonly KISApiConfig _apiConfig;
     private readonly string _userId;
@@ -32,7 +32,7 @@ public class KISClientTests
         };
 
         _mockLogger = new Mock<ILogger<KISClient>>();
-        _mockStorageValkey = new Mock<IStorageValkeyService>();
+        _mockTokenRepository = new Mock<IKisTokenRepository>();
 
         _apiConfig = KISApiConfig.Load(Path.Combine(AppContext.BaseDirectory, "API"));
         if (_apiConfig == null || _apiConfig.ExtensionData.Count == 0)
@@ -62,7 +62,7 @@ public class KISClientTests
             account,
             _apiConfig,
             "https://api.test.com",
-            _mockStorageValkey.Object
+            _mockTokenRepository.Object
         );
     }
 
@@ -189,14 +189,13 @@ public class KISClientTests
     }
 
     [Fact(Skip = "Requires API configuration files")]
-    public async Task EnsureConnectedAsync_ShouldUseTokenFromValkey_WhenExists()
+    public async Task EnsureConnectedAsync_ShouldUseTokenFromRepository_WhenExists()
     {
         // Arrange
-        var cachedToken = "redis_cached_token";
+        var cachedToken = "repo_cached_token";
         var expiration = DateTime.UtcNow.AddHours(1);
-        var redisKey = $"Token:KIS:{_accountAlias}";
 
-        _mockStorageValkey.Setup(r => r.GetAsync<TokenCacheEntry>(redisKey))
+        _mockTokenRepository.Setup(r => r.GetTokenAsync(_accountAlias))
             .ReturnsAsync(new TokenCacheEntry { Token = cachedToken, Expiration = expiration });
 
         SetupMockResponse(req =>
@@ -216,8 +215,8 @@ public class KISClientTests
         await _client.ExecuteAsync<object>("Order", new { test = "body" });
 
         // Assert
-        // Verify Valkey was queried
-        _mockStorageValkey.Verify(r => r.GetAsync<TokenCacheEntry>(redisKey), Times.Once);
+        // Verify Repository was queried
+        _mockTokenRepository.Verify(r => r.GetTokenAsync(_accountAlias), Times.Once);
 
         // Verify Token Request was NEVER made
         _mockHttpMessageHandler.Protected().Verify(
@@ -227,7 +226,7 @@ public class KISClientTests
             ItExpr.IsAny<CancellationToken>()
         );
 
-        // Verify Order Request has Valkey cached token
+        // Verify Order Request has stored cached token
         _mockHttpMessageHandler.Protected().Verify(
             "SendAsync",
             Times.Once(),

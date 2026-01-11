@@ -1,4 +1,4 @@
-name: Deploy yQuant Node (Blue/Green)
+name: Deploy yQuant Worker (Blue/Green)
 
 on:
   push:
@@ -8,8 +8,8 @@ on:
       - 'v*'
   workflow_dispatch:
     inputs:
-      target_node:
-        description: 'Target Node to deploy (Blue or Green)'
+      target_worker:
+        description: 'Target Worker to deploy (Blue or Green)'
         required: true
         default: 'green'
         type: choice
@@ -19,7 +19,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy All Services to ${{ github.event.inputs.target_node || 'blue' }}
+    name: Deploy All Services to ${{ github.event.inputs.target_worker || 'blue' }}
     runs-on: ubuntu-latest
     
     steps:
@@ -32,10 +32,10 @@ jobs:
           #tags: tag:ci
           #args: --accept-dns=false --accept-routes=false
 
-      - name: �🚀 Set Target Host
+      - name: �🚀 Set Target Worker
         id: set-host
         run: |
-          if [ "${{ github.event.inputs.target_node }}" == "green" ]; then
+          if [ "${{ github.event.inputs.target_worker }}" == "green" ]; then
             echo "host=${{ secrets.HOST_GREEN }}" >> $GITHUB_OUTPUT
           else
             echo "host=${{ secrets.HOST_BLUE }}" >> $GITHUB_OUTPUT
@@ -58,12 +58,12 @@ jobs:
       - name: 📢 Notify Success
         if: success()
         run: |
-          echo "✅ yQuant Deployment to ${{ github.event.inputs.target_node || 'blue' }} successful!"
+          echo "✅ yQuant Deployment to ${{ github.event.inputs.target_worker || 'blue' }} successful!"
           echo "Ref: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
       
       - name: 📢 Notify Failure
         if: failure()
         run: |
-          echo "❌ yQuant Deployment to ${{ github.event.inputs.target_node || 'blue' }} failed!"
+          echo "❌ yQuant Deployment to ${{ github.event.inputs.target_worker || 'blue' }} failed!"
           echo "Check the logs above for details."

@@ -10,6 +10,7 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Core.Ports.Output.Policies;
 using yQuant.Infra.Valkey.Extensions;
 using yQuant.Infra.Notification.Discord;
+using yQuant.Infra.Persistence;
 
 
 
@@ -55,8 +56,7 @@ builder.Services.AddSingleton<IStrategyPolicyMapper, ConfigStrategyPolicyMapper>
 builder.Services.AddSingleton<IOrderPublisher, ValkeyOrderPublisher>();
 
 // Register Performance Tracking
-builder.Services.AddSingleton<IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.ValkeyDailySnapshotRepository>();
-builder.Services.AddSingleton<IScheduledOrderRepository, yQuant.Infra.Valkey.Services.ValkeyScheduledOrderRepository>();
+// IDailySnapshotRepository is registered via AddFirebirdPersistence() below
 
 // Register Schedule Executor
 builder.Services.AddSingleton<yQuant.App.OrderManager.Services.ScheduleExecutor>();
@@ -112,7 +112,14 @@ builder.Services.AddSingleton<IEnumerable<IMarketRule>>(sp =>
 
 builder.Services.AddHostedService<Worker>();
 
+// Persistence & Archiving
+builder.Services.AddFirebirdPersistence();
+builder.Services.AddTradeArchiver();
+
 var host = builder.Build();
+
+// Initialize Firebird Schema
+await host.Services.InitializeFirebirdPersistenceAsync();
 
 // Notify systemd that the service is ready (Linux only)
 if (OperatingSystem.IsLinux())

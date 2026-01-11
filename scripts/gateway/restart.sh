@@ -1,8 +1,8 @@
 #!/bin/bash
-# scripts/port/restart.sh
+# scripts/gateway/restart.sh
 set -e
 
-echo "🔄 Restarting yQuant PORT services (Catalog Sync)..."
+echo "🔄 Restarting yQuant GATEWAY services (Catalog Sync)..."
 
 # Restart Timer
 echo "🔄 Restarting console-sync.timer..."
@@ -15,4 +15,4 @@ else
     exit 1
 fi
 
-echo "✅ Port restart process completed!"
+echo "✅ Gateway restart process completed!"

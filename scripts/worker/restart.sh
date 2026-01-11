@@ -1,9 +1,9 @@
 #!/bin/bash
-# scripts/node/restart.sh
+# scripts/worker/restart.sh
 set -e
 
 SERVICE=$1
-echo "🔄 Restarting yQuant NODE services (Target: ${SERVICE:-all})..."
+echo "🔄 Restarting yQuant WORKER services (Target: ${SERVICE:-all})..."
 
 restart_service() {
   local name=$1
@@ -27,4 +27,4 @@ else
     done
 fi
 
-echo "✅ Node restart process completed!"
+echo "✅ Worker restart process completed!"

@@ -3,6 +3,7 @@ using Microsoft.Extensions.Options;
 using yQuant.Core.Models;
 using yQuant.App.Console.Services;
 using yQuant.Infra.Valkey.Services;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 
 namespace yQuant.App.Console.Commands
@@ -10,7 +11,7 @@ namespace yQuant.App.Console.Commands
     public class CatalogCommand : ICommand
     {
         private readonly StockCatalogSyncService _syncService;
-        private readonly StockCatalogRepository _repository;
+        private readonly IStockCatalogRepository _repository;
         private readonly ILogger<CatalogCommand> _logger;
         private readonly CatalogSettings _settings;
 
@@ -19,7 +20,7 @@ namespace yQuant.App.Console.Commands
 
         public CatalogCommand(
             StockCatalogSyncService syncService,
-            StockCatalogRepository repository,
+            IStockCatalogRepository repository,
             ILogger<CatalogCommand> logger,
             IOptions<CatalogSettings> settings)
         {

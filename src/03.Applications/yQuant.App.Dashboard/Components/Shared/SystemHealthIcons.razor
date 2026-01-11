@@ -8,8 +8,8 @@
             Size="Size.Small" />
     </MudTooltip>
 
-    <MudTooltip Text="Valkey (Storage)">
-        <MudIcon Icon="@Icons.Material.Filled.Storage" Color="@(_storageValkeyOnline ? Color.Success : Color.Error)"
+    <MudTooltip Text="Firebird DB (Shared)">
+        <MudIcon Icon="@Icons.Material.Filled.Storage" Color="@(_firebirdOnline ? Color.Success : Color.Error)"
             Size="Size.Small" />
     </MudTooltip>
 
@@ -31,7 +31,7 @@
 
 @code {
     private bool _msgValkeyOnline;
-    private bool _storageValkeyOnline;
+    private bool _firebirdOnline;
     private bool _brokerOnline;
     private bool _composerOnline;
     private bool _webhookOnline;
@@ -60,8 +60,8 @@
     private async Task CheckHealth()
     {
         _msgValkeyOnline = await HealthService.CheckMessageValkeyAsync();
-        _storageValkeyOnline = await HealthService.CheckStorageValkeyAsync();
-        
+        _firebirdOnline = await HealthService.CheckFirebirdAsync();
+
         if (_msgValkeyOnline)
         {
             _brokerOnline = await HealthService.CheckServiceAsync("BrokerGateway");

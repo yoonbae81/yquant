@@ -2,6 +2,7 @@ using Microsoft.Extensions.Logging;
 using yQuant.Infra.Valkey.Interfaces;
 using yQuant.Infra.Valkey.Services;
 using StackExchange.Redis;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.App.Dashboard.Services;
 
@@ -9,13 +10,13 @@ public class StockService
 {
     private readonly ILogger<StockService> _logger;
     private readonly IValkeyService _messageValkey;
-    private readonly StockCatalogRepository _catalogRepository;
+    private readonly IStockCatalogRepository _catalogRepository;
     private const string KeyPrefix = "stock:";
 
     public StockService(
         ILogger<StockService> logger,
         IValkeyService messageValkey,
-        StockCatalogRepository catalogRepository)
+        IStockCatalogRepository catalogRepository)
     {
         _logger = logger;
         _messageValkey = messageValkey;

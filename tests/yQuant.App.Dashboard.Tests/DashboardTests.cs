@@ -11,7 +11,6 @@ using System;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using Microsoft.Extensions.Configuration;
-using yQuant.Infra.Valkey.Services;
 
 
 namespace yQuant.App.Dashboard.Tests;
@@ -30,7 +29,7 @@ public class DashboardTests : Bunit.BunitContext
         var loggerMock = new Mock<ILogger<AssetService>>();
         var redisMultiplexerMock = new Mock<IConnectionMultiplexer>();
         var redisServiceMock = new Mock<yQuant.Infra.Valkey.Interfaces.IValkeyService>();
-        var storageValkeyMock = new Mock<yQuant.Infra.Valkey.Interfaces.IStorageValkeyService>();
+
         // Setup Valkey mocks
         var mockDb = new Mock<IDatabase>();
         var mockBatch = new Mock<IBatch>();
@@ -57,9 +56,8 @@ public class DashboardTests : Bunit.BunitContext
 
         // Setup StockService mock
         var stockServiceLoggerMock = new Mock<ILogger<StockService>>();
-        var catalogRepoLoggerMock = new Mock<ILogger<StockCatalogRepository>>();
-        var catalogRepo = new StockCatalogRepository(storageValkeyMock.Object, catalogRepoLoggerMock.Object);
-        _stockServiceMock = new Mock<StockService>(stockServiceLoggerMock.Object, redisServiceMock.Object, catalogRepo);
+        var catalogRepoMock = new Mock<yQuant.Core.Ports.Output.Infrastructure.IStockCatalogRepository>();
+        _stockServiceMock = new Mock<StockService>(stockServiceLoggerMock.Object, redisServiceMock.Object, catalogRepoMock.Object);
 
         // Setup OrderPublisher mock
         var orderPublisherLoggerMock = new Mock<ILogger<OrderPublisher>>();

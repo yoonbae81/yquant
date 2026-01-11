@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using yQuant.Infra.Valkey.Interfaces;
 using Microsoft.Extensions.Configuration;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.Infra.Valkey.Services;
 
@@ -12,13 +13,13 @@ namespace yQuant.Infra.Valkey.Services;
 public class CatalogUpdateSubscriber : BackgroundService
 {
     private readonly IValkeyService _messageValkey;
-    private readonly StockCatalogRepository _repository;
+    private readonly IStockCatalogRepository _repository;
     private readonly IConfiguration _configuration;
     private readonly ILogger<CatalogUpdateSubscriber> _logger;
 
     public CatalogUpdateSubscriber(
         IValkeyService messageValkey,
-        StockCatalogRepository repository,
+        IStockCatalogRepository repository,
         IConfiguration configuration,
         ILogger<CatalogUpdateSubscriber> logger)
     {

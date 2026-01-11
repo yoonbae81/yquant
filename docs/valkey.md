@@ -5,25 +5,19 @@ This document details the Valkey implementation for the `yQuant` system, serving
 ## 1. Overview
 Valkey is used in `yQuant` in two distinct logical roles, which are configured via `appsecrets.json`:
 
-1.  **Messaging Valkey (`Valkey:Message`)**: 
+1.  **Messaging Valkey (`ConnectionStrings:Valkey`)**: 
     - Facilitates real-time, event-driven communication (Pub/Sub: `signal`, `order`, etc.).
-    - Stores environment-specific state (Heartbeats, Trade logs, Market data cache).
-2.  **Storage Valkey (`Valkey:Storage`)**:
-    - Shared across all environments (Production, Staging, Local Dev).
-    - Specifically caches **KIS Access Tokens** to comply with daily issuance limits.
+    - Stores transient application state (Heartbeats, Account Status, Active Positions).
+    - Acts as a high-speed buffer for trade logs (`trades:queue`).
+
+> **Note**: Shared persistent data (**CATALOG**, **TOKENS**, **SCHEDULED_ORDERS**, **DAILY_SNAPSHOTS**) has been migrated to **Firebird DB** to ensure consistency across Blue/Green deployments without relying on a shared Valkey instance for storage.
 
 > **Note**: While the configuration keys still use `Valkey` for backward compatibility with the used libraries, the underlying service is Valkey.
 
 ## 2. Connection & Configuration
-### 2.1. Messaging & Ops Valkey
-- **Configuration Path**: `Valkey:Message` in `appsecrets.json`
+- **Configuration Path**: `ConnectionStrings:Valkey` in `appsecrets.json`
 - **Library**: `StackExchange.Redis` (compatible with Valkey) via `IValkeyService`
-- **Scope**: Specific to each deployment environment.
-
-### 2.2. Global Storage Valkey
-- **Configuration Path**: `Valkey:Storage` in `appsecrets.json`
-- **Library**: `StackExchange.Redis` via `IStorageValkeyService`
-- **Scope**: Shared across ALL environments (Production, Staging, Local).
+- **Scope**: Specific to each deployment environment (Local). For shared storage, see Firebird documentation.
 
 > **Note**: These two can point to the same Valkey instance if desired. The key namespacing is designed to avoid conflicts.
 
@@ -49,9 +43,7 @@ Valkey is used in `yQuant` in two distinct logical roles, which are configured v
 | `account:index` | Set | `App.BrokerGateway` | `App.Web` | Set of all active account aliases. Used for discovery. |
 | `deposit:{Alias}` | Hash | `App.BrokerGateway` | `App.Web`, `App.OrderManager` | Real-time balance per currency (Field: `USD`, Value: `1000.00`). |
 | `position:{Alias}` | Hash | `App.BrokerGateway` | `App.Web`, `App.OrderManager` | Real-time positions (Field: `AAPL`, Value: `Position` JSON). |
-| `stock:{Ticker}` | Hash | `App.Console` (catalog), `App.BrokerGateway` | `App.Web`, `App.Console` | Merged static info (Name, Exchange) and dynamic market data (Price, Change). |
-| `scheduled:{Alias}` | String | `App.Web` | `App.OrderManager` | List of scheduled orders (JSON Array). Stores schedule config (DaysOfWeek, TimeMode). |
-| `Token:KIS:{Alias}` | JSON | `App.BrokerGateway` | All Environments | **(Storage Valkey)** Shared KIS access token and expiration. |
+| `trades:queue` | List | `App.BrokerGateway` | `App.OrderManager` | High-speed buffer for trade records. Consumed by `TradeArchiver`. |
 
 ## 4. Data Flows
 
@@ -62,9 +54,9 @@ Valkey is used in `yQuant` in two distinct logical roles, which are configured v
 4.  **Feedback**: `App.Web` listens to `execution` for real-time updates.
 
 ### 4.2. Market Data Flow
-1.  **Master Data**: `App.Console` (catalog command) runs daily → writes static data (Name, Exchange) to `stock:{Ticker}` with TTL.
-2.  **Real-time Price**: `App.BrokerGateway` fetches prices periodically → updates `price`, `changeRate` fields in `stock:{Ticker}` and refreshes TTL.
-3.  **Consumption**: `App.Web` reads `stock:{Ticker}` to display portfolio values.
+1.  **Master Data**: `App.Console` (catalog command) runs daily → writes to **Firebird Stock Catalog**.
+2.  **Real-time Price**: `App.BrokerGateway` fetches prices periodically → updates `stock:{Ticker}` cache in Valkey (for sub-second access).
+3.  **Consumption**: `App.Web` reads `stock:{Ticker}` or Firebird if cache-miss.
 
 ### 4.3. Account Sync Flow
 1.  **Startup**: `App.BrokerGateway` connects to Broker → writes `account:{Alias}` and adds to `account:index`.

@@ -14,6 +14,7 @@ using yQuant.Infra.Valkey.Services;
 using StackExchange.Redis;
 using yQuant.Infra.Notification;
 using yQuant.Infra.Notification.Discord;
+using yQuant.Infra.Persistence;
 
 
 
@@ -100,15 +101,13 @@ builder.AddDiscordDirectNotification();
 
 
 // Register Scheduled Order Repository
-builder.Services.AddSingleton<IScheduledOrderRepository, ValkeyScheduledOrderRepository>();
 
 // Register SchedulerService as Singleton (CRUD only, execution handled by OrderManager)
 builder.Services.AddSingleton<SchedulerService>();
 
 // Register Performance Repositories
 builder.Services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
-builder.Services.AddSingleton<ITradeRepository, yQuant.Infra.Reporting.Repositories.ValkeyTradeRepository>();
-builder.Services.AddSingleton<IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.ValkeyDailySnapshotRepository>();
+builder.Services.AddFirebirdPersistence();
 
 // Register Broker Adapter Factory and Order Publisher
 
@@ -122,6 +121,12 @@ builder.Services.AddSingleton<RealtimeEventService>();
 builder.Services.AddHostedService<ExecutionListener>();
 
 var app = builder.Build();
+
+// Initialize Firebird Schema
+using (var scope = app.Services.CreateScope())
+{
+    await scope.ServiceProvider.InitializeFirebirdPersistenceAsync();
+}
 
 var pathBase = app.Configuration.GetValue<string>("Dashboard:PathBase");
 if (!string.IsNullOrWhiteSpace(pathBase) && pathBase != "/")

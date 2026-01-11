@@ -4,8 +4,8 @@ using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS.Models;
-using yQuant.Infra.Valkey.Interfaces;
 using yQuant.Infra.Notification;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.Infra.Broker.KIS;
 
@@ -16,7 +16,7 @@ public class KISClient : IKISClient
     private readonly Account _account;
     private readonly KISApiConfig _apiConfig;
     private readonly RateLimiter _rateLimiter;
-    private readonly IStorageValkeyService? _storageValkey;
+    private readonly IKisTokenRepository? _tokenRepository;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
 
     private string? _accessToken;
@@ -36,13 +36,13 @@ public class KISClient : IKISClient
 
     public Account Account => _account;
 
-    public KISClient(HttpClient httpClient, ILogger<KISClient> logger, Account account, KISApiConfig apiConfig, string baseUrl, IStorageValkeyService? storageValkey = null, int rateLimit = 20)
+    public KISClient(HttpClient httpClient, ILogger<KISClient> logger, Account account, KISApiConfig apiConfig, string baseUrl, IKisTokenRepository? tokenRepository = null, int rateLimit = 20)
     {
         _httpClient = httpClient;
         _logger = logger;
         _account = account;
         _apiConfig = apiConfig;
-        _storageValkey = storageValkey;
+        _tokenRepository = tokenRepository;
 
         _httpClient.BaseAddress = new Uri(baseUrl);
 
@@ -80,16 +80,16 @@ public class KISClient : IKISClient
                 return;
             }
 
-            // 3. Check Global Token Valkey (Shared across environments)
-            if (_storageValkey != null)
+            // 3. Check Global Token Repository (Firebird)
+            if (_tokenRepository != null)
             {
-                var tokenFromValkey = await _storageValkey.GetAsync<TokenCacheEntry>($"Token:KIS:{_account.Alias}");
-                if (tokenFromValkey != null && tokenFromValkey.Expiration > DateTime.UtcNow.AddMinutes(1))
+                var tokenCache = await _tokenRepository.GetTokenAsync(_account.Alias);
+                if (tokenCache != null && tokenCache.Expiration > DateTime.UtcNow.AddMinutes(1))
                 {
-                    _accessToken = tokenFromValkey.Token;
-                    _accessTokenExpiration = tokenFromValkey.Expiration;
+                    _accessToken = tokenCache.Token;
+                    _accessTokenExpiration = tokenCache.Expiration;
                     _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
-                    _logger.LogInformation("Loaded KIS access token from GLOBAL Valkey cache for account {Alias}.", _account.Alias);
+                    _logger.LogInformation("Loaded KIS access token from GLOBAL Repository for account {Alias}.", _account.Alias);
 
                     // Also update local file cache as fallback
                     await SaveTokenToFileAsync(_accessToken, _accessTokenExpiration);
@@ -165,10 +165,10 @@ public class KISClient : IKISClient
         _accessTokenExpiration = DateTime.MinValue;
 
 
-        // Clear from Global Valkey
-        if (_storageValkey != null)
+        // Clear from Global Repository
+        if (_tokenRepository != null)
         {
-            await _storageValkey.DeleteAsync($"Token:KIS:{_account.Alias}");
+            await _tokenRepository.DeleteTokenAsync(_account.Alias);
         }
 
         // Clear from local file
@@ -229,10 +229,10 @@ public class KISClient : IKISClient
             _accessTokenExpiration = DateTime.UtcNow.AddSeconds(tokenResponse.ExpiresIn - 60);
 
 
-            // Store in Global Valkey
-            if (_storageValkey != null)
+            // Store in Global Repository
+            if (_tokenRepository != null)
             {
-                await _storageValkey.SetAsync($"Token:KIS:{_account.Alias}", new TokenCacheEntry { Token = _accessToken, Expiration = _accessTokenExpiration }, TimeSpan.FromSeconds(tokenResponse.ExpiresIn));
+                await _tokenRepository.SaveTokenAsync(_account.Alias, new TokenCacheEntry { Token = _accessToken, Expiration = _accessTokenExpiration });
             }
 
             // Store in local file cache

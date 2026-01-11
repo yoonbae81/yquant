@@ -23,7 +23,8 @@ Core Layer의 Output Port를 구현하는 어댑터들이 위치
 - **Broker Adapters**: KIS(한국투자증권) 등 증권사 API 연동 구현체
 - **Messaging Adapters**: Valkey Pub/Sub 통신 구현체
 - **Notification Adapters**: Discord, Telegram 알림 발송 구현체 (`yQuant.Infra.Notification.*`)
-- **Reporting Adapters**: 성과 데이터(`yQuant.Infra.Reporting`) 및 QuantStats 지표 산출(`yQuant.Infra.Reporting.QuantStats`) 로깅 구현체
+- **Persistence Adapters**: Firebird DB 기반 영구 저장 구현체 (`yQuant.Infra.Persistence`)
+- **Reporting Adapters**: 성과 데이터(`yQuant.Infra.Reporting`) 시각화 및 Valkey 기반 Trade 버퍼 구현
 
 ### 2.3. Policy Layer (The Logic Plugins)
 전략적 의사결정을 담당하는 로직을 관리하는 계층
@@ -45,7 +46,7 @@ Core Layer의 Output Port를 구현하는 어댑터들이 위치
 2. **Order Composition**: Valkey (`signal`) → `yQuant.App.OrderManager` → `OrderManagementService` → Config-based `MarketRule` & `PositionSizer` → Valkey (`order`)
 3. **Order Execution**: Valkey (`order`) → `yQuant.App.BrokerGateway` → `KISAdapter` → Broker API
 4. **Execution Feedback**: Broker API → `BrokerGateway` → Valkey (`execution`) → Notifier / Web / Discord / Telegram
-5. **Performance Tracking**: `BrokerGateway` → Valkey (`execution`) → `OrderManager` / `System` → `IPerformanceRepository` (Local CSV/JSON)
-6. **Reporting & Analysis**: `yQuant.App.Dashboard` → `QuantStatsService` → `PerformanceRepository` 조회 → 리포트 시각화 (Equity Curve 등)
-7. **Master Data Sync**: `Console (catalog command)` → `yQuant.Infra.Master.KIS` → Broker API → Valkey Cache (`stock:{Ticker}`)
+5. **Performance Tracking**: `BrokerGateway` → Valkey (`trades:queue`) → `OrderManager (TradeArchiver)` → `FirebirdTradeRepository` (Shared DB)
+6. **Reporting & Analysis**: `yQuant.App.Dashboard` → `FirebirdTradeRepository` 조회 → 리포트 시각화 (Equity Curve 등)
+7. **Master Data Sync**: `Console (catalog command)` → External API → `CATALOG` table (Shared Firebird DB) → Valkey Pub/Sub (Event) → Blue/Green Nodes Memory Cache Update
 8. **Health Monitoring**: 각 앱 → Valkey (`heartbeat`) → `yQuant.App.Dashboard` (Service Status Dashboard)

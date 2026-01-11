@@ -12,14 +12,14 @@ namespace yQuant.App.Console.Services;
 public class StockCatalogSyncService
 {
     private readonly StockCatalogLoader _loader;
-    private readonly StockCatalogRepository _repository;
+    private readonly IStockCatalogRepository _repository;
     private readonly ISystemLogger _systemLogger;
     private readonly IValkeyService _messageValkey;
     private readonly ILogger<StockCatalogSyncService> _logger;
 
     public StockCatalogSyncService(
         StockCatalogLoader loader,
-        StockCatalogRepository repository,
+        IStockCatalogRepository repository,
         ISystemLogger systemLogger,
         IValkeyService messageValkey,
         ILogger<StockCatalogSyncService> logger)
