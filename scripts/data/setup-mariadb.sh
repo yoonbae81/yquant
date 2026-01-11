@@ -1,5 +1,5 @@
 #!/bin/bash
-# scripts/gateway/setup-mariadb.sh
+# scripts/data/setup-mariadb.sh
 # MariaDB 데이터베이스 및 사용자 설정 스크립트
 
 set -e

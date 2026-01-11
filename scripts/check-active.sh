@@ -1,6 +1,6 @@
 #!/bin/bash
 # scripts/check-active.sh
-# yq-gateway 서버에서 실행하여 현재 어떤 노드가 Active 인지 확인합니다.
+# yq-data 서버에서 실행하여 현재 어떤 노드가 Active 인지 확인합니다.
 
 HAPROXY_CONF="/etc/haproxy/haproxy.cfg"
 

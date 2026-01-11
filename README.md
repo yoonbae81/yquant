@@ -82,13 +82,13 @@ yQuant는 무중단 운영과 데이터 안정성을 위해 **Blue-Green** 배�
 
 ### **4.1. 서버 구성 (3-VM 구조)**
 
-*   **`yq-gateway`** (E2.Micro): 시스템의 관문. HAProxy를 통해 트래픽을 분산하며, 종목 카탈로그, 예약 주문, 증권사 토큰 및 매매 이력을 저장하는 공유 데이터베이스(MariaDB)를 운영합니다.
+*   **`yq-data`** (E2.Micro): 데이터 중심 노드. MariaDB를 통한 영구 데이터 저장(매매 이력, 종목 카탈로그, 예약 주문, 토큰)과 종목 마스터 데이터 동기화(Console Catalog Sync)를 담당하며, HAProxy를 통해 Worker 노드로 트래픽을 분산합니다.
 *   **`yq-blue` / `yq-green` (A1.Flex)**: 실제 연산 및 웹 대시보드가 구동되는 쌍둥이 Worker입니다. Valkey는 Pub/Sub 전용으로 로컬 통신에 주로 활용됩니다.
 
 ### **4.2. Blue-Green 배포 워크플로우**
 
 1.  **Staging 배포**: 현재 비활성(Standby) 상태인 Worker(예: `green`)에 새로운 코드를 배포합니다.
-2.  **검증**: `yq-gateway`의 스테이징 포트를 통해 신규 버전의 동작을 확인합니다.
+2.  **검증**: `yq-data`의 스테이징 포트를 통해 신규 버전의 동작을 확인합니다.
 3.  **역할 교체 (Promotion)**: 이상이 없으면 HAProxy 설정을 변경하여 `green`을 Active로 전환합니다.
 4.  **안정화**: 기존 Active였던 `blue`는 차기 배포를 위한 Standby 상태가 됩니다.
 
@@ -122,7 +122,7 @@ cp appsecrets.example.json appsecrets.json
 # {
 #   "ConnectionStrings": {
 #     "Valkey": "localhost:6379",
-#     "MariaDB": "Server=yq-gateway;Port=3306;Database=yquant;User=yquant;Password=your_password;CharSet=utf8mb4"
+#     "MariaDB": "Server=yq-data;Port=3306;Database=yquant;User=yquant;Password=your_password;CharSet=utf8mb4"
 #   },
 #   ...
 # }

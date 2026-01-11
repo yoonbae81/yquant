@@ -12,9 +12,10 @@ scripts/
 │   ├── restart.sh      # 서비스 재시작 (옵션: 특정 서비스명)
 │   ├── deploy.sh       # 통합 배포 (옵션: 특정 서비스명)
 │   └── health-check.sh # 상태 점검
-├── gateway/               # yq-gateway 서버용 (Catalog Sync 전용)
+├── data/                  # yq-data 서버용 (MariaDB + Catalog Sync)
 │   ├── build.sh
 │   ├── setup.sh
+│   ├── setup-mariadb.sh  # MariaDB 데이터베이스 설정
 │   ├── restart.sh
 │   ├── deploy.sh
 │   └── health-check.sh
@@ -35,12 +36,15 @@ bash scripts/worker/deploy.sh
 bash scripts/worker/deploy.sh dashboard
 ```
 
-### 2. 게이트웨이 노드 (Gateway)
-마스터 데이터 동기화만 담당하는 서버에서 사용합니다. 인자 없이 실행합니다.
+### 2. 데이터 노드 (Data)
+MariaDB 및 마스터 데이터 동기화를 담당하는 서버에서 사용합니다.
 
 ```bash
+# MariaDB 초기 설정 (최초 1회)
+bash scripts/data/setup-mariadb.sh
+
 # Catalog Sync 빌드 및 배포
-bash scripts/gateway/deploy.sh
+bash scripts/data/deploy.sh
 ```
 
 ## �🟢 Blue/Green 배포 전략

@@ -1,5 +1,5 @@
 #!/bin/bash
-# scripts/gateway/setup.sh
+# scripts/data/setup.sh
 set -e
 
 echo "⚙️ Setting up yQuant GATEWAY services (Catalog Sync)..."

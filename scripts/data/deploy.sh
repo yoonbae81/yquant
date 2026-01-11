@@ -1,5 +1,5 @@
 #!/bin/bash
-# scripts/gateway/deploy.sh
+# scripts/data/deploy.sh
 set -e
 
 echo "🚀 Deploying yQuant to GATEWAY 노드..."

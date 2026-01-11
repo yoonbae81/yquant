@@ -1,10 +1,10 @@
 #!/bin/bash
-# scripts/gateway/build.sh
+# scripts/data/build.sh
 set -e
 
 echo "🔨 Building yQuant GATEWAY applications (Console Sync)..."
 
-# 프로젝트 루트 디렉토리 (scripts/gateway 서브디렉토리 기준)
+# 프로젝트 루트 디렉토리 (scripts/data 서브디렉토리 기준)
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 cd "$PROJECT_ROOT"
 

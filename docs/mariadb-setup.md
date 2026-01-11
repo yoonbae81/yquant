@@ -81,7 +81,7 @@ EXIT;
 
 1. **연결 문자열 업데이트**:
    ```json
-   "MariaDB": "Server=yq-gateway;Port=3306;Database=yquant;User=yquant;Password=your_password;CharSet=utf8mb4"
+   "MariaDB": "Server=yq-data;Port=3306;Database=yquant;User=yquant;Password=your_password;CharSet=utf8mb4"
    ```
 
 2. **MariaDB 방화벽 설정**:

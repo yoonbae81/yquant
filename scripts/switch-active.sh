@@ -1,6 +1,6 @@
 #!/bin/bash
 # scripts/switch-active.sh
-# yq-gateway 서버에서 실행하여 Blue와 Green의 역할을 교체합니다.
+# yq-data 서버에서 실행하여 Blue와 Green의 역할을 교체합니다.
 
 set -e
 

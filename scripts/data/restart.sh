@@ -1,5 +1,5 @@
 #!/bin/bash
-# scripts/gateway/restart.sh
+# scripts/data/restart.sh
 set -e
 
 echo "🔄 Restarting yQuant GATEWAY services (Catalog Sync)..."

@@ -1,5 +1,5 @@
 #!/bin/bash
-# scripts/gateway/health-check.sh
+# scripts/data/health-check.sh
 set -e
 
 echo "🏥 Checking health of yQuant GATEWAY services..."
