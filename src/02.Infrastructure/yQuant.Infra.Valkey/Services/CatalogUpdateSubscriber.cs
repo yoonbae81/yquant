@@ -4,6 +4,7 @@ using StackExchange.Redis;
 using yQuant.Infra.Valkey.Interfaces;
 using Microsoft.Extensions.Configuration;
 using yQuant.Core.Ports.Output.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace yQuant.Infra.Valkey.Services;
 
@@ -13,18 +14,18 @@ namespace yQuant.Infra.Valkey.Services;
 public class CatalogUpdateSubscriber : BackgroundService
 {
     private readonly IValkeyService _messageValkey;
-    private readonly IStockCatalogRepository _repository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
     private readonly ILogger<CatalogUpdateSubscriber> _logger;
 
     public CatalogUpdateSubscriber(
         IValkeyService messageValkey,
-        IStockCatalogRepository repository,
+        IServiceScopeFactory scopeFactory,
         IConfiguration configuration,
         ILogger<CatalogUpdateSubscriber> logger)
     {
         _messageValkey = messageValkey;
-        _repository = repository;
+        _scopeFactory = scopeFactory;
         _configuration = configuration;
         _logger = logger;
     }
@@ -38,7 +39,10 @@ public class CatalogUpdateSubscriber : BackgroundService
         {
             try
             {
-                var countries = await _repository.GetActiveCountriesAsync();
+                using var scope = _scopeFactory.CreateScope();
+                var repository = scope.ServiceProvider.GetRequiredService<IStockCatalogRepository>();
+
+                var countries = await repository.GetActiveCountriesAsync();
                 if (countries.Any())
                 {
                     // Sort countries by market priority (Open > Opening Soon > Closed recently > Others)
@@ -55,7 +59,7 @@ public class CatalogUpdateSubscriber : BackgroundService
                     foreach (var country in prioritizedCountries)
                     {
                         if (stoppingToken.IsCancellationRequested) break;
-                        await _repository.LoadCountryToMemoryAsync(country, stoppingToken);
+                        await repository.LoadCountryToMemoryAsync(country, stoppingToken);
                     }
                     _logger.LogInformation("Priority background warm-up for all countries completed.");
                 }
@@ -76,7 +80,9 @@ public class CatalogUpdateSubscriber : BackgroundService
                 _logger.LogInformation("Received 'catalog:updated' event. Triggering full memory cache reload...");
                 try
                 {
-                    await _repository.LoadAllToMemoryAsync(force: true, cancellationToken: stoppingToken);
+                    using var scope = _scopeFactory.CreateScope();
+                    var repository = scope.ServiceProvider.GetRequiredService<IStockCatalogRepository>();
+                    await repository.LoadAllToMemoryAsync(force: true, cancellationToken: stoppingToken);
                     _logger.LogInformation("Full memory cache reload completed successfully.");
                 }
                 catch (Exception ex)
@@ -90,7 +96,9 @@ public class CatalogUpdateSubscriber : BackgroundService
                 _logger.LogInformation("Received 'catalog:updated:{Country}' event. Triggering partial memory cache reload...", country);
                 try
                 {
-                    await _repository.LoadAllToMemoryAsync(force: false, countryCode: country, cancellationToken: stoppingToken);
+                    using var scope = _scopeFactory.CreateScope();
+                    var repository = scope.ServiceProvider.GetRequiredService<IStockCatalogRepository>();
+                    await repository.LoadAllToMemoryAsync(force: false, countryCode: country, cancellationToken: stoppingToken);
                     _logger.LogInformation("Partial memory cache reload for {Country} completed successfully.", country);
                 }
                 catch (Exception ex)
