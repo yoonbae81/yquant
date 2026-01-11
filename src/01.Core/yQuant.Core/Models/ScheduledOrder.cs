@@ -1,6 +1,6 @@
 using yQuant.Core.Models;
 
-namespace yQuant.App.OrderManager.Models;
+namespace yQuant.Core.Models;
 
 public enum ScheduleTimeMode
 {
@@ -19,7 +19,6 @@ public class ScheduledOrder
     public int? Quantity { get; set; }
 
     // Scheduling Logic
-    // If user wants 'Daily', the UI should populate this with all 7 days (or Mon-Fri)
     public HashSet<DayOfWeek> DaysOfWeek { get; set; } = new();
     public ScheduleTimeMode TimeMode { get; set; }
     public TimeSpan TimeConfig { get; set; } // Fixed time (e.g. 15:00) or Offset (e.g. 01:00)
@@ -31,7 +30,6 @@ public class ScheduledOrder
     public string? Notes { get; set; }
 }
 
-// DTO for import/export without Id and AccountAlias
 public class ScheduledOrderImportDto
 {
     public required string Ticker { get; set; }

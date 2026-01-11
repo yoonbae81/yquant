@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Text.Json.Serialization;
 using yQuant.App.Dashboard.Models;
 using yQuant.Core.Models;
+using yQuant.Core.Ports.Output.Infrastructure;
 
 namespace yQuant.App.Dashboard.Services;
 
@@ -15,9 +16,12 @@ public class SchedulerService
 {
     private readonly ILogger<SchedulerService> _logger;
     private readonly IConnectionMultiplexer _redis;
-    private readonly List<ScheduledOrder> _scheduledOrders = new();
+    private readonly IScheduledOrderRepository _scheduledOrderRepository;
+
+    // ScheduledLiquidation cache
     private readonly List<ScheduledLiquidation> _scheduledLiquidations = new();
     private readonly object _lock = new();
+
     private readonly JsonSerializerOptions _jsonOptions = new()
     {
         Converters = { new JsonStringEnumConverter() }
@@ -28,246 +32,127 @@ public class SchedulerService
 
     public SchedulerService(
         ILogger<SchedulerService> logger,
-        IConnectionMultiplexer redis)
+        IConnectionMultiplexer redis,
+        IScheduledOrderRepository scheduledOrderRepository)
     {
         _logger = logger;
         _redis = redis;
+        _scheduledOrderRepository = scheduledOrderRepository;
 
-        // Load data on construction
-        _ = LoadFromValkeyAsync();
+        // Load Liquidations on construction
+        _ = LoadLiquidationsFromValkeyAsync();
     }
 
-
-    private async Task LoadFromValkeyAsync()
+    private async Task LoadLiquidationsFromValkeyAsync()
     {
         try
         {
             var db = _redis.GetDatabase();
-
-            // 1. Get All Accounts
             var accounts = await db.SetMembersAsync("account:index");
-            var allOrders = new List<ScheduledOrder>();
             var allLiquidations = new List<ScheduledLiquidation>();
 
             foreach (var account in accounts)
             {
-                // Load scheduled orders
-                var orderKey = $"scheduled:{account}";
-                var orderJson = await db.StringGetAsync(orderKey);
-                if (orderJson.HasValue)
-                {
-                    try
-                    {
-                        var orders = JsonSerializer.Deserialize<List<ScheduledOrder>>(orderJson.ToString(), _jsonOptions);
-                        if (orders != null) allOrders.AddRange(orders);
-                    }
-                    catch
-                    {
-                        _logger.LogWarning("Failed to deserialize scheduled orders for {Account}", account);
-                    }
-                }
-
-                // Load scheduled liquidations
                 var liquidationKey = $"scheduled_liquidation:{account}";
-                var liquidationJson = await db.StringGetAsync(liquidationKey);
-                if (liquidationJson.HasValue)
+                var json = await db.StringGetAsync(liquidationKey);
+                if (json.HasValue)
                 {
                     try
                     {
-                        var liquidations = JsonSerializer.Deserialize<List<ScheduledLiquidation>>(liquidationJson.ToString(), _jsonOptions);
-                        if (liquidations != null) allLiquidations.AddRange(liquidations);
+                        var list = JsonSerializer.Deserialize<List<ScheduledLiquidation>>(json.ToString(), _jsonOptions);
+                        if (list != null) allLiquidations.AddRange(list);
                     }
                     catch
                     {
-                        _logger.LogWarning("Failed to deserialize scheduled liquidations for {Account}", account);
+                        _logger.LogWarning("Failed to deserialize liquidations for {Account}", account);
                     }
                 }
             }
 
             lock (_lock)
             {
-                _scheduledOrders.Clear();
-                _scheduledOrders.AddRange(allOrders);
-
                 _scheduledLiquidations.Clear();
                 _scheduledLiquidations.AddRange(allLiquidations);
 
-                // Init NextExecutionTime if null
-                foreach (var order in _scheduledOrders.Where(o => o.IsActive && o.NextExecutionTime == null))
+                foreach (var l in _scheduledLiquidations.Where(l => l.IsActive && l.NextExecutionTime == null))
                 {
-                    order.NextExecutionTime = CalculateNextExecutionTime(order);
-                }
-
-                foreach (var liquidation in _scheduledLiquidations.Where(l => l.IsActive && l.NextExecutionTime == null))
-                {
-                    liquidation.NextExecutionTime = CalculateNextExecutionTimeLiquidation(liquidation);
+                    l.NextExecutionTime = CalculateNextExecutionTimeLiquidation(l);
                 }
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, "Failed to load scheduled data from Valkey");
+            _logger.LogError(ex, "Failed to load liquidations");
         }
     }
 
-    private async Task SaveToValkeyAsync()
+    // ========== Scheduled Order Methods (Async via Repository) ==========
+
+    public async Task<IEnumerable<ScheduledOrder>> GetScheduledOrdersAsync(string accountAlias)
     {
-        try
-        {
-            var db = _redis.GetDatabase();
-            Dictionary<string, List<ScheduledOrder>> groupedOrders;
-            Dictionary<string, List<ScheduledLiquidation>> groupedLiquidations;
-
-            lock (_lock)
-            {
-                groupedOrders = _scheduledOrders.GroupBy(o => o.AccountAlias)
-                    .ToDictionary(g => g.Key, g => g.ToList());
-                groupedLiquidations = _scheduledLiquidations.GroupBy(l => l.AccountAlias)
-                    .ToDictionary(g => g.Key, g => g.ToList());
-            }
-
-            // Get all accounts from the index
-            var allAccounts = await db.SetMembersAsync("account:index");
-
-            foreach (var account in allAccounts)
-            {
-                var accountAlias = account.ToString();
-
-                // Save or delete scheduled orders
-                var orderKey = $"scheduled:{accountAlias}";
-                if (groupedOrders.TryGetValue(accountAlias, out var orders))
-                {
-                    var json = JsonSerializer.Serialize(orders, _jsonOptions);
-                    await db.StringSetAsync(orderKey, json);
-                }
-                else
-                {
-                    await db.KeyDeleteAsync(orderKey);
-                }
-
-                // Save or delete scheduled liquidations
-                var liquidationKey = $"scheduled_liquidation:{accountAlias}";
-                if (groupedLiquidations.TryGetValue(accountAlias, out var liquidations))
-                {
-                    var json = JsonSerializer.Serialize(liquidations, _jsonOptions);
-                    await db.StringSetAsync(liquidationKey, json);
-                }
-                else
-                {
-                    await db.KeyDeleteAsync(liquidationKey);
-                }
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to save scheduled data to Valkey");
-        }
+        return await _scheduledOrderRepository.GetAllAsync(accountAlias);
     }
 
-    public IEnumerable<ScheduledOrder> GetScheduledOrders()
+    public async Task AddOrUpdateScheduledOrderAsync(ScheduledOrder order)
     {
-        lock (_lock)
-        {
-            return _scheduledOrders.ToList();
-        }
-    }
+        // Calculate Time
+        if (order.IsActive)
+            order.NextExecutionTime = CalculateNextExecutionTime(order);
+        else
+            order.NextExecutionTime = null;
 
-    public void AddOrUpdateScheduledOrder(ScheduledOrder order)
-    {
-        lock (_lock)
-        {
-            var existing = _scheduledOrders.FirstOrDefault(o => o.Id == order.Id);
-            if (existing != null)
-            {
-                _scheduledOrders.Remove(existing);
-            }
-
-            // Recalculate next run time on update
-            if (order.IsActive)
-            {
-                order.NextExecutionTime = CalculateNextExecutionTime(order);
-            }
-            else
-            {
-                order.NextExecutionTime = null;
-            }
-
-            _scheduledOrders.Add(order);
-        }
-        // Fire and forget save
-        _ = SaveToValkeyAsync();
+        await _scheduledOrderRepository.AddOrUpdateAsync(order);
         NotifyStateChanged();
     }
 
-    public void RemoveScheduledOrder(Guid id)
+    public async Task RemoveScheduledOrderAsync(string accountAlias, Guid id)
     {
-        lock (_lock)
-        {
-            var order = _scheduledOrders.FirstOrDefault(o => o.Id == id);
-            if (order != null)
-            {
-                _scheduledOrders.Remove(order);
-            }
-        }
-        _ = SaveToValkeyAsync();
+        await _scheduledOrderRepository.RemoveAsync(accountAlias, id);
         NotifyStateChanged();
     }
 
-    private void NotifyStateChanged() => OnChange?.Invoke();
-
-    public string ExportOrders(string accountAlias)
+    public async Task<string> ExportOrdersAsync(string accountAlias)
     {
-        lock (_lock)
+        var orders = await _scheduledOrderRepository.GetAllAsync(accountAlias);
+        var exportList = orders.Select(o => new ScheduledOrderImportDto
         {
-            // Filter orders for the selected account
-            var ordersToExport = _scheduledOrders
-                .Where(o => o.AccountAlias == accountAlias)
-                .Select(o => new
-                {
-                    // Exclude Id and AccountAlias
-                    o.Ticker,
-                    o.Exchange,
-                    o.Currency,
-                    o.Action,
-                    o.Quantity,
-                    o.DaysOfWeek,
-                    o.TimeMode,
-                    o.TimeConfig,
-                    o.IsActive,
-                    o.Notes
-                })
-                .ToList();
+            Ticker = o.Ticker,
+            Exchange = o.Exchange,
+            Currency = o.Currency,
+            Action = o.Action,
+            Quantity = o.Quantity,
+            DaysOfWeek = o.DaysOfWeek,
+            TimeMode = o.TimeMode,
+            TimeConfig = o.TimeConfig,
+            IsActive = o.IsActive,
+            Notes = o.Notes
+        }).ToList();
 
-            return JsonSerializer.Serialize(ordersToExport, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                Converters = { new JsonStringEnumConverter() }
-            });
-        }
+        return JsonSerializer.Serialize(exportList, new JsonSerializerOptions
+        {
+            WriteIndented = true,
+            Converters = { new JsonStringEnumConverter() }
+        });
     }
 
-    public void ImportOrders(string json, string accountAlias)
+    public async Task ImportOrdersAsync(string json, string accountAlias)
     {
         try
         {
-            // Define a DTO for import that matches export format (without Id and AccountAlias)
-            var importedOrders = JsonSerializer.Deserialize<List<ScheduledOrderImportDto>>(json, _jsonOptions);
-            if (importedOrders == null) return;
+            var dtos = JsonSerializer.Deserialize<List<ScheduledOrderImportDto>>(json, _jsonOptions);
+            if (dtos == null) return;
 
-            lock (_lock)
+            await _scheduledOrderRepository.ProcessOrdersAsync(accountAlias, async (orders) =>
             {
-                foreach (var dto in importedOrders)
+                foreach (var dto in dtos)
                 {
-                    // Use Ticker + Action + DaysOfWeek as composite key
-                    var existing = _scheduledOrders.FirstOrDefault(o =>
-                        o.AccountAlias == accountAlias &&
+                    var existing = orders.FirstOrDefault(o =>
                         o.Ticker == dto.Ticker &&
                         o.Action == dto.Action &&
                         o.DaysOfWeek.SetEquals(dto.DaysOfWeek));
 
                     if (existing != null)
                     {
-                        // Update existing order
                         existing.Exchange = dto.Exchange;
                         existing.Currency = dto.Currency;
                         existing.Quantity = dto.Quantity;
@@ -276,15 +161,12 @@ public class SchedulerService
                         existing.IsActive = dto.IsActive;
                         existing.Notes = dto.Notes;
 
-                        // Recalc execution time
-                        if (existing.IsActive)
-                            existing.NextExecutionTime = CalculateNextExecutionTime(existing);
-                        else
-                            existing.NextExecutionTime = null;
+                        existing.NextExecutionTime = existing.IsActive
+                            ? CalculateNextExecutionTime(existing)
+                            : null;
                     }
                     else
                     {
-                        // Create new order
                         var newOrder = new ScheduledOrder
                         {
                             Id = Guid.NewGuid(),
@@ -300,16 +182,16 @@ public class SchedulerService
                             IsActive = dto.IsActive,
                             Notes = dto.Notes
                         };
+                        newOrder.NextExecutionTime = newOrder.IsActive
+                            ? CalculateNextExecutionTime(newOrder)
+                            : null;
 
-                        // Recalc execution time
-                        if (newOrder.IsActive)
-                            newOrder.NextExecutionTime = CalculateNextExecutionTime(newOrder);
-
-                        _scheduledOrders.Add(newOrder);
+                        orders.Add(newOrder);
                     }
                 }
-            }
-            _ = SaveToValkeyAsync();
+                return await Task.FromResult(true);
+            }, waitForLock: true);
+
             NotifyStateChanged();
         }
         catch (Exception ex)
@@ -319,54 +201,192 @@ public class SchedulerService
         }
     }
 
+    // ========== Scheduled Liquidation Methods (Legacy Sync/Internal) ==========
+
+    private async Task SaveLiquidationsToValkeyAsync()
+    {
+        // Simple save all based on internal cache
+        try
+        {
+            var db = _redis.GetDatabase();
+            Dictionary<string, List<ScheduledLiquidation>> grouped;
+            lock (_lock)
+            {
+                grouped = _scheduledLiquidations.GroupBy(l => l.AccountAlias)
+                    .ToDictionary(g => g.Key, g => g.ToList());
+            }
+
+            var accounts = await db.SetMembersAsync("account:index");
+            foreach (var acc in accounts)
+            {
+                var alias = acc.ToString();
+                var key = $"scheduled_liquidation:{alias}";
+                if (grouped.TryGetValue(alias, out var list))
+                {
+                    await db.StringSetAsync(key, JsonSerializer.Serialize(list, _jsonOptions));
+                }
+                else
+                {
+                    await db.KeyDeleteAsync(key);
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to save liquidations");
+        }
+    }
+
+    public IEnumerable<ScheduledLiquidation> GetScheduledLiquidations(string? accountAlias = null)
+    {
+        lock (_lock)
+        {
+            if (string.IsNullOrEmpty(accountAlias))
+                return _scheduledLiquidations.ToList();
+            return _scheduledLiquidations.Where(l => l.AccountAlias == accountAlias).ToList();
+        }
+    }
+
+    public void AddOrUpdateScheduledLiquidation(ScheduledLiquidation liquidation)
+    {
+        lock (_lock)
+        {
+            var existing = _scheduledLiquidations.FirstOrDefault(l => l.Id == liquidation.Id);
+            if (existing != null) _scheduledLiquidations.Remove(existing);
+
+            if (liquidation.IsActive)
+                liquidation.NextExecutionTime = CalculateNextExecutionTimeLiquidation(liquidation);
+            else
+                liquidation.NextExecutionTime = null;
+
+            _scheduledLiquidations.Add(liquidation);
+        }
+        _ = SaveLiquidationsToValkeyAsync();
+        NotifyStateChanged();
+    }
+
+    public void RemoveScheduledLiquidation(Guid id)
+    {
+        lock (_lock)
+        {
+            var l = _scheduledLiquidations.FirstOrDefault(x => x.Id == id);
+            if (l != null) _scheduledLiquidations.Remove(l);
+        }
+        _ = SaveLiquidationsToValkeyAsync();
+        NotifyStateChanged();
+    }
+
+    public string ExportLiquidations(string accountAlias)
+    {
+        lock (_lock)
+        {
+            var list = _scheduledLiquidations.Where(l => l.AccountAlias == accountAlias).Select(l => new ScheduledLiquidationImportDto
+            {
+                CountryFilter = l.CountryFilter,
+                BuyReasonFilter = l.BuyReasonFilter,
+                DaysOfWeek = l.DaysOfWeek,
+                TimeMode = l.TimeMode,
+                TimeConfig = l.TimeConfig,
+                IsActive = l.IsActive,
+                Notes = l.Notes
+            }).ToList();
+
+            return JsonSerializer.Serialize(list, new JsonSerializerOptions
+            {
+                WriteIndented = true,
+                Converters = { new JsonStringEnumConverter() }
+            });
+        }
+    }
+
+    public void ImportLiquidations(string json, string accountAlias)
+    {
+        try
+        {
+            var dtos = JsonSerializer.Deserialize<List<ScheduledLiquidationImportDto>>(json, _jsonOptions);
+            if (dtos == null) return;
+
+            lock (_lock)
+            {
+                foreach (var dto in dtos)
+                {
+                    var existing = _scheduledLiquidations.FirstOrDefault(l =>
+                        l.AccountAlias == accountAlias &&
+                        l.CountryFilter == dto.CountryFilter &&
+                        l.BuyReasonFilter == dto.BuyReasonFilter &&
+                        l.DaysOfWeek.SetEquals(dto.DaysOfWeek));
+
+                    if (existing != null)
+                    {
+                        existing.TimeMode = dto.TimeMode;
+                        existing.TimeConfig = dto.TimeConfig;
+                        existing.IsActive = dto.IsActive;
+                        existing.Notes = dto.Notes;
+
+                        existing.NextExecutionTime = existing.IsActive
+                            ? CalculateNextExecutionTimeLiquidation(existing)
+                            : null;
+                    }
+                    else
+                    {
+                        var newL = new ScheduledLiquidation
+                        {
+                            Id = Guid.NewGuid(),
+                            AccountAlias = accountAlias,
+                            CountryFilter = dto.CountryFilter,
+                            BuyReasonFilter = dto.BuyReasonFilter,
+                            DaysOfWeek = new HashSet<DayOfWeek>(dto.DaysOfWeek),
+                            TimeMode = dto.TimeMode,
+                            TimeConfig = dto.TimeConfig,
+                            IsActive = dto.IsActive,
+                            Notes = dto.Notes
+                        };
+                        newL.NextExecutionTime = newL.IsActive
+                            ? CalculateNextExecutionTimeLiquidation(newL)
+                            : null;
+                        _scheduledLiquidations.Add(newL);
+                    }
+                }
+            }
+            _ = SaveLiquidationsToValkeyAsync();
+            NotifyStateChanged();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to import liquidations");
+            throw;
+        }
+    }
+
+    private void NotifyStateChanged() => OnChange?.Invoke();
 
     public DateTime? CalculateNextExecutionTime(ScheduledOrder order)
     {
-        if (order.DaysOfWeek == null || !order.DaysOfWeek.Any())
-        {
-            _logger.LogWarning("ScheduledOrder {Id} has no DaysOfWeek configured.", order.Id);
-            return null; // Cannot run
-        }
+        if (order.DaysOfWeek == null || !order.DaysOfWeek.Any()) return null;
 
         var now = DateTime.UtcNow;
         var today = now.Date;
 
-        // Check next 14 days to be safe
         for (int i = 0; i < 14; i++)
         {
             var checkDate = today.AddDays(i);
-
-            // 1. Check Day of Week
             if (order.DaysOfWeek.Contains(checkDate.DayOfWeek))
             {
-                // 2. Check Time
                 var executionTime = GetTimeForDate(order, checkDate);
-
-                // If it's today, it must be in the future.
-                // If it's a future date, time doesn't matter (it's definitely > now)
-                if (executionTime > now)
-                {
-                    return executionTime;
-                }
+                if (executionTime > now) return executionTime;
             }
         }
-
-        return null; // Should ideally not fail if DaysOfWeek is not empty, unless weird logic
+        return null;
     }
 
     private DateTime GetTimeForDate(ScheduledOrder order, DateTime date)
     {
         if (order.TimeMode == ScheduleTimeMode.FixedTime)
-        {
-            return date.Add(order.TimeConfig); // TimeConfig is like "14:00"
-        }
+            return date.Add(order.TimeConfig);
         else
         {
-            // Market Offset
             var marketOpen = GetMarketOpenTimeUTC(order.Exchange);
-            // Combine date with market open time component
-            var marketOpenDateTime = date.Add(marketOpen.TimeOfDay);
-            return marketOpenDateTime.Add(order.TimeConfig); // Offset e.g. +01:00
+            return date.Add(marketOpen.TimeOfDay).Add(order.TimeConfig);
         }
     }
 
@@ -385,161 +405,13 @@ public class SchedulerService
         };
     }
 
-    // ========== Scheduled Liquidation Methods ==========
-
-    public IEnumerable<ScheduledLiquidation> GetScheduledLiquidations(string? accountAlias = null)
-    {
-        lock (_lock)
-        {
-            if (string.IsNullOrEmpty(accountAlias))
-                return _scheduledLiquidations.ToList();
-            return _scheduledLiquidations.Where(l => l.AccountAlias == accountAlias).ToList();
-        }
-    }
-
-    public void AddOrUpdateScheduledLiquidation(ScheduledLiquidation liquidation)
-    {
-        lock (_lock)
-        {
-            var existing = _scheduledLiquidations.FirstOrDefault(l => l.Id == liquidation.Id);
-            if (existing != null)
-            {
-                _scheduledLiquidations.Remove(existing);
-            }
-
-            // Recalculate next run time
-            if (liquidation.IsActive)
-            {
-                liquidation.NextExecutionTime = CalculateNextExecutionTimeLiquidation(liquidation);
-            }
-            else
-            {
-                liquidation.NextExecutionTime = null;
-            }
-
-            _scheduledLiquidations.Add(liquidation);
-        }
-        _ = SaveToValkeyAsync();
-        NotifyStateChanged();
-    }
-
-    public void RemoveScheduledLiquidation(Guid id)
-    {
-        lock (_lock)
-        {
-            var liquidation = _scheduledLiquidations.FirstOrDefault(l => l.Id == id);
-            if (liquidation != null)
-            {
-                _scheduledLiquidations.Remove(liquidation);
-            }
-        }
-        _ = SaveToValkeyAsync();
-        NotifyStateChanged();
-    }
-
-    public string ExportLiquidations(string accountAlias)
-    {
-        lock (_lock)
-        {
-            var liquidationsToExport = _scheduledLiquidations
-                .Where(l => l.AccountAlias == accountAlias)
-                .Select(l => new
-                {
-                    l.CountryFilter,
-                    l.BuyReasonFilter,
-                    l.DaysOfWeek,
-                    l.TimeMode,
-                    l.TimeConfig,
-                    l.IsActive,
-                    l.Notes
-                })
-                .ToList();
-
-            return JsonSerializer.Serialize(liquidationsToExport, new JsonSerializerOptions
-            {
-                WriteIndented = true,
-                Converters = { new JsonStringEnumConverter() }
-            });
-        }
-    }
-
-    public void ImportLiquidations(string json, string accountAlias)
-    {
-        try
-        {
-            var importedLiquidations = JsonSerializer.Deserialize<List<ScheduledLiquidationImportDto>>(json, _jsonOptions);
-            if (importedLiquidations == null) return;
-
-            lock (_lock)
-            {
-                foreach (var dto in importedLiquidations)
-                {
-                    // Use filters + DaysOfWeek as composite key
-                    var existing = _scheduledLiquidations.FirstOrDefault(l =>
-                        l.AccountAlias == accountAlias &&
-                        l.CountryFilter == dto.CountryFilter &&
-                        l.BuyReasonFilter == dto.BuyReasonFilter &&
-                        l.DaysOfWeek.SetEquals(dto.DaysOfWeek));
-
-                    if (existing != null)
-                    {
-                        // Update existing
-                        existing.TimeMode = dto.TimeMode;
-                        existing.TimeConfig = dto.TimeConfig;
-                        existing.IsActive = dto.IsActive;
-                        existing.Notes = dto.Notes;
-
-                        if (existing.IsActive)
-                            existing.NextExecutionTime = CalculateNextExecutionTimeLiquidation(existing);
-                        else
-                            existing.NextExecutionTime = null;
-                    }
-                    else
-                    {
-                        // Create new
-                        var newLiquidation = new ScheduledLiquidation
-                        {
-                            Id = Guid.NewGuid(),
-                            AccountAlias = accountAlias,
-                            CountryFilter = dto.CountryFilter,
-                            BuyReasonFilter = dto.BuyReasonFilter,
-                            DaysOfWeek = new HashSet<DayOfWeek>(dto.DaysOfWeek),
-                            TimeMode = dto.TimeMode,
-                            TimeConfig = dto.TimeConfig,
-                            IsActive = dto.IsActive,
-                            Notes = dto.Notes
-                        };
-
-                        if (newLiquidation.IsActive)
-                            newLiquidation.NextExecutionTime = CalculateNextExecutionTimeLiquidation(newLiquidation);
-
-                        _scheduledLiquidations.Add(newLiquidation);
-                    }
-                }
-            }
-            _ = SaveToValkeyAsync();
-            NotifyStateChanged();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to import liquidations");
-            throw;
-        }
-    }
-
-
     private DateTime? CalculateNextExecutionTimeLiquidation(ScheduledLiquidation liquidation)
     {
-        if (liquidation.DaysOfWeek == null || !liquidation.DaysOfWeek.Any())
-        {
-            _logger.LogWarning("ScheduledLiquidation {Id} has no DaysOfWeek configured.", liquidation.Id);
-            return null;
-        }
+        if (liquidation.DaysOfWeek == null || !liquidation.DaysOfWeek.Any()) return null;
 
         var now = DateTime.UtcNow;
         var today = now.Date;
 
-        // Check next 14 days
         for (int i = 0; i < 14; i++)
         {
             var checkDate = today.AddDays(i);
@@ -548,15 +420,10 @@ public class SchedulerService
             {
                 var executionTime = liquidation.TimeMode == ScheduleTimeMode.FixedTime
                     ? checkDate.Add(liquidation.TimeConfig)
-                    : checkDate.Add(TimeSpan.FromHours(14.5)).Add(liquidation.TimeConfig); // Default market close approximation
-
-                if (executionTime > now)
-                {
-                    return executionTime;
-                }
+                    : checkDate.Add(TimeSpan.FromHours(14.5)).Add(liquidation.TimeConfig);
+                if (executionTime > now) return executionTime;
             }
         }
-
         return null;
     }
 }

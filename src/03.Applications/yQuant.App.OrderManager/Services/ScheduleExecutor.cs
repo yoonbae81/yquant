@@ -9,7 +9,7 @@ using CoreOrder = yQuant.Core.Models.Order;
 namespace yQuant.App.OrderManager.Services;
 
 /// <summary>
-/// Executes scheduled orders and liquidations by reading from Valkey and publishing to order channel
+/// Executes scheduled orders by reading from Repository and publishing to order channel
 /// </summary>
 public class ScheduleExecutor
 {
@@ -17,21 +17,20 @@ public class ScheduleExecutor
     private readonly IConnectionMultiplexer _redis;
     private readonly IOrderPublisher _orderPublisher;
     private readonly yQuant.Infra.Notification.NotificationPublisher _notificationPublisher;
-    private readonly JsonSerializerOptions _jsonOptions = new()
-    {
-        Converters = { new JsonStringEnumConverter() }
-    };
+    private readonly IScheduledOrderRepository _scheduledOrderRepository;
 
     public ScheduleExecutor(
         ILogger<ScheduleExecutor> logger,
         IConnectionMultiplexer redis,
         IOrderPublisher orderPublisher,
-        yQuant.Infra.Notification.NotificationPublisher notificationPublisher)
+        yQuant.Infra.Notification.NotificationPublisher notificationPublisher,
+        IScheduledOrderRepository scheduledOrderRepository)
     {
         _logger = logger;
         _redis = redis;
         _orderPublisher = orderPublisher;
         _notificationPublisher = notificationPublisher;
+        _scheduledOrderRepository = scheduledOrderRepository;
     }
 
     public async Task ProcessSchedulesAsync()
@@ -52,54 +51,46 @@ public class ScheduleExecutor
         var now = DateTime.UtcNow;
 
         // Get all accounts
+        // ideally this should come from IAccountRepository, but using Redis directly for now to minimize scope creep
         var accounts = await db.SetMembersAsync("account:index");
 
         foreach (var account in accounts)
         {
             var accountAlias = account.ToString();
-            var orderKey = $"scheduled:{accountAlias}";
-            var orderJson = await db.StringGetAsync(orderKey);
-
-            if (!orderJson.HasValue)
-                continue;
 
             try
             {
-                var orders = JsonSerializer.Deserialize<List<ScheduledOrder>>(orderJson.ToString(), _jsonOptions);
-                if (orders == null)
-                    continue;
-
-                bool modified = false;
-
-                foreach (var order in orders.Where(o => o.IsActive))
+                // Use the repository with locking to prevent race conditions (Blue/Green)
+                // waitForLock = false because we can just skip this execution cycle if locked
+                await _scheduledOrderRepository.ProcessOrdersAsync(accountAlias, async (orders) =>
                 {
-                    // Calculate next execution time if not set
-                    if (order.NextExecutionTime == null)
+                    bool modified = false;
+
+                    foreach (var order in orders.Where(o => o.IsActive))
                     {
-                        order.NextExecutionTime = CalculateNextExecutionTime(order);
-                        modified = true;
-                        // Skip execution on first initialization - just set the next time
-                        continue;
+                        // Calculate next execution time if not set
+                        if (order.NextExecutionTime == null)
+                        {
+                            order.NextExecutionTime = CalculateNextExecutionTime(order);
+                            modified = true;
+                            // Skip execution on first initialization - just set the next time
+                            continue;
+                        }
+
+                        // Check if it's time to execute
+                        if (order.NextExecutionTime != null && order.NextExecutionTime <= now)
+                        {
+                            await ExecuteScheduledOrderAsync(order);
+
+                            // Update execution times
+                            order.LastExecutedTime = now;
+                            order.NextExecutionTime = CalculateNextExecutionTime(order);
+                            modified = true;
+                        }
                     }
 
-                    // Check if it's time to execute
-                    if (order.NextExecutionTime != null && order.NextExecutionTime <= now)
-                    {
-                        await ExecuteScheduledOrderAsync(order);
-
-                        // Update execution times
-                        order.LastExecutedTime = now;
-                        order.NextExecutionTime = CalculateNextExecutionTime(order);
-                        modified = true;
-                    }
-                }
-
-                // Save back to Valkey if modified
-                if (modified)
-                {
-                    var updatedJson = JsonSerializer.Serialize(orders, _jsonOptions);
-                    await db.StringSetAsync(orderKey, updatedJson);
-                }
+                    return modified;
+                }, waitForLock: false);
             }
             catch (Exception ex)
             {

@@ -9,6 +9,7 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Valkey.Extensions;
 using yQuant.Infra.Valkey.Interfaces;
 using yQuant.Infra.Reporting.Repositories;
+using yQuant.Infra.Valkey.Services;
 
 using StackExchange.Redis;
 using yQuant.Infra.Notification;
@@ -96,6 +97,10 @@ builder.Services.AddSingleton<ISystemLogger, ValkeySystemLogger>();
 
 // Discord Direct Notification (for Startup/System status)
 builder.AddDiscordDirectNotification();
+
+
+// Register Scheduled Order Repository
+builder.Services.AddSingleton<IScheduledOrderRepository, ValkeyScheduledOrderRepository>();
 
 // Register SchedulerService as Singleton (CRUD only, execution handled by OrderManager)
 builder.Services.AddSingleton<SchedulerService>();

@@ -56,6 +56,7 @@ builder.Services.AddSingleton<IOrderPublisher, ValkeyOrderPublisher>();
 
 // Register Performance Tracking
 builder.Services.AddSingleton<IDailySnapshotRepository, yQuant.Infra.Reporting.Repositories.ValkeyDailySnapshotRepository>();
+builder.Services.AddSingleton<IScheduledOrderRepository, yQuant.Infra.Valkey.Services.ValkeyScheduledOrderRepository>();
 
 // Register Schedule Executor
 builder.Services.AddSingleton<yQuant.App.OrderManager.Services.ScheduleExecutor>();
