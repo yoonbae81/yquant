@@ -29,7 +29,7 @@
         <div style="color: var(--mud-palette-text-secondary); margin-bottom: 4px; font-weight: 500;">Services Status
         </div>
         <div style="color: @(isMessageValkeyHealthy ? "limegreen" : "red")">• Valkey (Message)</div>
-        <div style="color: @(isFirebirdHealthy ? "limegreen" : "red")">• Firebird DB</div>
+        <div style="color: @(isMariaDbHealthy ? "limegreen" : "red")">• MariaDB</div>
         <div style="color: @(isBrokerGatewayHealthy ? "limegreen" : "red")">• BrokerGateway</div>
         <div style="color: @(isOrderManagerHealthy ? "limegreen" : "red")">• OrderManager</div>
         <div style="color: @(isWebhookHealthy ? "limegreen" : "red")">• Webhook</div>
@@ -38,7 +38,7 @@
 
 @code {
     private bool isMessageValkeyHealthy = false;
-    private bool isFirebirdHealthy = false;
+    private bool isMariaDbHealthy = false;
     private bool isBrokerGatewayHealthy = false;
     private bool isOrderManagerHealthy = false;
     private bool isWebhookHealthy = false;
@@ -53,7 +53,7 @@
     private async Task CheckHealthAsync()
     {
         isMessageValkeyHealthy = await HealthService.CheckMessageValkeyAsync();
-        isFirebirdHealthy = await HealthService.CheckFirebirdAsync();
+        isMariaDbHealthy = await HealthService.CheckMariaDbAsync();
         isBrokerGatewayHealthy = await HealthService.CheckServiceAsync("BrokerGateway");
         isOrderManagerHealthy = await HealthService.CheckServiceAsync("OrderManager");
         isWebhookHealthy = await HealthService.CheckServiceAsync("Webhook");

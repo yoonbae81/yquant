@@ -72,7 +72,7 @@ class Program
             {
                 // Valkey Connection
                 services.AddValkeyMiddleware(context.Configuration);
-                services.AddFirebirdPersistence();
+                services.AddMariaDbPersistence(context.Configuration);
 
                 // Register ValkeyBrokerClient
                 services.AddSingleton<ValkeyBrokerClient>(sp =>
@@ -119,8 +119,8 @@ class Program
             })
             .Build();
 
-        // Initialize Firebird Schema
-        await host.Services.InitializeFirebirdPersistenceAsync();
+        // Initialize MariaDB Schema
+        await host.Services.InitializeMariaDbPersistenceAsync();
 
         var logger = host.Services.GetRequiredService<ILogger<Program>>();
 

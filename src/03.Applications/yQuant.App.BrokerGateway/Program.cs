@@ -38,7 +38,7 @@ builder.Services.AddHttpClient("KIS");
 builder.Services.AddValkeyMiddleware(builder.Configuration)
                 .AddHeartbeat("BrokerGateway");
 
-builder.Services.AddFirebirdPersistence();
+builder.Services.AddMariaDbPersistence(builder.Configuration);
 
 // Notifications (Valkey based)
 builder.Services.AddSingleton<NotificationPublisher>();
@@ -51,7 +51,7 @@ builder.AddDiscordDirectNotification();
 // Performance & Trade Tracking
 builder.Services.AddSingleton<IPerformanceRepository, yQuant.Infra.Reporting.Repositories.JsonPerformanceRepository>();
 builder.Services.AddSingleton<yQuant.Core.Ports.Output.Infrastructure.ITradeRepository, yQuant.Infra.Reporting.Repositories.ValkeyBufferTradeRepository>();
-// IDailySnapshotRepository is registered via AddFirebirdPersistence() above
+// IDailySnapshotRepository is registered via AddMariaDbPersistence() above
 // Register KIS Adapter Factory and Adapters
 builder.Services.AddSingleton<KISAdapterFactory>();
 builder.Services.AddSingleton<Dictionary<string, IBrokerAdapter>>(sp =>
@@ -74,8 +74,8 @@ builder.Services.AddHostedService<Worker>();
 
 var host = builder.Build();
 
-// Initialize Firebird Schema
-await host.Services.InitializeFirebirdPersistenceAsync();
+// Initialize MariaDB Schema
+await host.Services.InitializeMariaDbPersistenceAsync();
 
 // Notify systemd that the service is ready (Linux only)
 if (OperatingSystem.IsLinux())

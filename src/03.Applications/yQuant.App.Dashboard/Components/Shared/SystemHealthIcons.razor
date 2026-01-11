@@ -8,8 +8,8 @@
             Size="Size.Small" />
     </MudTooltip>
 
-    <MudTooltip Text="Firebird DB (Shared)">
-        <MudIcon Icon="@Icons.Material.Filled.Storage" Color="@(_firebirdOnline ? Color.Success : Color.Error)"
+    <MudTooltip Text="MariaDB (Shared)">
+        <MudIcon Icon="@Icons.Material.Filled.Storage" Color="@(_mariaDbOnline ? Color.Success : Color.Error)"
             Size="Size.Small" />
     </MudTooltip>
 
@@ -31,7 +31,7 @@
 
 @code {
     private bool _msgValkeyOnline;
-    private bool _firebirdOnline;
+    private bool _mariaDbOnline;
     private bool _brokerOnline;
     private bool _composerOnline;
     private bool _webhookOnline;
@@ -60,7 +60,7 @@
     private async Task CheckHealth()
     {
         _msgValkeyOnline = await HealthService.CheckMessageValkeyAsync();
-        _firebirdOnline = await HealthService.CheckFirebirdAsync();
+        _mariaDbOnline = await HealthService.CheckMariaDbAsync();
 
         if (_msgValkeyOnline)
         {

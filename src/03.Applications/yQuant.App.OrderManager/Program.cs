@@ -56,7 +56,7 @@ builder.Services.AddSingleton<IStrategyPolicyMapper, ConfigStrategyPolicyMapper>
 builder.Services.AddSingleton<IOrderPublisher, ValkeyOrderPublisher>();
 
 // Register Performance Tracking
-// IDailySnapshotRepository is registered via AddFirebirdPersistence() below
+// IDailySnapshotRepository is registered via AddMariaDbPersistence() below
 
 // Register Schedule Executor
 builder.Services.AddSingleton<yQuant.App.OrderManager.Services.ScheduleExecutor>();
@@ -113,13 +113,13 @@ builder.Services.AddSingleton<IEnumerable<IMarketRule>>(sp =>
 builder.Services.AddHostedService<Worker>();
 
 // Persistence & Archiving
-builder.Services.AddFirebirdPersistence();
+builder.Services.AddMariaDbPersistence(builder.Configuration);
 builder.Services.AddTradeArchiver();
 
 var host = builder.Build();
 
-// Initialize Firebird Schema
-await host.Services.InitializeFirebirdPersistenceAsync();
+// Initialize MariaDB Schema
+await host.Services.InitializeMariaDbPersistenceAsync();
 
 // Notify systemd that the service is ready (Linux only)
 if (OperatingSystem.IsLinux())

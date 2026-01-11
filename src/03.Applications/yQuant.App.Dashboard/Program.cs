@@ -107,7 +107,7 @@ builder.Services.AddSingleton<SchedulerService>();
 
 // Register Performance Repositories
 builder.Services.AddSingleton<IPerformanceRepository, JsonPerformanceRepository>();
-builder.Services.AddFirebirdPersistence();
+builder.Services.AddMariaDbPersistence(builder.Configuration);
 
 // Register Broker Adapter Factory and Order Publisher
 
@@ -122,10 +122,10 @@ builder.Services.AddHostedService<ExecutionListener>();
 
 var app = builder.Build();
 
-// Initialize Firebird Schema
+// Initialize MariaDB Schema
 using (var scope = app.Services.CreateScope())
 {
-    await scope.ServiceProvider.InitializeFirebirdPersistenceAsync();
+    await scope.ServiceProvider.InitializeMariaDbPersistenceAsync();
 }
 
 var pathBase = app.Configuration.GetValue<string>("Dashboard:PathBase");

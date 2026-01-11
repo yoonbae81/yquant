@@ -6,7 +6,7 @@
 * **목적**: TradingView 신호와 증권사 API(한국투자증권 등)를 연동하여 한국(KRX) 및 미국(NASDAQ, AMEX 등) 주식을 거래하는 자동매매 시스템 구축 (가상화폐 확장 고려)
 * **아키텍처 원칙**: 헥사고날 아키텍처(Hexagonal Architecture) 적용. 도메인 표준(Core), 인프라 구현(Infra), 매매 정책(Policy), 실행 환경(App)의 4계층 분리
 *   **핵심 통신 방식**: Valkey Pub/Sub을 이용한 비동기 메시징 및 이벤트 기반(Event-Driven) 처리
-*   **데이터 저장소**: Firebird DB를 통한 영구 저장 (매매 이력, 종목 정보, 토큰, 예약 주문)
+*   **데이터 저장소**: MariaDB를 통한 영구 저장 (매매 이력, 종목 정보, 토큰, 예약 주문)
 
 ## **2. 주요 기능 (System Features)**
 
@@ -63,7 +63,7 @@
 *   `yQuant.Infra.Notification.Discord`: Discord 알림 서비스 구현
 *   `yQuant.Infra.Notification.Telegram`: Telegram 알림 서비스 구현
 *   `yQuant.Infra.Reporting`: 계좌 성과 기록 및 파일 기반 데이터 저장소 (Valkey Buffer 활용)
-*   `yQuant.Infra.Persistence`: Firebird DB 기반 영구 저장소 구현 (Trade History, Stock Catalog, Scheduled Orders, Tokens)
+*   `yQuant.Infra.Persistence`: MariaDB 기반 영구 저장소 구현 (Trade History, Stock Catalog, Scheduled Orders, Tokens)
 
 #### Policy Layer (`/src/04.Policies`)
 *   `yQuant.Policies.Sizing`: 자금 관리 및 포지션 사이징 전략 구현체
@@ -78,11 +78,11 @@
 
 ## **4. High Availability (HA) & Deployment Strategy**
 
-yQuant는 무중단 운영과 데이터 안정성을 위해 **Blue-Green** 배포 전략과 **Firebird DB** 중심의 공유 데이터 구조를 채택하고 있습니다. (이는 상시 가동이 필요한 프로덕션 환경을 위한 권장 옵션임을 분명히 합니다.)
+yQuant는 무중단 운영과 데이터 안정성을 위해 **Blue-Green** 배포 전략과 **MariaDB** 중심의 공유 데이터 구조를 채택하고 있습니다. (이는 상시 가동이 필요한 프로덕션 환경을 위한 권장 옵션임을 분명히 합니다.)
 
 ### **4.1. 서버 구성 (3-VM 구조)**
 
-*   **`yq-gateway`** (E2.Micro): 시스템의 관문. HAProxy를 통해 트래픽을 분산하며, 종목 카탈로그, 예약 주문, 증권사 토큰 및 매매 이력을 저장하는 공유 데이터베이스(Firebird)를 운영합니다.
+*   **`yq-gateway`** (E2.Micro): 시스템의 관문. HAProxy를 통해 트래픽을 분산하며, 종목 카탈로그, 예약 주문, 증권사 토큰 및 매매 이력을 저장하는 공유 데이터베이스(MariaDB)를 운영합니다.
 *   **`yq-blue` / `yq-green` (A1.Flex)**: 실제 연산 및 웹 대시보드가 구동되는 쌍둥이 Worker입니다. Valkey는 Pub/Sub 전용으로 로컬 통신에 주로 활용됩니다.
 
 ### **4.2. Blue-Green 배포 워크플로우**
@@ -96,8 +96,9 @@ yQuant는 무중단 운영과 데이터 안정성을 위해 **Blue-Green** 배�
 
 ## **5. 설치 및 설정 (Installation & Configuration)**
 
-### **4.1. 요구사항 (Prerequisites)**
+### **5.1. 요구사항 (Prerequisites)**
 * 한국투자증권 Open API 계정 (AppKey, AppSecret)
+* MariaDB 10.5 이상 (설치 및 설정 방법은 [MariaDB 설정 가이드](/docs/mariadb-setup.md) 참조)
 
 ### **4.2. 프로젝트 클론 및 빌드**
 ```bash
@@ -117,11 +118,11 @@ cp appsettings.example.json appsettings.json
 # 민감한 정보가 포함된 secrets 파일 생성
 cp appsecrets.example.json appsecrets.json
 
-# appsecrets.json 파일에 Valkey 접속 정보 설정
+# appsecrets.json 파일에 Valkey 및 MariaDB 접속 정보 설정
 # {
 #   "ConnectionStrings": {
 #     "Valkey": "localhost:6379",
-#     "Firebird": "User=SYSDBA;Password=masterkey;Database=/path/to/yquant.fdb;DataSource=yq-gateway;Port=3050"
+#     "MariaDB": "Server=yq-gateway;Port=3306;Database=yquant;User=yquant;Password=your_password;CharSet=utf8mb4"
 #   },
 #   ...
 # }
@@ -236,4 +237,5 @@ dotnet run -- catalog US
 * [아키텍처 상세](/docs/architecture.md)
 * [모듈별 설명](/docs/modules.md)
 * [설정 가이드](/docs/configuration.md)
+* [MariaDB 설정 가이드](/docs/mariadb-setup.md)
 * [API 레퍼런스](/docs/api_reference.md)

@@ -1,3 +1,5 @@
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.Extensions.Logging;
@@ -7,23 +9,29 @@ namespace yQuant.Infra.Persistence;
 
 public static class PersistenceExtensions
 {
-    public static IServiceCollection AddFirebirdPersistence(this IServiceCollection services)
+    public static IServiceCollection AddMariaDbPersistence(this IServiceCollection services, IConfiguration configuration)
     {
-        // Register the Firebird repositories
-        services.TryAddSingleton<FirebirdTradeRepository>();
-        services.TryAddSingleton<ITradeRepository>(sp => sp.GetRequiredService<FirebirdTradeRepository>());
+        // Register MariaDB DbContext
+        var connectionString = configuration.GetConnectionString("MariaDB")
+            ?? throw new InvalidOperationException("MariaDB connection string is missing.");
 
-        services.TryAddSingleton<FirebirdStockCatalogRepository>();
-        services.TryAddSingleton<IStockCatalogRepository>(sp => sp.GetRequiredService<FirebirdStockCatalogRepository>());
+        services.AddDbContext<MariaDbContext>(options =>
+        {
+            options.UseMySql(connectionString, ServerVersion.AutoDetect(connectionString), mySqlOptions =>
+            {
+                mySqlOptions.EnableRetryOnFailure(
+                    maxRetryCount: 3,
+                    maxRetryDelay: TimeSpan.FromSeconds(5),
+                    errorNumbersToAdd: null);
+            });
+        });
 
-        services.TryAddSingleton<FirebirdKisTokenRepository>();
-        services.TryAddSingleton<IKisTokenRepository>(sp => sp.GetRequiredService<FirebirdKisTokenRepository>());
-
-        services.TryAddSingleton<FirebirdScheduledOrderRepository>();
-        services.TryAddSingleton<IScheduledOrderRepository>(sp => sp.GetRequiredService<FirebirdScheduledOrderRepository>());
-
-        services.TryAddSingleton<FirebirdDailySnapshotRepository>();
-        services.TryAddSingleton<IDailySnapshotRepository>(sp => sp.GetRequiredService<FirebirdDailySnapshotRepository>());
+        // Register the MariaDB repositories
+        services.TryAddScoped<ITradeRepository, MariaDbTradeRepository>();
+        services.TryAddScoped<IStockCatalogRepository, MariaDbStockCatalogRepository>();
+        services.TryAddScoped<IKisTokenRepository, MariaDbKisTokenRepository>();
+        services.TryAddScoped<IScheduledOrderRepository, MariaDbScheduledOrderRepository>();
+        services.TryAddScoped<IDailySnapshotRepository, MariaDbDailySnapshotRepository>();
 
         return services;
     }
@@ -34,29 +42,22 @@ public static class PersistenceExtensions
         return services;
     }
 
-    public static async Task InitializeFirebirdPersistenceAsync(this IServiceProvider services)
+    public static async Task InitializeMariaDbPersistenceAsync(this IServiceProvider services)
     {
-        var logger = services.GetRequiredService<ILogger<FirebirdTradeRepository>>();
+        var logger = services.GetRequiredService<ILogger<MariaDbContext>>();
         try
         {
-            var tradeRepo = services.GetRequiredService<FirebirdTradeRepository>();
-            await tradeRepo.InitializeAsync();
+            using var scope = services.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
 
-            var catalogRepo = services.GetRequiredService<FirebirdStockCatalogRepository>();
-            await catalogRepo.InitializeAsync();
+            logger.LogInformation("Ensuring MariaDB database is created and migrated...");
+            await context.Database.EnsureCreatedAsync();
 
-            var tokenRepo = services.GetRequiredService<FirebirdKisTokenRepository>();
-            await tokenRepo.InitializeAsync();
-
-            var scheduledRepo = services.GetRequiredService<FirebirdScheduledOrderRepository>();
-            await scheduledRepo.InitializeAsync();
-
-            var snapshotRepo = services.GetRequiredService<FirebirdDailySnapshotRepository>();
-            await snapshotRepo.InitializeAsync();
+            logger.LogInformation("MariaDB persistence initialized successfully.");
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Failed to initialize Firebird persistence schema.");
+            logger.LogError(ex, "Failed to initialize MariaDB persistence schema.");
             throw;
         }
     }

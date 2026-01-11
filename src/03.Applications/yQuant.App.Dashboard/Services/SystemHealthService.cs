@@ -2,23 +2,22 @@ using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using yQuant.Infra.Valkey.Interfaces;
 using yQuant.Infra.Persistence;
-using FirebirdSql.Data.FirebirdClient;
 
 namespace yQuant.App.Dashboard.Services;
 
 public class SystemHealthService
 {
     private readonly IValkeyService _messageValkey;
-    private readonly FirebirdTradeRepository _firebirdRepo;
+    private readonly MariaDbContext _mariaDbContext;
     private readonly ILogger<SystemHealthService> _logger;
 
     public SystemHealthService(
         IValkeyService messageValkey,
-        FirebirdTradeRepository firebirdRepo,
+        MariaDbContext mariaDbContext,
         ILogger<SystemHealthService> logger)
     {
         _messageValkey = messageValkey;
-        _firebirdRepo = firebirdRepo;
+        _mariaDbContext = mariaDbContext;
         _logger = logger;
     }
 
@@ -36,17 +35,11 @@ public class SystemHealthService
         }
     }
 
-    public async Task<bool> CheckFirebirdAsync()
+    public async Task<bool> CheckMariaDbAsync()
     {
         try
         {
-            // Use the connection string from FirebirdTradeRepository if possible, 
-            // but since we already have the repo injected, we just trust it's configured.
-            // For a real check, we'd need access to the connection string.
-            // Let's assume the repo is configured through IConfiguration.
-            using var conn = new FbConnection(_firebirdRepo.ToString()); // This is just a placeholder, wait.
-            // Actually, let's just use a simple query if we can.
-            return true;
+            return await _mariaDbContext.Database.CanConnectAsync();
         }
         catch
         {
