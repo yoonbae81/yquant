@@ -23,7 +23,7 @@ jobs:
     runs-on: ubuntu-latest
     
     steps:
-      - name: � Connect to Tailscale
+      - name: 🔗 Connect to Tailscale
         uses: tailscale/github-action@v4
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
@@ -32,7 +32,15 @@ jobs:
           #tags: tag:ci
           #args: --accept-dns=false --accept-routes=false
 
-      - name: �🚀 Set Target Worker
+      - name: � Verify Tailscale Connection
+        run: |
+          echo "Checking Tailscale status..."
+          tailscale status
+          echo "---"
+          echo "Tailscale IP:"
+          tailscale ip -4
+
+      - name: 🎯 Set Target Worker
         id: set-host
         run: |
           if [ "${{ github.event.inputs.target_worker }}" == "GREEN" ] || [ -z "${{ github.event.inputs.target_worker }}" ]; then
@@ -42,6 +50,12 @@ jobs:
             echo "host=${{ secrets.HOST_BLUE }}" >> $GITHUB_OUTPUT
             echo "worker=BLUE" >> $GITHUB_OUTPUT
           fi
+          echo "Target: ${{ steps.set-host.outputs.host }}"
+
+      - name: 🔎 Test Connection to Target
+        run: |
+          echo "Testing connection to ${{ steps.set-host.outputs.host }}..."
+          tailscale ping -c 3 ${{ steps.set-host.outputs.host }} || echo "Ping failed, but will try SSH anyway"
 
       - name: 🚀 Deploy via Tailscale SSH
         run: |

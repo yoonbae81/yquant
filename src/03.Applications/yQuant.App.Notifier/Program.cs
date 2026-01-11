@@ -5,6 +5,7 @@ using yQuant.Infra.Valkey.Extensions;
 using yQuant.Infra.Notification.Discord;
 using yQuant.Infra.Notification.Telegram;
 using yQuant.Core.Ports.Output.Infrastructure;
+using yQuant.Infra.Persistence;
 
 // Find the configuration directory (climb up to find appsettings.json)
 var configDir = Directory.GetCurrentDirectory();
@@ -32,6 +33,9 @@ builder.Services.Configure<NotifierConfiguration>(builder.Configuration.GetSecti
 // Register Valkey
 builder.Services.AddValkeyMiddleware(builder.Configuration)
                 .AddHeartbeat("Notifier");
+
+// Register MariaDB Persistence (required by CatalogUpdateSubscriber)
+builder.Services.AddMariaDbPersistence(builder.Configuration);
 
 // Register Discord Notification Services
 builder.AddDiscordDirectNotification();

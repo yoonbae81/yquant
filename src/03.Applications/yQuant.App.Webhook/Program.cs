@@ -7,6 +7,7 @@ using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Notification;
 using yQuant.Infra.Notification.Discord;
 using yQuant.Infra.Valkey.Extensions;
+using yQuant.Infra.Persistence;
 
 var builder = WebApplication.CreateSlimBuilder(args);
 
@@ -38,6 +39,9 @@ builder.Configuration.SetBasePath(configDir)
 // Register Valkey Middleware (uses AddValkeyMiddleware from yQuant.Infra.Valkey)
 builder.Services.AddValkeyMiddleware(builder.Configuration)
                 .AddHeartbeat("Webhook");
+
+// Register MariaDB Persistence (required by CatalogUpdateSubscriber)
+builder.Services.AddMariaDbPersistence(builder.Configuration);
 
 // Register Notification Services (Valkey based)
 builder.Services.AddSingleton<NotificationPublisher>();

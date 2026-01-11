@@ -16,6 +16,7 @@
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Valkey\yQuant.Infra.Valkey.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification.Discord\yQuant.Infra.Notification.Discord.csproj" />
     <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Notification.Telegram\yQuant.Infra.Notification.Telegram.csproj" />
+    <ProjectReference Include="..\..\02.Infrastructure\yQuant.Infra.Persistence\yQuant.Infra.Persistence.csproj" />
   </ItemGroup>
 
 
