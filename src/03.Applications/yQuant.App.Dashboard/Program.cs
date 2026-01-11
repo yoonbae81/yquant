@@ -68,12 +68,13 @@ builder.Services.AddRazorComponents()
 builder.Services.AddMudServices();
 
 // Configure Authentication
+var pathBase = builder.Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
 builder.Services.Configure<UserAuthSettings>(builder.Configuration.GetSection("Dashboard"));
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
     .AddCookie(options =>
     {
-        options.LoginPath = "/unlock";
-        options.LogoutPath = "/lock";
+        options.LoginPath = string.IsNullOrWhiteSpace(pathBase) ? "/unlock" : $"{pathBase}/unlock";
+        options.LogoutPath = string.IsNullOrWhiteSpace(pathBase) ? "/lock" : $"{pathBase}/lock";
         options.ExpireTimeSpan = TimeSpan.FromMinutes(
             builder.Configuration.GetValue<int>("Dashboard:SessionTimeout", 480));
         options.SlidingExpiration = true;
@@ -128,7 +129,7 @@ using (var scope = app.Services.CreateScope())
     await scope.ServiceProvider.InitializeMariaDbPersistenceAsync();
 }
 
-var pathBase = app.Configuration.GetValue<string>("Dashboard:PathBase");
+// Use the pathBase variable already declared earlier (line 71)
 if (!string.IsNullOrWhiteSpace(pathBase) && pathBase != "/")
 {
     app.UsePathBase(pathBase);
@@ -155,6 +156,21 @@ app.UseAntiforgery();
 // Authentication & Authorization middleware (must be before MapRazorComponents)
 app.UseAuthentication();
 app.UseAuthorization();
+
+// Redirect root URL to PathBase if configured (must be AFTER UseAuthentication)
+if (!string.IsNullOrWhiteSpace(pathBase) && pathBase != "/")
+{
+    app.Use(async (context, next) =>
+    {
+        // Only redirect unauthenticated users from root to unlock page
+        if (context.Request.Path == "/" && context.User.Identity?.IsAuthenticated != true)
+        {
+            context.Response.Redirect($"{pathBase}/unlock?ReturnUrl={Uri.EscapeDataString(pathBase)}");
+            return;
+        }
+        await next();
+    });
+}
 
 app.MapRazorComponents<App>()
     .AddInteractiveServerRenderMode();

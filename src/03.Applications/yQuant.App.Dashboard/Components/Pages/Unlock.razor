@@ -4,7 +4,6 @@
 @using System.Security.Claims
 @using yQuant.App.Dashboard.Services
 @inject NavigationManager Navigation
-@inject SimpleAuthService AuthService
 @inject Microsoft.Extensions.Configuration.IConfiguration Configuration
 
 
@@ -12,121 +11,53 @@
 
 <MudContainer MaxWidth="MaxWidth.Small" Class="mt-16">
     <MudPaper Elevation="3" Class="pa-8">
-        <MudStack Spacing="4">
-            <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">
-                <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Class="mr-2" />
-                Unlock Dashboard
-            </MudText>
+        <form id="unlockForm" action="/account/unlock" method="post">
+            <MudStack Spacing="4">
+                <MudText Typo="Typo.h4" Align="Align.Center" GutterBottom="true">
+                    <MudIcon Icon="@Icons.Material.Filled.Lock" Size="Size.Large" Class="mr-2" />
+                    Unlock
+                </MudText>
 
-            @if (!string.IsNullOrEmpty(_errorMessage))
-            {
-                <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
-                    @_errorMessage
-                </MudAlert>
-            }
+                @if (!string.IsNullOrEmpty(ErrorFromQuery))
+                {
+                    <MudAlert Severity="Severity.Error" Variant="Variant.Filled">
+                        @ErrorFromQuery
+                    </MudAlert>
+                }
 
-            <MudForm ValidationDelay="0">
                 <MudStack Spacing="3">
-                    <MudTextField @bind-Value="_pin" Label="PIN" InputType="InputType.Password"
-                        Required="true" RequiredError="PIN is required"
-                        Validation="@(new Func<string, string?>(ValidatePinInput))"
-                        Variant="Variant.Outlined" Adornment="Adornment.Start"
-                        AdornmentIcon="@Icons.Material.Filled.Key" OnKeyDown="HandleKeyDown" 
-                        HelperText="Enter your 4-digit PIN" MaxLength="4" Immediate="true" />
+                    <MudTextField T="string" Label="PIN" InputType="InputType.Password" Required="true" Variant="Variant.Outlined"
+                        Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Key"
+                        HelperText="Enter your 4-digit PIN" MaxLength="4" id="pinInput" name="pin" autocomplete="off" />
+
+                    <input type="hidden" name="returnUrl" value="@ReturnUrl" />
 
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
-                        OnClick="HandleLogin" Disabled="@_isLoading">
-                        @if (_isLoading)
-                        {
-                            <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
-                            <span>Unlocking...</span>
-                        }
-                        else
-                        {
-                            <MudIcon Icon="@Icons.Material.Filled.LockOpen" Class="mr-2" />
-                            <span>Unlock</span>
-                        }
+                        ButtonType="ButtonType.Submit">
+                        <MudIcon Icon="@Icons.Material.Filled.LockOpen" Class="mr-2" />
+                        <span>Unlock</span>
                     </MudButton>
                 </MudStack>
-            </MudForm>
-
-        </MudStack>
+            </MudStack>
+        </form>
     </MudPaper>
-
-    <form id="unlockForm" action="account/unlock" method="post" style="display:none">
-        <input type="hidden" name="pin" value="@_pin" />
-        <input type="hidden" name="returnUrl" value="@ReturnUrl" />
-    </form>
 </MudContainer>
 
 @code {
-    private bool _isLoading;
-    private string _pin = string.Empty;
-    private string _errorMessage = string.Empty;
-
-    [CascadingParameter]
-    private HttpContext HttpContext { get; set; } = default!;
-
     [SupplyParameterFromQuery(Name = "returnUrl")]
     private string? ReturnUrl { get; set; }
 
     [SupplyParameterFromQuery(Name = "error")]
     private string? ErrorFromQuery { get; set; }
 
+
+
     protected override void OnInitialized()
     {
-        if (!string.IsNullOrEmpty(ErrorFromQuery))
-        {
-            _errorMessage = ErrorFromQuery;
-        }
-
         var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
         if (string.IsNullOrWhiteSpace(ReturnUrl) || ReturnUrl == "/")
         {
             ReturnUrl = string.IsNullOrWhiteSpace(pathBase) ? "/" : pathBase;
-        }
-    }
-
-    @inject IJSRuntime JSRuntime
-
-    private string? ValidatePinInput(string value)
-    {
-        if (string.IsNullOrEmpty(value)) return "PIN is required";
-        if (value.Length != 4) return "PIN must be 4 digits";
-        if (!value.All(char.IsDigit)) return "PIN must be numeric";
-        return null;
-    }
-
-    private async Task HandleLogin()
-    {
-        _isLoading = true;
-        _errorMessage = string.Empty;
-
-        try
-        {
-            // Pre-validate PIN to provide fast feedback
-            if (!await AuthService.ValidatePinAsync(_pin))
-            {
-                _errorMessage = "Invalid PIN";
-                _isLoading = false;
-                return;
-            }
-
-            // If valid, submit the hidden form to create the cookie
-            await JSRuntime.InvokeVoidAsync("submitForm", "unlockForm");
-        }
-        catch (Exception ex)
-        {
-            _errorMessage = $"Login failed: {ex.Message}";
-            _isLoading = false;
-        }
-    }
-
-    private async Task HandleKeyDown(KeyboardEventArgs e)
-    {
-        if (e.Key == "Enter" && !_isLoading)
-        {
-            await HandleLogin();
         }
     }
 }
