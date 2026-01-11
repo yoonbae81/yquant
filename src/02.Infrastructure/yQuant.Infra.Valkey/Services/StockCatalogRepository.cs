@@ -2,6 +2,7 @@ using System.Collections.Concurrent;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using yQuant.Core.Models;
+using yQuant.Core.Ports.Output.Infrastructure;
 using yQuant.Infra.Valkey.Interfaces;
 
 namespace yQuant.Infra.Valkey.Services;
