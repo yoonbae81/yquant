@@ -104,7 +104,7 @@ yQuant는 무중단 운영과 데이터 안정성을 위해 **Blue-Green** 배�
 ### **4.2. 프로젝트 클론 및 빌드**
 ```bash
 git clone https://github.com/yoonbae81/yquant/
-cd yQuant.NET
+cd yquant
 dotnet build yQuant.slnx
 ```
 
