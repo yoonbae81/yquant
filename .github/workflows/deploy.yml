@@ -80,12 +80,12 @@ jobs:
             git fetch --all
             git checkout ${{ github.ref_name }}
             git pull origin ${{ github.ref_name }}
-            bash scripts/deploy.sh
+            bash scripts/worker/deploy.sh
           EOF
       
       - name: 🏥 Health Check
         run: |
-          tailscale ssh ${{ secrets.SSH_USER }}@${{ steps.resolve-host.outputs.ip }} "cd ~/yquant && bash scripts/health-check.sh"
+          tailscale ssh ${{ secrets.SSH_USER }}@${{ steps.resolve-host.outputs.ip }} "cd ~/yquant && bash scripts/worker/health-check.sh"
       
       - name: 📢 Notify Success
         if: success()
