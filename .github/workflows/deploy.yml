@@ -11,15 +11,15 @@ on:
       target_worker:
         description: 'Target Worker to deploy (Blue or Green)'
         required: true
-        default: 'yq-green'
+        default: 'GREEN'
         type: choice
         options:
-          - yq-blue
-          - yq-green
+          - BLUE
+          - GREEN
 
 jobs:
   deploy:
-    name: Deploy All Services to ${{ github.event.inputs.target_worker || 'yq-green' }}
+    name: Deploy All Services to ${{ github.event.inputs.target_worker || 'GREEN' }}
     runs-on: ubuntu-latest
     
     steps:
@@ -35,10 +35,12 @@ jobs:
       - name: �🚀 Set Target Worker
         id: set-host
         run: |
-          if [ "${{ github.event.inputs.target_worker }}" == "yq-green" ]; then
+          if [ "${{ github.event.inputs.target_worker }}" == "GREEN" ] || [ -z "${{ github.event.inputs.target_worker }}" ]; then
             echo "host=${{ secrets.HOST_GREEN }}" >> $GITHUB_OUTPUT
+            echo "worker=GREEN" >> $GITHUB_OUTPUT
           else
             echo "host=${{ secrets.HOST_BLUE }}" >> $GITHUB_OUTPUT
+            echo "worker=BLUE" >> $GITHUB_OUTPUT
           fi
 
       - name: 🚀 Deploy via Tailscale SSH
@@ -58,12 +60,12 @@ jobs:
       - name: 📢 Notify Success
         if: success()
         run: |
-          echo "✅ yQuant Deployment to ${{ github.event.inputs.target_worker || 'yq-green' }} successful!"
+          echo "✅ yQuant Deployment to ${{ steps.set-host.outputs.worker }} successful!"
           echo "Ref: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
       
       - name: 📢 Notify Failure
         if: failure()
         run: |
-          echo "❌ yQuant Deployment to ${{ github.event.inputs.target_worker || 'yq-green' }} failed!"
+          echo "❌ yQuant Deployment to ${{ steps.set-host.outputs.worker }} failed!"
           echo "Check the logs above for details."
