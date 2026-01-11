@@ -2,7 +2,7 @@
 # scripts/data/setup.sh
 set -e
 
-echo "⚙️ Setting up yQuant GATEWAY services (Catalog Sync)..."
+echo "⚙️ Setting up yQuant services (Catalog Sync)..."
 
 PROJECT_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/../.." && pwd)"
 SYSTEMD_DIR="$HOME/.config/systemd/user"

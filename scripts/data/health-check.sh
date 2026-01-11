@@ -2,7 +2,7 @@
 # scripts/data/health-check.sh
 set -e
 
-echo "🏥 Checking health of yQuant GATEWAY services..."
+echo "🏥 Checking health of yQuant services..."
 
 if systemctl --user is-active --quiet "console-sync.timer"; then
     echo "✅ console-sync.timer is active"

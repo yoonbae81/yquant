@@ -24,7 +24,7 @@ public static class PersistenceExtensions
                     maxRetryDelay: TimeSpan.FromSeconds(5),
                     errorNumbersToAdd: null);
             });
-        });
+        }, ServiceLifetime.Scoped);
 
         // Register the MariaDB repositories
         services.TryAddScoped<ITradeRepository, MariaDbTradeRepository>();

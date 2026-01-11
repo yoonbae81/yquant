@@ -2,7 +2,7 @@
 # scripts/data/restart.sh
 set -e
 
-echo "🔄 Restarting yQuant GATEWAY services (Catalog Sync)..."
+echo "🔄 Restarting yQuant services (Catalog Sync)..."
 
 # Restart Timer
 echo "🔄 Restarting console-sync.timer..."
