@@ -18,7 +18,7 @@ jobs:
         uses: tailscale/github-action@v4
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
-          args: --accept-dns=true
+          args: --accept-dns=false
 
       - name: ✅ Verify Tailscale Connection
         run: |
@@ -28,14 +28,39 @@ jobs:
           echo "Tailscale IP:"
           tailscale ip -4
 
+      - name: 🔍 Resolve Target Host IP
+        id: resolve-host
+        run: |
+          echo "Resolving Tailscale IP for ${{ secrets.HOST_GREEN }}..."
+          # Extract IP from tailscale status (text parsing)
+          TARGET_IP=$(tailscale status | grep -i "yq-green" | awk '{print $1}')
+          
+          if [ -z "$TARGET_IP" ]; then
+            echo "❌ Could not resolve target host IP"
+            echo "Available hosts:"
+            tailscale status
+            exit 1
+          fi
+          
+          echo "✅ Resolved IP: $TARGET_IP"
+          echo "ip=$TARGET_IP" >> $GITHUB_OUTPUT
+
       - name: 🔎 Test Connection to Target
         run: |
-          echo "Testing connection to ${{ secrets.HOST_GREEN }}..."
-          tailscale ping -c 3 ${{ secrets.HOST_GREEN }} || echo "Ping failed, but will try SSH anyway"
+          echo "Testing connection to ${{ steps.resolve-host.outputs.ip }}..."
+          for i in {1..3}; do
+            if tailscale ping -c 1 ${{ steps.resolve-host.outputs.ip }}; then
+              echo "✅ Connection successful!"
+              exit 0
+            fi
+            echo "Attempt $i failed, retrying..."
+            sleep 3
+          done
+          echo "⚠️ Ping failed after 3 attempts, but will try SSH anyway"
 
       - name: 🚀 Deploy via Tailscale SSH
         run: |
-          tailscale ssh ${{ secrets.SSH_USER }}@${{ secrets.HOST_GREEN }} << 'EOF'
+          tailscale ssh ${{ secrets.SSH_USER }}@${{ steps.resolve-host.outputs.ip }} << 'EOF'
             cd ~/yquant
             git fetch --all
             git checkout ${{ github.ref_name }}
@@ -45,7 +70,7 @@ jobs:
       
       - name: 🏥 Health Check
         run: |
-          tailscale ssh ${{ secrets.SSH_USER }}@${{ secrets.HOST_GREEN }} "cd ~/yquant && bash scripts/health-check.sh"
+          tailscale ssh ${{ secrets.SSH_USER }}@${{ steps.resolve-host.outputs.ip }} "cd ~/yquant && bash scripts/health-check.sh"
       
       - name: 📢 Notify Success
         if: success()
