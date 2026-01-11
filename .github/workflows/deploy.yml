@@ -44,13 +44,15 @@ jobs:
         id: set-host
         run: |
           if [ "${{ github.event.inputs.target_worker }}" == "GREEN" ] || [ -z "${{ github.event.inputs.target_worker }}" ]; then
-            echo "host=${{ secrets.HOST_GREEN }}" >> $GITHUB_OUTPUT
-            echo "worker=GREEN" >> $GITHUB_OUTPUT
+            TARGET_HOST="${{ secrets.HOST_GREEN }}"
+            TARGET_WORKER="GREEN"
           else
-            echo "host=${{ secrets.HOST_BLUE }}" >> $GITHUB_OUTPUT
-            echo "worker=BLUE" >> $GITHUB_OUTPUT
+            TARGET_HOST="${{ secrets.HOST_BLUE }}"
+            TARGET_WORKER="BLUE"
           fi
-          echo "Target: ${{ steps.set-host.outputs.host }}"
+          echo "host=$TARGET_HOST" >> $GITHUB_OUTPUT
+          echo "worker=$TARGET_WORKER" >> $GITHUB_OUTPUT
+          echo "Target: $TARGET_WORKER ($TARGET_HOST)"
 
       - name: 🔎 Test Connection to Target
         run: |
