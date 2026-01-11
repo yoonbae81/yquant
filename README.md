@@ -181,7 +181,7 @@ dotnet run
 cd src/03.Applications/yQuant.App.Dashboard
 dotnet run
 ```
-브라우저에서 `http://localhost:5000` 접속
+브라우저에서 `http://localhost:2000` 접속
 
 ### **5.5. Console 도구 사용**
 수동 주문, 시스템 상태 확인 및 종목 마스터 데이터 동기화를 위한 통합 CLI 도구

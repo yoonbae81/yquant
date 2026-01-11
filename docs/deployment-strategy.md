@@ -76,7 +76,7 @@
 *   **경로**: `Admin PC` → `Tailscale Tunnel` → `yq-blue/green` (Private)
 *   **정책**:
     *   대시보드(Web UI)는 공용 인터넷에 노출되지 않습니다.
-    *   관리자는 Tailscale을 켜고 `http://yq-blue:5000` 또는 `http://yq-green:5000` 형태로 직접 접속합니다.
+    *   관리자는 Tailscale을 켜고 `http://yq-blue:2000` 또는 `http://yq-green:2000` 형태로 직접 접속합니다.
     *   이를 통해 외부 공격 위협을 최소화하고, 별도의 인증 게이트웨이 없이 VPN 인증으로 보안을 대체합니다.
 
 ## 4. 배포 시나리오 (Blue-Green Deployment)
@@ -109,7 +109,7 @@
 | `yq-data` | 3306 | MariaDB | Blue/Green → Data | VCN subnet (10.0.0.0/24) |
 | `yq-data` | 41641 | Tailscale | P2P VPN | UDP Open (Any) |
 | **`yq-blue/green`** | **6000** | **Webhook** (App) | HAProxy → App | **VCN subnet (10.0.0.0/24)** |
-| **`yq-blue/green`** | **5000** | **Dashboard** (App) | User → App | **Tailscale Only** (Admin) |
+| **`yq-blue/green`** | **2000** | **Dashboard** (App) | User → App | **Tailscale Only** (Admin) |
 | `yq-blue/green` | 6379 | Message Valkey | Localhost Only | Loopback (127.0.0.1) |
 | `yq-blue/green` | 41641 | Tailscale | P2P VPN | UDP Open (Any) |
 
