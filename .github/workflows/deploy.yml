@@ -1,4 +1,4 @@
-name: Deploy yQuant Worker (Blue/Green)
+name: Deploy yQuant Worker
 
 on:
   push:
@@ -7,19 +7,10 @@ on:
     tags:
       - 'v*'
   workflow_dispatch:
-    inputs:
-      target_worker:
-        description: 'Target Worker to deploy (Blue or Green)'
-        required: true
-        default: 'GREEN'
-        type: choice
-        options:
-          - BLUE
-          - GREEN
 
 jobs:
   deploy:
-    name: Deploy All Services to ${{ github.event.inputs.target_worker || 'GREEN' }}
+    name: Deploy All Services to GREEN
     runs-on: ubuntu-latest
     
     steps:
@@ -29,7 +20,7 @@ jobs:
           authkey: ${{ secrets.TS_AUTHKEY }}
           args: --accept-dns=true
 
-      - name: � Verify Tailscale Connection
+      - name: ✅ Verify Tailscale Connection
         run: |
           echo "Checking Tailscale status..."
           tailscale status
@@ -37,28 +28,14 @@ jobs:
           echo "Tailscale IP:"
           tailscale ip -4
 
-      - name: 🎯 Set Target Worker
-        id: set-host
-        run: |
-          if [ "${{ github.event.inputs.target_worker }}" == "GREEN" ] || [ -z "${{ github.event.inputs.target_worker }}" ]; then
-            TARGET_HOST="${{ secrets.HOST_GREEN }}"
-            TARGET_WORKER="GREEN"
-          else
-            TARGET_HOST="${{ secrets.HOST_BLUE }}"
-            TARGET_WORKER="BLUE"
-          fi
-          echo "host=$TARGET_HOST" >> $GITHUB_OUTPUT
-          echo "worker=$TARGET_WORKER" >> $GITHUB_OUTPUT
-          echo "Target: $TARGET_WORKER ($TARGET_HOST)"
-
       - name: 🔎 Test Connection to Target
         run: |
-          echo "Testing connection to ${{ steps.set-host.outputs.host }}..."
-          tailscale ping -c 3 ${{ steps.set-host.outputs.host }} || echo "Ping failed, but will try SSH anyway"
+          echo "Testing connection to ${{ secrets.HOST_GREEN }}..."
+          tailscale ping -c 3 ${{ secrets.HOST_GREEN }} || echo "Ping failed, but will try SSH anyway"
 
       - name: 🚀 Deploy via Tailscale SSH
         run: |
-          tailscale ssh ${{ secrets.SSH_USER }}@${{ steps.set-host.outputs.host }} << 'EOF'
+          tailscale ssh ${{ secrets.SSH_USER }}@${{ secrets.HOST_GREEN }} << 'EOF'
             cd ~/yquant
             git fetch --all
             git checkout ${{ github.ref_name }}
@@ -68,17 +45,17 @@ jobs:
       
       - name: 🏥 Health Check
         run: |
-          tailscale ssh ${{ secrets.SSH_USER }}@${{ steps.set-host.outputs.host }} "cd ~/yquant && bash scripts/health-check.sh"
+          tailscale ssh ${{ secrets.SSH_USER }}@${{ secrets.HOST_GREEN }} "cd ~/yquant && bash scripts/health-check.sh"
       
       - name: 📢 Notify Success
         if: success()
         run: |
-          echo "✅ yQuant Deployment to ${{ steps.set-host.outputs.worker }} successful!"
+          echo "✅ yQuant Deployment to GREEN successful!"
           echo "Ref: ${{ github.ref_name }}"
           echo "Commit: ${{ github.sha }}"
       
       - name: 📢 Notify Failure
         if: failure()
         run: |
-          echo "❌ yQuant Deployment to ${{ steps.set-host.outputs.worker }} failed!"
+          echo "❌ yQuant Deployment to GREEN failed!"
           echo "Check the logs above for details."

@@ -3,11 +3,6 @@
 @implements IDisposable
 
 <div class="d-flex gap-2 align-center">
-    <MudTooltip Text="Valkey (Message)">
-        <MudIcon Icon="@Icons.Material.Filled.Message" Color="@(_msgValkeyOnline ? Color.Success : Color.Error)"
-            Size="Size.Small" />
-    </MudTooltip>
-
     <MudTooltip Text="MariaDB (Shared)">
         <MudIcon Icon="@Icons.Material.Filled.Storage" Color="@(_mariaDbOnline ? Color.Success : Color.Error)"
             Size="Size.Small" />
@@ -30,7 +25,6 @@
 </div>
 
 @code {
-    private bool _msgValkeyOnline;
     private bool _mariaDbOnline;
     private bool _brokerOnline;
     private bool _composerOnline;
@@ -59,21 +53,10 @@
 
     private async Task CheckHealth()
     {
-        _msgValkeyOnline = await HealthService.CheckMessageValkeyAsync();
         _mariaDbOnline = await HealthService.CheckMariaDbAsync();
-
-        if (_msgValkeyOnline)
-        {
-            _brokerOnline = await HealthService.CheckServiceAsync("BrokerGateway");
-            _composerOnline = await HealthService.CheckServiceAsync("OrderComposer");
-            _webhookOnline = await HealthService.CheckServiceAsync("Webhook");
-        }
-        else
-        {
-            _brokerOnline = false;
-            _composerOnline = false;
-            _webhookOnline = false;
-        }
+        _brokerOnline = await HealthService.CheckServiceAsync("BrokerGateway");
+        _composerOnline = await HealthService.CheckServiceAsync("OrderComposer");
+        _webhookOnline = await HealthService.CheckServiceAsync("Webhook");
     }
 
     public void Dispose()
