@@ -194,6 +194,24 @@ namespace yQuant.Infra.Notification.Discord
             }
         }
 
+        public async Task LogCatalogAsync(string context, string message)
+        {
+            if (!_config.Enabled) return;
+
+            try
+            {
+                string webhookUrl = _config.Channels.System?.Catalog ?? _config.Channels.System?.Status ?? _config.Channels.Default ?? string.Empty;
+                if (string.IsNullOrEmpty(webhookUrl)) return;
+
+                var payload = _messageBuilder.BuildStatusMessage(context, message, Environment.MachineName);
+                await SendAsync(webhookUrl, payload);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Failed to send catalog log to Discord");
+            }
+        }
+
         public async Task LogScheduledOrderRequestAsync(
             string scheduleId,
             string ticker,

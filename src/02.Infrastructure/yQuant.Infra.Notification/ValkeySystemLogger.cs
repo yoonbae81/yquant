@@ -30,5 +30,10 @@ namespace yQuant.Infra.Notification
         {
             await _publisher.PublishSecurityNotificationAsync(context, message);
         }
+
+        public async Task LogCatalogAsync(string context, string message)
+        {
+            await _publisher.PublishSystemNotificationAsync("Catalog", new { Context = context, Message = message });
+        }
     }
 }

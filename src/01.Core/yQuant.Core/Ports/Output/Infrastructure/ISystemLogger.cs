@@ -16,5 +16,8 @@ namespace yQuant.Core.Ports.Output.Infrastructure
 
         // 보안 관련 로깅 (예: 로그인 성공/실패)
         Task LogSecurityAsync(string context, string message);
+
+        // Catalog 관련 로깅
+        Task LogCatalogAsync(string context, string message);
     }
 }

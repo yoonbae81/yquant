@@ -30,7 +30,7 @@ jobs:
           oauth-secret: ${{ secrets.TS_OAUTH_SECRET }}
           tags: tag:ci
           args: --accept-dns=false --accept-routes=false
-          
+
       - name: �🚀 Set Target Host
         id: set-host
         run: |

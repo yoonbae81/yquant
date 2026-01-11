@@ -22,5 +22,6 @@ namespace yQuant.Infra.Notification.Discord
         public string? Status { get; set; }
         public string? Security { get; set; }
         public string? Error { get; set; }
+        public string? Catalog { get; set; }
     }
 }

@@ -107,6 +107,10 @@ public class MessageRouter
             {
                 await _discordLogger.LogSecurityAsync(context, messageText);
             }
+            else if (message.Type.Equals("Catalog", StringComparison.OrdinalIgnoreCase))
+            {
+                await _discordLogger.LogCatalogAsync(context, messageText);
+            }
             else
             {
                 await _discordLogger.LogStatusAsync(context, messageText);

@@ -104,7 +104,7 @@ public class StockCatalogSyncService
                 await _repository.SetLastSyncDateAsync(country, DateTime.UtcNow);
 
                 var breakdown = string.Join("\n", allStocks.GroupBy(s => s.Exchange).Select(g => $"- {g.Key}: {g.Count()} items"));
-                await _systemLogger.LogStatusAsync("Stock Catalog", $"Sync Completed for {country}.\n{breakdown}");
+                await _systemLogger.LogCatalogAsync("Stock Catalog", $"Sync Completed for {country}.\n{breakdown}");
 
                 // Notify app servers to reload their memory cache for this country
                 await NotifyUpdateAsync(country);

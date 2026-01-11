@@ -13,6 +13,7 @@ public class StockCatalogRepository
 {
     private readonly IStorageValkeyService _storageService;
     private readonly ILogger<StockCatalogRepository> _logger;
+    private readonly ISystemLogger _systemLogger;
     private const string KeyPrefix = "stock:";
     private const string CountrySetPrefix = "catalog:country:";
     private const string LastSyncPrefix = "catalog:lastsync:";
@@ -25,10 +26,12 @@ public class StockCatalogRepository
 
     public StockCatalogRepository(
         IStorageValkeyService storageService,
-        ILogger<StockCatalogRepository> logger)
+        ILogger<StockCatalogRepository> logger,
+        ISystemLogger systemLogger)
     {
         _storageService = storageService;
         _logger = logger;
+        _systemLogger = systemLogger;
     }
 
     public async Task SaveBatchAsync(IEnumerable<Stock> stocks, CancellationToken cancellationToken = default)
@@ -167,10 +170,12 @@ public class StockCatalogRepository
             }
 
             _logger.LogInformation("Successfully warmed up {Count} stocks for {Country}.", count, countryCode);
+            await _systemLogger.LogCatalogAsync("Stock Catalog Cache", $"Loaded {count} stocks for {countryCode} into memory.");
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to warm up memory cache for {Country}.", countryCode);
+            await _systemLogger.LogSystemErrorAsync($"Stock Catalog Load Failed ({countryCode})", ex);
         }
     }
 
