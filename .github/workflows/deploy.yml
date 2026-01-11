@@ -32,13 +32,28 @@ jobs:
         id: resolve-host
         run: |
           echo "Resolving Tailscale IP for ${{ secrets.HOST_GREEN }}..."
-          # Extract IP from tailscale status (text parsing)
-          TARGET_IP=$(tailscale status | grep -i "yq-green" | awk '{print $1}')
+          echo "---"
+          echo "Full Tailscale Status:"
+          tailscale status
+          echo "---"
+          
+          # Try multiple patterns to find the host
+          TARGET_IP=$(tailscale status | grep -E "(yq-green|${{ secrets.HOST_GREEN }})" | head -1 | awk '{print $1}')
           
           if [ -z "$TARGET_IP" ]; then
             echo "❌ Could not resolve target host IP"
-            echo "Available hosts:"
-            tailscale status
+            echo ""
+            echo "⚠️  TROUBLESHOOTING:"
+            echo "The target host 'yq-green' is not visible in the Tailscale network."
+            echo "This usually means:"
+            echo "  1. The target server is not connected to Tailscale"
+            echo "  2. The TS_AUTHKEY doesn't have permission to see tagged devices"
+            echo "  3. ACL rules are blocking visibility"
+            echo ""
+            echo "Please check:"
+            echo "  - Is yq-green online and connected to Tailscale?"
+            echo "  - Does the GitHub Actions authkey have 'tagged-devices' visibility in ACL?"
+            echo "  - Generate a new authkey with proper tag permissions if needed"
             exit 1
           fi
           
