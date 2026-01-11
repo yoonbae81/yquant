@@ -28,7 +28,8 @@
 ### **2.3. 모니터링 및 시각화 (Monitoring & Reporting)**
 
 * **자산 현황**: 실시간 예수금, 총 매입 금액, 추정 자산 조회 (KRW/USD 통합 가치 환산)
-* **포트폴리오 관리**: Valkey에 캐싱된 보유 종목 데이터 기반의 평가손익(PnL), 수익률(ROI) 실시간 출력
+* **포트폴리오 관리**: 스마트 정렬(텍스트 오름차순/숫자 내림차순), 총액 표시 등 고도화된 `PositionTable` 적용
+* **사용자 경험(UX) 강화**: 페이지 간 상태(계좌, 정렬) 유지 및 모바일 최적화 ("Scheduled" 메뉴 등)
 * **성과 분석 대시보드**: 
     - 계좌별 누적 수익률(Equity Curve) 및 일간 수익률 시각화
     - 주요 성과 지표(CAGR, Sharpe Ratio, MDD 등) 자동 계산 및 표시
@@ -78,7 +79,7 @@
 
 ## **4. High Availability (HA) & Deployment Strategy**
 
-yQuant는 무중단 운영과 데이터 안정성을 위해 **Blue-Green** 배포 전략과 **MariaDB** 중심의 공유 데이터 구조를 채택하고 있습니다. (이는 상시 가동이 필요한 프로덕션 환경을 위한 권장 옵션임을 분명히 합니다.)
+yQuant는 무중단 운영과 데이터 안정성을 위해 **Blue-Green** 배포 전략과 **MariaDB** 중심의 공유 데이터 구조를 채택하고 있습니다. 
 
 ### **4.1. 서버 구성 (3-VM 구조)**
 
@@ -102,7 +103,7 @@ yQuant는 무중단 운영과 데이터 안정성을 위해 **Blue-Green** 배�
 
 ### **4.2. 프로젝트 클론 및 빌드**
 ```bash
-git clone https://github.com/yoonbae81/yQuant.NET.git
+git clone https://github.com/yoonbae81/yquant/
 cd yQuant.NET
 dotnet build yQuant.slnx
 ```

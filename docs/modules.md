@@ -175,14 +175,17 @@ Policy 계층은 거래소별 시장 규칙과 포지션 사이징 알고리즘�
 - **역할**: 웹 기반 통합 모니터링, 제어 및 리포팅 대시보드
 - **주요 기능**:
     - **자산 현황**: Valkey Cache(`account:{Alias}`, `deposit:{Alias}`, `position:{Alias}`)를 조회하여 실시간 예수금, 보유 종목, 평가손익 표시
-    - **포지션 관리**: 보유 종목별 상세 정보 및 수익률 시각화
+    - **포지션 관리**: `PositionTable` 공통 컴포넌트를 통해 `Summary`/`Assets` 페이지 간 일관된 정렬(스마트 정렬) 및 총액(Total Amount) 표시
+    - **UX 최적화**: 
+        - `UiStateService`를 도입하여 페이지 이동 시에도 계좌 선택 및 정렬 상태를 영구적으로 유지
+        - 모바일 환경을 고려한 메뉴명 단축("Scheduled") 및 반응형 레이아웃 적용
     - **수동 거래**: 웹 UI를 통한 즉시 매수/매도 주문 실행 (Valkey `order` 채널로 발행)
     - **예약 주문 관리**: 시간 기반 스케줄링(특정 시각, 요일별 반복)을 지원하는 자동 주문 관리 UI
     - **성과 분석 리포팅**:
         - 계좌별 Equity Curve 및 일간 수익률 차트 시각화
         - 주요 성과 지표(Total Return, CAGR, Sharpe Ratio, Max Drawdown 등) 자동 계산 및 표시
         - CSV 데이터 익스포트 (QuantStats 호환)
-    - **서비스 상태 모니터링**: 각 애플리케이션의 health status 실시간 표시
+    - **서비스 상태 모니터링**: 각 애플리케이션의 health status 실시간 표시 (DI 스코프 이슈 해결로 안정성 확보)
     - **실시간 알림**: `RealtimeEventService`를 통해 주문 체결 등 주요 이벤트를 즉시 사용자에게 알림 (Snackbar)
 
 ### 4.6. yQuant.App.Notifier (Notification Dispatcher)
