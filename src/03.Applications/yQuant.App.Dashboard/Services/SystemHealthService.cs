@@ -1,3 +1,4 @@
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
 using yQuant.Infra.Valkey.Interfaces;
@@ -8,16 +9,16 @@ namespace yQuant.App.Dashboard.Services;
 public class SystemHealthService
 {
     private readonly IValkeyService _messageValkey;
-    private readonly MariaDbContext _mariaDbContext;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SystemHealthService> _logger;
 
     public SystemHealthService(
         IValkeyService messageValkey,
-        MariaDbContext mariaDbContext,
+        IServiceScopeFactory scopeFactory,
         ILogger<SystemHealthService> logger)
     {
         _messageValkey = messageValkey;
-        _mariaDbContext = mariaDbContext;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -39,7 +40,9 @@ public class SystemHealthService
     {
         try
         {
-            return await _mariaDbContext.Database.CanConnectAsync();
+            using var scope = _scopeFactory.CreateScope();
+            var dbContext = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
+            return await dbContext.Database.CanConnectAsync();
         }
         catch
         {

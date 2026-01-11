@@ -11,4 +11,5 @@ public interface IStockCatalogRepository
     Task SetLastSyncDateAsync(CountryCode country, DateTime date);
     Task<DateTime?> GetLastSyncDateAsync(CountryCode country);
     Task<string[]> GetActiveCountriesAsync();
+    Task<IEnumerable<Stock>> GetByTickersAsync(IEnumerable<string> tickers, CancellationToken cancellationToken = default);
 }

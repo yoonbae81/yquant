@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using StackExchange.Redis;
@@ -8,23 +9,23 @@ using yQuant.Core.Ports.Output.Infrastructure;
 namespace yQuant.Infra.Persistence;
 
 /// <summary>
-/// Background service that consumes trades from Valkey Queue and archives them to Firebird.
+/// Background service that consumes trades from Valkey Queue and archives them to MariaDB.
 /// </summary>
 public class TradeArchiverService : BackgroundService
 {
     private readonly IConnectionMultiplexer _redis;
-    private readonly ITradeRepository _repository; // This should be the Firebird repository
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<TradeArchiverService> _logger;
     private const string QueueKey = "trades:queue";
     private readonly JsonSerializerOptions _jsonOptions = new() { PropertyNameCaseInsensitive = true };
 
     public TradeArchiverService(
         IConnectionMultiplexer redis,
-        ITradeRepository repository,
+        IServiceScopeFactory scopeFactory,
         ILogger<TradeArchiverService> logger)
     {
         _redis = redis;
-        _repository = repository;
+        _scopeFactory = scopeFactory;
         _logger = logger;
     }
 
@@ -82,7 +83,10 @@ public class TradeArchiverService : BackgroundService
 
             if (payload != null && payload.Trade != null && !string.IsNullOrEmpty(payload.AccountAlias))
             {
-                await _repository.SaveAsync(payload.AccountAlias, payload.Trade);
+                using var scope = _scopeFactory.CreateScope();
+                var repository = scope.ServiceProvider.GetRequiredService<ITradeRepository>();
+
+                await repository.SaveAsync(payload.AccountAlias, payload.Trade);
                 _logger.LogInformation("Archived trade {TradeId} for {Account}", payload.Trade.Id, payload.AccountAlias);
             }
             else

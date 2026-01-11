@@ -242,13 +242,28 @@
     private PerformanceMetrics? _metrics;
     private List<DailySnapshot> _snapshots = new();
 
-    protected override async Task OnInitializedAsync()
+    @inject UiStateService UiStateService
+protected override async Task OnInitializedAsync()
     {
         await LoadAccounts();
 
-        if (string.IsNullOrEmpty(AccountAlias) && _availableAccounts.Any())
+        if (string.IsNullOrEmpty(AccountAlias))
         {
-            AccountAlias = _availableAccounts.First().Alias;
+            if (!string.IsNullOrEmpty(UiStateService.SelectedAccountAlias))
+            {
+                AccountAlias = UiStateService.SelectedAccountAlias;
+                var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+                NavigationManager.NavigateTo($"{pathBase}/performance/{AccountAlias}", replace: true);
+            }
+            else if (_availableAccounts.Any())
+            {
+                AccountAlias = _availableAccounts.First().Alias;
+                UiStateService.SetAccount(AccountAlias);
+            }
+        }
+        else
+        {
+            UiStateService.SetAccount(AccountAlias);
         }
     }
 
@@ -260,6 +275,7 @@
     private async Task OnAccountChanged(string alias)
     {
         AccountAlias = alias;
+        UiStateService.SetAccount(alias);
         var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
         NavigationManager.NavigateTo($"{pathBase}/performance/{alias}");
         _metrics = null; // Reset metrics when account changes

@@ -1,5 +1,6 @@
 using System.Collections.Concurrent;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
@@ -8,67 +9,130 @@ namespace yQuant.Infra.Persistence;
 
 public class MariaDbStockCatalogRepository : IStockCatalogRepository
 {
-    private readonly MariaDbContext _context;
+    private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<MariaDbStockCatalogRepository> _logger;
     private readonly ISystemLogger _systemLogger;
 
-    private static readonly ConcurrentDictionary<string, Stock> _memoryCache = new();
+    private static readonly ConcurrentDictionary<string, Stock> _memoryCache = new(StringComparer.OrdinalIgnoreCase);
     private static bool _isCacheLoaded = false;
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
 
     public MariaDbStockCatalogRepository(
-        MariaDbContext context,
+        IServiceProvider serviceProvider,
         ILogger<MariaDbStockCatalogRepository> logger,
         ISystemLogger systemLogger)
     {
-        _context = context;
+        _serviceProvider = serviceProvider;
         _logger = logger;
         _systemLogger = systemLogger;
     }
 
     public async Task SaveBatchAsync(IEnumerable<Stock> stocks, CancellationToken cancellationToken = default)
     {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
+
+        // Use raw SQL for efficient Bulk UPSERT (INSERT ... ON DUPLICATE KEY UPDATE)
+        const int batchSize = 1000;
         var stockList = stocks.ToList();
-        foreach (var stock in stockList)
+        var total = stockList.Count;
+
+        for (int i = 0; i < total; i += batchSize)
         {
-            var country = GetCountryByExchange(stock.Exchange);
-            var entity = new StockCatalogEntity
-            {
-                Ticker = stock.Ticker,
-                Name = stock.Name,
-                Exchange = stock.Exchange,
-                Currency = stock.Currency.ToString(),
-                Country = country,
-                LastUpdated = DateTime.UtcNow
-            };
+            var chunk = stockList.Skip(i).Take(batchSize).ToList();
+            if (!chunk.Any()) continue;
 
-            var existing = await _context.Catalog.FindAsync(stock.Ticker);
-            if (existing != null)
+            var placeholderBuilder = new System.Text.StringBuilder();
+            var parameters = new List<object>();
+
+            placeholderBuilder.Append("INSERT INTO catalog (Ticker, Name, Exchange, Currency, Country, LastUpdated) VALUES ");
+
+            for (int k = 0; k < chunk.Count; k++)
             {
-                _context.Entry(existing).CurrentValues.SetValues(entity);
-            }
-            else
-            {
-                await _context.Catalog.AddAsync(entity, cancellationToken);
+                if (k > 0) placeholderBuilder.Append(", ");
+                // Use {N} syntax relative to the flattened parameter list
+                // Values: TickerIdx, NameIdx, ...
+                int baseP = k * 6;
+                placeholderBuilder.Append($"({{{baseP}}}, {{{baseP + 1}}}, {{{baseP + 2}}}, {{{baseP + 3}}}, {{{baseP + 4}}}, {{{baseP + 5}}})");
+
+                var stock = chunk[k];
+                var country = GetCountryByExchange(stock.Exchange);
+
+                parameters.Add(stock.Ticker);
+                parameters.Add(stock.Name);
+                parameters.Add(stock.Exchange);
+                parameters.Add(stock.Currency.ToString());
+                parameters.Add(country);
+                parameters.Add(DateTime.UtcNow);
+
+                _memoryCache[stock.Ticker] = stock;
             }
 
-            _memoryCache[stock.Ticker] = stock;
+            placeholderBuilder.Append(" ON DUPLICATE KEY UPDATE Name=VALUES(Name), Exchange=VALUES(Exchange), Currency=VALUES(Currency), Country=VALUES(Country), LastUpdated=VALUES(LastUpdated)");
+
+            await context.Database.ExecuteSqlRawAsync(placeholderBuilder.ToString(), parameters.ToArray(), cancellationToken);
         }
 
-        await _context.SaveChangesAsync(cancellationToken);
-        _logger.LogInformation("Saved {Count} stocks to MariaDB Stock Catalog.", stockList.Count);
+        _logger.LogInformation("Saved {Count} stocks to MariaDB Stock Catalog (Bulk UPSERT).", total);
     }
 
     public async Task<Stock?> GetByTickerAsync(string ticker, CancellationToken cancellationToken = default)
     {
         if (_memoryCache.TryGetValue(ticker, out var cached)) return cached;
 
-        var entity = await _context.Catalog.FindAsync(new object[] { ticker }, cancellationToken);
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
+
+        var entity = await context.Catalog.FindAsync(new object[] { ticker }, cancellationToken);
         if (entity == null) return null;
 
         var stock = entity.ToModel();
         _memoryCache[ticker] = stock;
         return stock;
+    }
+
+    public async Task<IEnumerable<Stock>> GetByTickersAsync(IEnumerable<string> tickers, CancellationToken cancellationToken = default)
+    {
+        var distinctTickers = tickers.Distinct().ToList();
+        var result = new List<Stock>();
+        var missingTickers = new List<string>();
+
+        foreach (var ticker in distinctTickers)
+        {
+            if (_memoryCache.TryGetValue(ticker, out var cached))
+            {
+                result.Add(cached);
+            }
+            else
+            {
+                missingTickers.Add(ticker);
+            }
+        }
+
+        if (missingTickers.Any())
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
+
+            // Chunking to be safe with SQL limits (e.g. 1000 items)
+            const int batchSize = 1000;
+            for (int i = 0; i < missingTickers.Count; i += batchSize)
+            {
+                var batch = missingTickers.Skip(i).Take(batchSize).ToList();
+                var entities = await context.Catalog
+                    .Where(c => batch.Contains(c.Ticker))
+                    .ToListAsync(cancellationToken);
+
+                foreach (var entity in entities)
+                {
+                    var stock = entity.ToModel();
+                    _memoryCache[entity.Ticker] = stock;
+                    result.Add(stock);
+                }
+            }
+        }
+
+        return result;
     }
 
     public async Task LoadAllToMemoryAsync(bool force = false, string? countryCode = null, CancellationToken cancellationToken = default)
@@ -84,7 +148,10 @@ public class MariaDbStockCatalogRepository : IStockCatalogRepository
         {
             if (_isCacheLoaded && !force) return;
 
-            var entities = await _context.Catalog.ToListAsync(cancellationToken);
+            using var scope = _serviceProvider.CreateScope();
+            var context = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
+
+            var entities = await context.Catalog.ToListAsync(cancellationToken);
 
             if (force) _memoryCache.Clear();
 
@@ -104,7 +171,10 @@ public class MariaDbStockCatalogRepository : IStockCatalogRepository
 
     public async Task LoadCountryToMemoryAsync(string countryCode, CancellationToken cancellationToken = default)
     {
-        var entities = await _context.Catalog
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
+
+        var entities = await context.Catalog
             .Where(c => c.Country == countryCode)
             .ToListAsync(cancellationToken);
 
@@ -121,8 +191,11 @@ public class MariaDbStockCatalogRepository : IStockCatalogRepository
 
     public async Task SetLastSyncDateAsync(CountryCode country, DateTime date)
     {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
+
         var key = $"lastsync:{country}";
-        var entity = await _context.CatalogMetadata.FindAsync(key);
+        var entity = await context.CatalogMetadata.FindAsync(key);
 
         if (entity != null)
         {
@@ -131,7 +204,7 @@ public class MariaDbStockCatalogRepository : IStockCatalogRepository
         }
         else
         {
-            await _context.CatalogMetadata.AddAsync(new CatalogMetadataEntity
+            await context.CatalogMetadata.AddAsync(new CatalogMetadataEntity
             {
                 KeyName = key,
                 ValueText = date.ToString("yyyy-MM-dd"),
@@ -139,13 +212,16 @@ public class MariaDbStockCatalogRepository : IStockCatalogRepository
             });
         }
 
-        await _context.SaveChangesAsync();
+        await context.SaveChangesAsync();
     }
 
     public async Task<DateTime?> GetLastSyncDateAsync(CountryCode country)
     {
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
+
         var key = $"lastsync:{country}";
-        var entity = await _context.CatalogMetadata.FindAsync(key);
+        var entity = await context.CatalogMetadata.FindAsync(key);
 
         if (entity != null && DateTime.TryParse(entity.ValueText, out var date))
         {
@@ -157,7 +233,10 @@ public class MariaDbStockCatalogRepository : IStockCatalogRepository
 
     public async Task<string[]> GetActiveCountriesAsync()
     {
-        var countries = await _context.Catalog
+        using var scope = _serviceProvider.CreateScope();
+        var context = scope.ServiceProvider.GetRequiredService<MariaDbContext>();
+
+        var countries = await context.Catalog
             .Select(c => c.Country)
             .Distinct()
             .ToArrayAsync();

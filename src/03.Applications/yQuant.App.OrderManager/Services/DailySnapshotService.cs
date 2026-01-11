@@ -14,19 +14,19 @@ public class DailySnapshotService : BackgroundService
 {
     private readonly ILogger<DailySnapshotService> _logger;
     private readonly IConnectionMultiplexer _redis;
-    private readonly IDailySnapshotRepository _snapshotRepository;
+    private readonly IServiceScopeFactory _scopeFactory;
     private readonly IConfiguration _configuration;
     private readonly TimeSpan _snapshotTime;
 
     public DailySnapshotService(
         ILogger<DailySnapshotService> logger,
         IConnectionMultiplexer redis,
-        IDailySnapshotRepository snapshotRepository,
+        IServiceScopeFactory scopeFactory,
         IConfiguration configuration)
     {
         _logger = logger;
         _redis = redis;
-        _snapshotRepository = snapshotRepository;
+        _scopeFactory = scopeFactory;
         _configuration = configuration;
 
         // Default: 16:00 KST (한국 시장 마감 후)
@@ -108,17 +108,20 @@ public class DailySnapshotService : BackgroundService
             var today = DateOnly.FromDateTime(DateTime.Today);
             int successCount = 0;
 
+            using var scope = _scopeFactory.CreateScope();
+            var snapshotRepository = scope.ServiceProvider.GetRequiredService<IDailySnapshotRepository>();
+
             foreach (var aliasValue in accountAliases)
             {
                 var alias = aliasValue.ToString();
 
                 try
                 {
-                    var snapshot = await CreateSnapshotForAccountAsync(db, alias, today);
+                    var snapshot = await CreateSnapshotForAccountAsync(db, snapshotRepository, alias, today);
 
                     if (snapshot != null)
                     {
-                        await _snapshotRepository.SaveAsync(alias, snapshot);
+                        await snapshotRepository.SaveAsync(alias, snapshot);
                         successCount++;
 
                         _logger.LogInformation(
@@ -144,6 +147,7 @@ public class DailySnapshotService : BackgroundService
 
     private async Task<DailySnapshot?> CreateSnapshotForAccountAsync(
         IDatabase db,
+        IDailySnapshotRepository snapshotRepository,
         string accountAlias,
         DateOnly date)
     {
@@ -197,7 +201,8 @@ public class DailySnapshotService : BackgroundService
             var totalEquity = cashBalance + positionValue;
 
             // Get previous snapshot for daily return calculation
-            var previousSnapshot = await _snapshotRepository.GetLatestSnapshotAsync(accountAlias);
+            // Use passed repository instance
+            var previousSnapshot = await snapshotRepository.GetLatestSnapshotAsync(accountAlias);
 
             decimal dailyPnL = 0;
             double dailyReturn = 0;
@@ -212,7 +217,7 @@ public class DailySnapshotService : BackgroundService
                     : 0;
 
                 // Calculate cumulative return (needs initial equity - use first snapshot)
-                var allSnapshots = await _snapshotRepository.GetAllSnapshotsAsync(accountAlias);
+                var allSnapshots = await snapshotRepository.GetAllSnapshotsAsync(accountAlias);
                 var firstSnapshot = allSnapshots.OrderBy(s => s.Date).FirstOrDefault();
 
                 if (firstSnapshot != null && firstSnapshot.TotalEquity > 0)

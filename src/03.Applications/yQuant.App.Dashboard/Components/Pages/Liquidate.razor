@@ -18,20 +18,8 @@
 
 <PageTitle>Liquidate Positions</PageTitle>
 
-<div class="d-flex align-center mb-4">
-    <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
-        @foreach (var acc in AvailableAccounts)
-        {
-            var isSelected = SelectedAccountAlias == acc.Alias;
-            <MudButton OnClick="@(() => OnAccountChanged(acc.Alias))"
-                Variant="@(isSelected ? Variant.Filled : Variant.Outlined)"
-                Color="@(isSelected ? Color.Primary : Color.Default)" Size="@(isSelected ? Size.Medium : Size.Small)"
-                Style="@(isSelected ? "font-weight: bold; box-shadow: 0 3px 5px rgba(0,0,0,0.2);" : "")">
-                @acc.Alias
-            </MudButton>
-        }
-    </MudButtonGroup>
-</div>
+<AccountSelector Accounts="AvailableAccounts" SelectedAccountAlias="@AccountAlias"
+    SelectedAccountAliasChanged="@OnAccountChanged" />
 
 @if (!string.IsNullOrEmpty(SelectedAccountAlias))
 {
@@ -317,14 +305,29 @@ else
         }
     }
 
+@inject UiStateService UiStateService
     protected override async Task OnInitializedAsync()
     {
         await LoadAccounts();
         SchedulerService.OnChange += OnSchedulerServiceChange;
 
-        if (string.IsNullOrEmpty(AccountAlias) && AvailableAccounts.Any())
+        if (string.IsNullOrEmpty(AccountAlias))
         {
-            AccountAlias = AvailableAccounts.First().Alias;
+             if (!string.IsNullOrEmpty(UiStateService.SelectedAccountAlias))
+             {
+                 AccountAlias = UiStateService.SelectedAccountAlias;
+                 var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+                 NavigationManager.NavigateTo($"{pathBase}/liquidate/{AccountAlias}", replace: true);
+             }
+             else if (AvailableAccounts.Any())
+             {
+                 AccountAlias = AvailableAccounts.First().Alias;
+                 UiStateService.SetAccount(AccountAlias);
+             }
+        }
+        else
+        {
+             UiStateService.SetAccount(AccountAlias);
         }
 
         if (!string.IsNullOrEmpty(AccountAlias))
@@ -345,6 +348,7 @@ else
     {
         SelectedAccountAlias = alias;
         AccountAlias = alias;
+        UiStateService.SetAccount(alias);
         CurrentSchedule.AccountAlias = alias;
         var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
         NavigationManager.NavigateTo($"{pathBase}/liquidate/{alias}");

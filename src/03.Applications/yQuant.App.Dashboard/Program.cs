@@ -119,6 +119,7 @@ builder.Services.AddSingleton<AccountCacheService>();
 builder.Services.AddSingleton<StockService>();
 builder.Services.AddSingleton<SystemHealthService>();
 builder.Services.AddSingleton<RealtimeEventService>();
+builder.Services.AddScoped<UiStateService>();
 builder.Services.AddHostedService<ExecutionListener>();
 
 var app = builder.Build();
@@ -162,7 +163,14 @@ if (!string.IsNullOrWhiteSpace(pathBase) && pathBase != "/")
 {
     app.Use(async (context, next) =>
     {
-        // Only redirect unauthenticated users from root to unlock page
+        // 1. Redirect Server Root (e.g. localhost:2000) to PathBase (localhost:2000/dashboard)
+        if (context.Request.Path == "/" && string.IsNullOrEmpty(context.Request.PathBase))
+        {
+            context.Response.Redirect($"{pathBase}/");
+            return;
+        }
+
+        // 2. Redirect Unauthenticated Users from App Root to Unlock Page
         if (context.Request.Path == "/" && context.User.Identity?.IsAuthenticated != true)
         {
             context.Response.Redirect($"{pathBase}/unlock?ReturnUrl={Uri.EscapeDataString(pathBase)}");

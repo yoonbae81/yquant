@@ -24,4 +24,6 @@ public class Account
             .Sum(p => p.CurrentPrice * p.Qty);
         return totalEquity;
     }
+
+    public int TotalPositionsCount => Positions.Values.Sum(list => list.Count);
 }

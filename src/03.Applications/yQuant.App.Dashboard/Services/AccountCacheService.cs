@@ -1,5 +1,6 @@
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
+using System.Text.Json;
 
 namespace yQuant.App.Dashboard.Services;
 
@@ -15,12 +16,15 @@ public class AccountCacheService
     private DateTime? _cacheTimestamp;
     private readonly TimeSpan _cacheExpiration = TimeSpan.FromMinutes(5); // Cache for 5 minutes
     private readonly SemaphoreSlim _cacheLock = new(1, 1);
+    private readonly IConfiguration _configuration;
 
     public AccountCacheService(
         AssetService assetService,
+        IConfiguration configuration,
         ILogger<AccountCacheService> logger)
     {
         _assetService = assetService;
+        _configuration = configuration;
         _logger = logger;
     }
 
@@ -56,6 +60,18 @@ public class AccountCacheService
                 }
             }
 
+            // Sort accounts based on order in appsecrets.json (BrokerGateway:Accounts)
+            var orderedAliases = GetOrderedAccountAliases();
+
+            if (orderedAliases.Any())
+            {
+                accounts = accounts.OrderBy(a =>
+                {
+                    var index = orderedAliases.IndexOf(a.Alias);
+                    return index == -1 ? int.MaxValue : index;
+                }).ToList();
+            }
+
             _cachedAccounts = accounts;
             _cacheTimestamp = DateTime.UtcNow;
 
@@ -88,5 +104,54 @@ public class AccountCacheService
     {
         var accounts = await GetAccountsAsync();
         return accounts.FirstOrDefault(a => a.Alias == alias);
+    }
+
+    private List<string> GetOrderedAccountAliases()
+    {
+        try
+        {
+            // Try to find appsecrets.json to get exact file order
+            var searchDir = Directory.GetCurrentDirectory();
+            string? secretsPath = null;
+
+            // Search up to 5 levels
+            for (int i = 0; i < 5; i++)
+            {
+                var checkPath = Path.Combine(searchDir, "appsecrets.json");
+                if (File.Exists(checkPath))
+                {
+                    secretsPath = checkPath;
+                    break;
+                }
+                var parent = Directory.GetParent(searchDir);
+                if (parent == null) break;
+                searchDir = parent.FullName;
+            }
+
+            if (secretsPath != null)
+            {
+                var json = File.ReadAllText(secretsPath);
+                var options = new JsonDocumentOptions { CommentHandling = JsonCommentHandling.Skip, AllowTrailingCommas = true };
+                using var doc = JsonDocument.Parse(json, options);
+
+                if (doc.RootElement.TryGetProperty("BrokerGateway", out var bg) &&
+                    bg.TryGetProperty("Accounts", out var accounts))
+                {
+                    return accounts.EnumerateObject()
+                        .Select(p => p.Name)
+                        .ToList();
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Failed to determine account order from file");
+        }
+
+        // Fallback to configuration
+        return _configuration.GetSection("BrokerGateway:Accounts")
+            .GetChildren()
+            .Select(x => x.Key)
+            .ToList();
     }
 }

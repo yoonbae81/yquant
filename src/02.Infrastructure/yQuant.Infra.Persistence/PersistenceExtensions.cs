@@ -26,11 +26,12 @@ public static class PersistenceExtensions
             });
         }, ServiceLifetime.Scoped);
 
-        // Register the MariaDB repositories
+        // Register the MariaDB repositories as Singleton
+        // Note: Repositories will create their own DbContext scopes internally
         services.TryAddScoped<ITradeRepository, MariaDbTradeRepository>();
-        services.TryAddScoped<IStockCatalogRepository, MariaDbStockCatalogRepository>();
+        services.TryAddSingleton<IStockCatalogRepository, MariaDbStockCatalogRepository>();
         services.TryAddScoped<IKisTokenRepository, MariaDbKisTokenRepository>();
-        services.TryAddScoped<IScheduledOrderRepository, MariaDbScheduledOrderRepository>();
+        services.TryAddSingleton<IScheduledOrderRepository, MariaDbScheduledOrderRepository>();
         services.TryAddScoped<IDailySnapshotRepository, MariaDbDailySnapshotRepository>();
 
         return services;

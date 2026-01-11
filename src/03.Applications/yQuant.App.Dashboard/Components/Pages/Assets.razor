@@ -122,13 +122,30 @@ else
     private Account? account;
     private IEnumerable<Account> _availableAccounts = new List<Account>();
 
+    @inject UiStateService UiStateService
+
     protected override async Task OnInitializedAsync()
     {
         await LoadAccounts();
 
-        if (string.IsNullOrEmpty(AccountAlias) && _availableAccounts.Any())
+        if (string.IsNullOrEmpty(AccountAlias))
         {
-            AccountAlias = _availableAccounts.First().Alias;
+            if (!string.IsNullOrEmpty(UiStateService.SelectedAccountAlias))
+            {
+                AccountAlias = UiStateService.SelectedAccountAlias;
+                // Navigate to properly reflect the state in URL
+                var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+                NavigationManager.NavigateTo($"{pathBase}/assets/{AccountAlias}", replace: true);
+            }
+            else if (_availableAccounts.Any())
+            {
+                AccountAlias = _availableAccounts.First().Alias;
+                UiStateService.SetAccount(AccountAlias);
+            }
+        }
+        else
+        {
+            UiStateService.SetAccount(AccountAlias);
         }
 
         if (!string.IsNullOrEmpty(AccountAlias))
@@ -140,18 +157,13 @@ else
     private async Task LoadAccounts()
     {
         _availableAccounts = await AccountCacheService.GetAccountsAsync();
-
-        // Auto-select first account if none selected and list was empty before
-        if (string.IsNullOrEmpty(AccountAlias) && _availableAccounts.Any())
-        {
-            AccountAlias = _availableAccounts.First().Alias;
-            await LoadAccountData(AccountAlias);
-        }
+        // Fallback logic moved to OnInitializedAsync
     }
 
     private async Task OnAccountChanged(string alias)
     {
         AccountAlias = alias;
+        UiStateService.SetAccount(alias);
         var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
         NavigationManager.NavigateTo($"{pathBase}/assets/{alias}"); // Update URL
         await LoadAccountData(alias);

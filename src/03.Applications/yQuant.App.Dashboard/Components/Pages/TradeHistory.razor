@@ -134,18 +134,41 @@
     private DateTime? _endDate = DateTime.Today;
     private bool _loading = false;
 
+    @inject UiStateService UiStateService
+
     protected override async Task OnInitializedAsync()
     {
         await LoadAccounts();
 
-        if (string.IsNullOrEmpty(AccountAlias) && _availableAccounts.Any())
+        if (string.IsNullOrEmpty(AccountAlias))
         {
-            AccountAlias = _availableAccounts.First().Alias;
+            if (!string.IsNullOrEmpty(UiStateService.SelectedAccountAlias))
+            {
+                AccountAlias = UiStateService.SelectedAccountAlias;
+                var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
+                NavigationManager.NavigateTo($"{pathBase}/trades/{AccountAlias}", replace: true);
+            }
+            else if (_availableAccounts.Any())
+            {
+                AccountAlias = _availableAccounts.First().Alias;
+                UiStateService.SetAccount(AccountAlias);
+            }
         }
+        else
+        {
+            UiStateService.SetAccount(AccountAlias);
+        }
+    }
 
+    protected override async Task OnParametersSetAsync()
+    {
         if (!string.IsNullOrEmpty(AccountAlias))
         {
             await LoadTrades();
+        }
+        else
+        {
+            _trades.Clear();
         }
     }
 
@@ -157,9 +180,9 @@
     private async Task OnAccountChanged(string alias)
     {
         AccountAlias = alias;
+        UiStateService.SetAccount(alias);
         var pathBase = Configuration.GetValue<string>("Dashboard:PathBase")?.TrimEnd('/') ?? "";
         NavigationManager.NavigateTo($"{pathBase}/trades/{alias}");
-        await LoadTrades();
     }
 
     private async Task LoadTrades()

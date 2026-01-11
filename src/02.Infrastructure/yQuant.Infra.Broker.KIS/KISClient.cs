@@ -2,6 +2,7 @@ using System.Net.Http.Json;
 using System.Text.Json;
 using System.Threading.RateLimiting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.DependencyInjection;
 using yQuant.Core.Models;
 using yQuant.Infra.Broker.KIS.Models;
 using yQuant.Infra.Notification;
@@ -16,7 +17,7 @@ public class KISClient : IKISClient
     private readonly Account _account;
     private readonly KISApiConfig _apiConfig;
     private readonly RateLimiter _rateLimiter;
-    private readonly IKisTokenRepository? _tokenRepository;
+    private readonly IServiceScopeFactory? _scopeFactory;
     private readonly SemaphoreSlim _connectionLock = new(1, 1);
 
     private string? _accessToken;
@@ -36,13 +37,13 @@ public class KISClient : IKISClient
 
     public Account Account => _account;
 
-    public KISClient(HttpClient httpClient, ILogger<KISClient> logger, Account account, KISApiConfig apiConfig, string baseUrl, IKisTokenRepository? tokenRepository = null, int rateLimit = 20)
+    public KISClient(HttpClient httpClient, ILogger<KISClient> logger, Account account, KISApiConfig apiConfig, string baseUrl, IServiceScopeFactory? scopeFactory = null, int rateLimit = 20)
     {
         _httpClient = httpClient;
         _logger = logger;
         _account = account;
         _apiConfig = apiConfig;
-        _tokenRepository = tokenRepository;
+        _scopeFactory = scopeFactory;
 
         _httpClient.BaseAddress = new Uri(baseUrl);
 
@@ -80,20 +81,26 @@ public class KISClient : IKISClient
                 return;
             }
 
-            // 3. Check Global Token Repository (Firebird)
-            if (_tokenRepository != null)
+            // 3. Check Global Token Repository (MariaDB via Scope)
+            if (_scopeFactory != null)
             {
-                var tokenCache = await _tokenRepository.GetTokenAsync(_account.Alias);
-                if (tokenCache != null && tokenCache.Expiration > DateTime.UtcNow.AddMinutes(1))
-                {
-                    _accessToken = tokenCache.Token;
-                    _accessTokenExpiration = tokenCache.Expiration;
-                    _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
-                    _logger.LogInformation("Loaded KIS access token from GLOBAL Repository for account {Alias}.", _account.Alias);
+                using var scope = _scopeFactory.CreateScope();
+                var tokenRepository = scope.ServiceProvider.GetService<IKisTokenRepository>();
 
-                    // Also update local file cache as fallback
-                    await SaveTokenToFileAsync(_accessToken, _accessTokenExpiration);
-                    return;
+                if (tokenRepository != null)
+                {
+                    var tokenCache = await tokenRepository.GetTokenAsync(_account.Alias);
+                    if (tokenCache != null && tokenCache.Expiration > DateTime.UtcNow.AddMinutes(1))
+                    {
+                        _accessToken = tokenCache.Token;
+                        _accessTokenExpiration = tokenCache.Expiration;
+                        _httpClient.DefaultRequestHeaders.Authorization = new System.Net.Http.Headers.AuthenticationHeaderValue("Bearer", _accessToken);
+                        _logger.LogInformation("Loaded KIS access token from GLOBAL Repository for account {Alias}.", _account.Alias);
+
+                        // Also update local file cache as fallback
+                        await SaveTokenToFileAsync(_accessToken, _accessTokenExpiration);
+                        return;
+                    }
                 }
             }
 
@@ -166,9 +173,14 @@ public class KISClient : IKISClient
 
 
         // Clear from Global Repository
-        if (_tokenRepository != null)
+        if (_scopeFactory != null)
         {
-            await _tokenRepository.DeleteTokenAsync(_account.Alias);
+            using var scope = _scopeFactory.CreateScope();
+            var tokenRepository = scope.ServiceProvider.GetService<IKisTokenRepository>();
+            if (tokenRepository != null)
+            {
+                await tokenRepository.DeleteTokenAsync(_account.Alias);
+            }
         }
 
         // Clear from local file
@@ -230,9 +242,14 @@ public class KISClient : IKISClient
 
 
             // Store in Global Repository
-            if (_tokenRepository != null)
+            if (_scopeFactory != null)
             {
-                await _tokenRepository.SaveTokenAsync(_account.Alias, new TokenCacheEntry { Token = _accessToken, Expiration = _accessTokenExpiration });
+                using var scope = _scopeFactory.CreateScope();
+                var tokenRepository = scope.ServiceProvider.GetService<IKisTokenRepository>();
+                if (tokenRepository != null)
+                {
+                    await tokenRepository.SaveTokenAsync(_account.Alias, new TokenCacheEntry { Token = _accessToken, Expiration = _accessTokenExpiration });
+                }
             }
 
             // Store in local file cache

@@ -22,10 +22,12 @@
         <MudTd DataLabel="Qty" Style="text-align: right;">@context.Qty.ToString("N0")</MudTd>
         <MudTd DataLabel="Avg Price" Style="text-align: right;">@context.AvgPrice.ToString("N0")</MudTd>
         <MudTd DataLabel="Current Price" Style="text-align: right;">@context.CurrentPrice.ToString("N0")</MudTd>
-        <MudTd DataLabel="Change %" Style="@("text-align: right; " + (context.ChangeRate >= 0 ? "color: red;" : "color: blue;"))">
+        <MudTd DataLabel="Change %"
+            Style="@("text-align: right; " + (context.ChangeRate >= 0 ? "color: red;" : "color: blue;"))">
             @context.ChangeRate.ToString("N2")%
         </MudTd>
-        <MudTd DataLabel="Unrealized PnL" Style="@("text-align: right; " + (context.UnrealizedPnL >= 0 ? "color: green;" : "color: red;"))">
+        <MudTd DataLabel="Unrealized PnL"
+            Style="@("text-align: right; " + (context.UnrealizedPnL >= 0 ? "color: green;" : "color: red;"))">
             @context.UnrealizedPnL.ToString("N0")
         </MudTd>
         <MudTd DataLabel="Actions">
@@ -78,7 +80,8 @@
     protected override async Task OnParametersSetAsync()
     {
         // Load stock names for all positions
-        var tickers = Positions.Select(p => p.Ticker).Distinct();
+        if (Positions == null) return;
+        var tickers = Positions.Where(p => !string.IsNullOrWhiteSpace(p.Ticker)).Select(p => p.Ticker.Trim()).Distinct();
         _stockNames = await StockService.GetStockNamesAsync(tickers);
     }
 
@@ -132,7 +135,8 @@
 
     private string GetStockName(string ticker)
     {
-        return _stockNames.TryGetValue(ticker, out var name) ? name : "-";
+        if (string.IsNullOrWhiteSpace(ticker)) return "-";
+        return _stockNames.TryGetValue(ticker.Trim(), out var name) ? name : "-";
     }
 
     private string TruncateName(string name)

@@ -42,16 +42,8 @@ public class StockService
 
     public async Task<Dictionary<string, string>> GetStockNamesAsync(IEnumerable<string> tickers)
     {
-        var result = new Dictionary<string, string>();
-        foreach (var ticker in tickers.Distinct())
-        {
-            var stock = await _catalogRepository.GetByTickerAsync(ticker);
-            if (stock != null)
-            {
-                result[ticker] = stock.Name;
-            }
-        }
-        return result;
+        var stocks = await _catalogRepository.GetByTickersAsync(tickers);
+        return stocks.ToDictionary(s => s.Ticker, s => s.Name, StringComparer.OrdinalIgnoreCase);
     }
 
     public async Task<(decimal Price, yQuant.Core.Models.CurrencyType Currency)?> GetCurrentPriceAsync(string ticker)

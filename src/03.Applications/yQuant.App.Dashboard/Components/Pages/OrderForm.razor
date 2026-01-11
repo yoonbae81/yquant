@@ -154,9 +154,36 @@
     private bool _isLoadingPrice = false;
     private decimal _depositPercentage = 0;
 
-    protected override async Task OnInitializedAsync()
+    @inject UiStateService UiStateService
+protected override async Task OnInitializedAsync()
     {
+        // Don't call LoadAccounts here as it might be called after UiStateService/Tickers logic
         await LoadAccounts();
+
+        // 1. If we have a Ticker param, we set it.
+        // 2. We need an account. Check UiStateService.
+
+        if (string.IsNullOrEmpty(OrderModel.AccountAlias))
+        {
+            if (!string.IsNullOrEmpty(UiStateService.SelectedAccountAlias))
+            {
+                OrderModel.AccountAlias = UiStateService.SelectedAccountAlias;
+            }
+            else if (AvailableAccounts.Any())
+            {
+                OrderModel.AccountAlias = AvailableAccounts.First().Alias;
+                UiStateService.SetAccount(OrderModel.AccountAlias);
+            }
+        }
+        else
+        {
+            UiStateService.SetAccount(OrderModel.AccountAlias);
+        }
+
+        if (!string.IsNullOrEmpty(OrderModel.AccountAlias))
+        {
+            await LoadAccountData(OrderModel.AccountAlias);
+        }
 
         // Apply URL parameter if present
         if (!string.IsNullOrEmpty(Ticker))
@@ -169,19 +196,14 @@
     private async Task LoadAccounts()
     {
         AvailableAccounts = await AccountCacheService.GetAccountsAsync();
-
-        // Set default AccountAlias if accounts exist and none selected
-        if (AvailableAccounts.Any() && string.IsNullOrEmpty(OrderModel.AccountAlias))
-        {
-            OrderModel.AccountAlias = AvailableAccounts.First().Alias;
-            await LoadAccountData(OrderModel.AccountAlias);
-        }
+        // Fallback logic moved to Init
     }
 
     private async Task OnAccountChanged(string alias)
     {
         Logger.LogInformation("OrderForm: OnAccountChanged called with alias: {Alias}", alias);
         OrderModel.AccountAlias = alias;
+        UiStateService.SetAccount(alias);
         Logger.LogInformation("OrderForm: Loading account data for alias: {Alias}", alias);
         await LoadAccountData(alias);
         CalculateDepositPercentage();

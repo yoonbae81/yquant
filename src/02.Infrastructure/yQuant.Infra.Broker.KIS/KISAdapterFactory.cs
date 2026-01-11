@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using yQuant.Core.Models;
 using yQuant.Core.Ports.Output.Infrastructure;
@@ -12,7 +13,7 @@ public class KISAdapterFactory : IBrokerAdapterFactory
     private readonly KISApiConfig _apiConfig;
     private readonly ILoggerFactory _loggerFactory;
     private readonly ILogger<KISAdapterFactory> _logger;
-    private readonly IKisTokenRepository? _tokenRepository;
+    private readonly IServiceScopeFactory _scopeFactory;
 
     // Cache clients/adapters to avoid recreating them (and to share state like tokens)
     private readonly Dictionary<string, KISClient> _clients = new();
@@ -27,13 +28,13 @@ public class KISAdapterFactory : IBrokerAdapterFactory
         IConfiguration configuration,
         IHttpClientFactory httpClientFactory,
         ILoggerFactory loggerFactory,
-        IKisTokenRepository? tokenRepository = null)
+        IServiceScopeFactory scopeFactory)
     {
         _configuration = configuration;
         _httpClientFactory = httpClientFactory;
         _loggerFactory = loggerFactory;
         _logger = loggerFactory.CreateLogger<KISAdapterFactory>();
-        _tokenRepository = tokenRepository;
+        _scopeFactory = scopeFactory;
 
         // Load API Config internally
         var apiPath = Path.Combine(AppContext.BaseDirectory, "API");
@@ -148,7 +149,14 @@ public class KISAdapterFactory : IBrokerAdapterFactory
 
         var clientLogger = _loggerFactory.CreateLogger<KISClient>();
         var httpClient = _httpClientFactory.CreateClient("KIS");
-        client = new KISClient(httpClient, clientLogger, account, _apiConfig, _baseUrl, _tokenRepository, _rateLimit);
+        client = new KISClient(
+            httpClient: httpClient,
+            logger: clientLogger,
+            account: account,
+            apiConfig: _apiConfig,
+            baseUrl: _baseUrl,
+            scopeFactory: _scopeFactory,
+            rateLimit: _rateLimit);
 
         _clients[account.Alias] = client;
         return client;
