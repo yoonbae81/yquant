@@ -480,6 +480,17 @@ namespace yQuant.App.BrokerGateway
 
                         _lastAccountSyncTime[accountAlias] = DateTime.UtcNow;
 
+                        // Publish Account Synced Event
+                        var notificationMessage = new
+                        {
+                            Type = "AccountSynced",
+                            AccountAlias = accountAlias,
+                            Timestamp = DateTime.UtcNow,
+                            Data = new { PendingSyncRemoved = true }
+                        };
+                        await db.PublishAsync(RedisChannel.Literal("notifications:system"), JsonSerializer.Serialize(notificationMessage));
+
+
                         // Clean up
                         await _syncScheduleLock.WaitAsync();
                         try

@@ -3,6 +3,7 @@
 @attribute [Microsoft.AspNetCore.Authorization.Authorize]
 
 @using yQuant.Core.Models
+@implements IDisposable
 
 @using yQuant.App.Dashboard.Services
 @using yQuant.Core.Ports.Output.Infrastructure
@@ -89,8 +90,12 @@ else
 
     @inject UiStateService UiStateService
 
+    @inject RealtimeEventService RealtimeEventService
+
     protected override async Task OnInitializedAsync()
     {
+        RealtimeEventService.OnAccountSynced += HandleAccountSynced;
+
         await LoadAccounts();
 
         if (string.IsNullOrEmpty(AccountAlias))
@@ -119,6 +124,23 @@ else
         }
     }
 
+    public void Dispose()
+    {
+        RealtimeEventService.OnAccountSynced -= HandleAccountSynced;
+    }
+
+    private async void HandleAccountSynced(string alias)
+    {
+        if (alias == AccountAlias)
+        {
+            await InvokeAsync(async () =>
+            {
+                await LoadAccountData(alias);
+                StateHasChanged();
+            });
+        }
+    }
+
     private async Task LoadAccounts()
     {
         _availableAccounts = await AccountCacheService.GetAccountsAsync();
@@ -142,11 +164,26 @@ else
 
     private async Task RefreshAccount()
     {
-        // Wait a moment for BrokerGateway to update Valkey
-        await Task.Delay(500);
+        // No longer relying on Task.Delay.
+        // We wait for the "AccountSynced" event from RealtimeEventService.
+        // However, for immediate optimistic UI feedback or manual refreshes, simple reload is fine.
+        // If this is triggered by PositionTable after an order, the backend will send an event eventually.
+        // But to be safe if event is lost, we can do a quick reload or just let the event handle it.
+        // Since we are moving to Event-Driven, we can remove the Delay.
 
         if (!string.IsNullOrEmpty(AccountAlias))
         {
+            // Optional: trigger reload immediately in case optimistic updates happened?
+            // But the main goal was to wait for broker sync.
+            // If we remove delay, we might show old data if sync isn't done.
+            // But PositionTable triggers this "OnOrderCompleted".
+            // If we just return, the event will eventually come.
+            // Let's keep a simple reload but without delay, or rely purely on event.
+            // If we rely purely on event, user might see nothing happening for 3 seconds.
+            // That's acceptable for "Debounced Sync".
+            // But "PositionTable" might want to show "Processing..." state?
+            // For now, let's just do nothing here and let HandleAccountSynced do the work.
+            // Or better, just reload immediately to catch any partial updates.
             await LoadAccountData(AccountAlias);
             StateHasChanged();
         }

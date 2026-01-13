@@ -48,6 +48,32 @@ namespace yQuant.App.Dashboard.Services
                 }
             });
 
+            // Subscribe to system notifications (including AccountSynced)
+            await subscriber.SubscribeAsync(RedisChannel.Literal("notifications:system"), (channel, message) =>
+            {
+                try
+                {
+                    _logger.LogInformation("Received system notification: {Message}", message);
+                    using var doc = JsonDocument.Parse(message.ToString());
+                    var root = doc.RootElement;
+                    if (root.TryGetProperty("Type", out var typeProp) && typeProp.GetString() == "AccountSynced")
+                    {
+                        if (root.TryGetProperty("AccountAlias", out var aliasProp))
+                        {
+                            var alias = aliasProp.GetString();
+                            if (!string.IsNullOrEmpty(alias))
+                            {
+                                _eventService.NotifyAccountSynced(alias);
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Failed to handle system notification.");
+                }
+            });
+
             // Keep the service running
             // Wait until cancellation is requested
             try

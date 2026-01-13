@@ -38,10 +38,13 @@ public class KISBrokerAdapter : IBrokerAdapter
                 }
             }
         }
-        catch
+        catch (Exception ex)
         {
-            // Silently fail - will use heuristic
+            // Fail silently but ensure empty set is returned so heuristic is used
+            // We cannot log here easily as it's a static context without a logger instance
+            System.Diagnostics.Debug.WriteLine($"Failed to load domestic tickers: {ex.Message}");
         }
+
         return tickers;
     }, LazyThreadSafetyMode.ExecutionAndPublication);
 
@@ -124,13 +127,13 @@ public class KISBrokerAdapter : IBrokerAdapter
         {
             { "CANO", cano },
             { "ACNT_PRDT_CD", acntPrdtCd },
-            { "AFHR_FLPR_YN", "N" },
-            { "OFL_YN", "N" },
-            { "INQR_DVSN", "02" },
-            { "UNPR_DVSN", "01" },
-            { "FUND_STTL_ICLD_YN", "N" },
-            { "FNCG_AMT_AUTO_RDPT_YN", "N" },
-            { "PRCS_DVSN", "00" },
+            { "AFHR_FLPR_YN", KisConstants.Flag_No },
+            { "OFL_YN", KisConstants.Flag_No },
+            { "INQR_DVSN", KisConstants.InquiryDivision_Asset },
+            { "UNPR_DVSN", KisConstants.InquiryUnit_Asset },
+            { "FUND_STTL_ICLD_YN", KisConstants.Flag_No },
+            { "FNCG_AMT_AUTO_RDPT_YN", KisConstants.Flag_No },
+            { "PRCS_DVSN", KisConstants.ProcessDivision_Main },
             { "CTX_AREA_FK100", "" },
             { "CTX_AREA_NK100", "" }
         };
@@ -181,12 +184,12 @@ public class KISBrokerAdapter : IBrokerAdapter
         // 00: 지정가 (Limit)
         // 01: 시장가 (Market)
 
-        string ordDvsn = "00";
+        string ordDvsn = KisConstants.OrderDivision_Limit;
         string ordUnpr = (order.Price ?? 0).ToString();
 
         if (order.Type == OrderType.Market)
         {
-            ordDvsn = "01";
+            ordDvsn = KisConstants.OrderDivision_Market;
             ordUnpr = "0";
         }
 
@@ -232,7 +235,7 @@ public class KISBrokerAdapter : IBrokerAdapter
         CountryCode country = GetCountryCode(order.Exchange);
         string trIdKey = GetTrIdKey(country, order.Exchange);
 
-        string ordDvsn = order.Type == OrderType.Market ? "01" : "00";
+        string ordDvsn = order.Type == OrderType.Market ? KisConstants.OrderDivision_Market : KisConstants.OrderDivision_Limit;
         string ordUnpr = order.Type == OrderType.Market ? "0" : (order.Price ?? 0).ToString("F2");
 
         // KIS API Limitation: Market Orders ("01") are not supported for many overseas markets via the standard API.
@@ -245,7 +248,7 @@ public class KISBrokerAdapter : IBrokerAdapter
             _logger.LogInformation("Emulating Market Order for {Country} stock {Ticker} using Limit Order with 10% buffer.", country, order.Ticker);
             var limitPrice = await EmulateMarketOrderPriceAsync(order.Ticker, order.Exchange, order.Action);
 
-            ordDvsn = "00"; // Limit
+            ordDvsn = KisConstants.OrderDivision_Limit; // Limit
             ordUnpr = limitPrice.ToString(country == CountryCode.VN ? "F0" : "F2");
 
             _logger.LogInformation("Execution Price used for emulation: {LimitPrice}", limitPrice);
@@ -445,10 +448,10 @@ public class KISBrokerAdapter : IBrokerAdapter
                     { "TR_CRCY_CD", curr.ToString() },
                     { "CTX_AREA_FK200", "" },
                     { "CTX_AREA_NK200", "" },
-                    { "WCRC_FRCR_DVSN_CD", "02" },
-                    { "TR_MKET_CD", "00" },
+                    { "WCRC_FRCR_DVSN_CD", KisConstants.InquiryDivision_Asset },
+                    { "TR_MKET_CD", KisConstants.MarketCode_General },
                     { "NATN_CD", GetNationCode(exch) },
-                    { "INQR_DVSN_CD", "00" }
+                    { "INQR_DVSN_CD", KisConstants.ProcessDivision_Main }
                 };
 
                 _logger.LogInformation("Calling OverseasBalance API for {Currency}", curr);
@@ -636,9 +639,9 @@ public class KISBrokerAdapter : IBrokerAdapter
             {
                 { "CANO", cano },
                 { "ACNT_PRDT_CD", acntPrdtCd },
-                { "INQR_DVSN_1", "0" }, // 0: 議고쉶?쒖꽌
-                { "INQR_DVSN_3", "00" }, // 00: ?꾩껜
-                { "INQR_DVSN_2", "01" }, // 01: 誘몄껜寃?                { "CTX_AREA_FK100", "" },
+                { "INQR_DVSN_1", KisConstants.OpenOrder_Inquiry_Order }, // 0: Order 
+                { "INQR_DVSN_3", KisConstants.OpenOrder_Inquiry_All }, // 00: All
+                { "INQR_DVSN_2", KisConstants.OpenOrder_Inquiry_Unexecuted }, // 01: Unexecuted
                 { "CTX_AREA_NK100", "" }
             };
 
